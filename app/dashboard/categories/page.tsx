@@ -9,10 +9,11 @@
 import { getCategories } from '@/app/actions/categories';
 import { CategoryTreeClient } from './CategoryTreeClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { TreeNode } from '@/lib/types/category';
 
 export default async function CategoriesPage() {
   // Server Component：獲取初始數據
-  let categories = [];
+  let categories: TreeNode[] = [];
   
   try {
     categories = await getCategories();
