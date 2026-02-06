@@ -11,6 +11,9 @@ import { CategoryTreeClient } from './CategoryTreeClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { TreeNode } from '@/lib/types/category';
 
+// 此页面需要动态渲染，因为使用了 cookies 来获取用户认证状态
+export const dynamic = 'force-dynamic';
+
 export default async function CategoriesPage() {
   // Server Component：獲取初始數據
   let categories: TreeNode[] = [];
