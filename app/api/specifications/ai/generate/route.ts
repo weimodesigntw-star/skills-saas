@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { AIGenerationRequestSchema, AIGenerationResponseSchema } from '@/lib/validations/spec';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 
 /**
  * POST /api/specifications/ai/generate
@@ -24,7 +24,7 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
