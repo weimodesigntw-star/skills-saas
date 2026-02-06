@@ -232,22 +232,22 @@ export const generateSpecSystemPrompt = `你是一個專業的產品規格生成
    - 固定選項 -> \`select\` 或 \`multiselect\`
    - 複雜結構 -> \`object\`
 4. **選項提取**: 從描述中提取可能的選項值，或使用常見選項
-5. **完整性**: 盡可能提取所有關鍵信息，缺失信息標記為 `required: false`
+5. **完整性**: 盡可能提取所有關鍵信息，缺失信息標記為 \`required: false\`
 6. **標籤生成**: 根據產品類型自動生成相關標籤（tags）
 
 ## 處理策略
 
-- **模糊信息**: 使用合理的預設值，並標記為 `required: false`
-- **多值信息**: 使用 `multiselect` 或 `array` 類型
-- **結構化信息**: 使用 `object` 類型組織相關欄位
-- **數值驗證**: 為數字欄位添加 `validation.min` 或 `validation.max`
+- **模糊信息**: 使用合理的預設值，並標記為 \`required: false\`
+- **多值信息**: 使用 \`multiselect\` 或 \`array\` 類型
+- **結構化信息**: 使用 \`object\` 類型組織相關欄位
+- **數值驗證**: 為數字欄位添加 \`validation.min\` 或 \`validation.max\`
 
 ## 輸出要求
 
 1. 只輸出有效的 JSON，不要包含 Markdown 代碼塊標記
 2. 確保所有欄位符合 Schema 定義
 3. 數組和對象必須正確格式化
-4. 布爾值使用 `true`/`false`，不使用字符串
+4. 布爾值使用 \`true\`/\`false\`，不使用字符串
 
 現在，請根據用戶的輸入生成符合上述格式的規格數據。`;
 
