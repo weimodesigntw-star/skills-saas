@@ -199,8 +199,6 @@ export function SortableTree({
             <TreeItem
               key={node.id}
               node={node}
-              onEdit={onNodeEdit}
-              onDelete={onNodeDelete}
             />
           ))}
         </div>
