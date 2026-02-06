@@ -227,10 +227,10 @@ export const generateSpecSystemPrompt = `你是一個專業的產品規格生成
 1. **欄位命名**: 使用英文 snake_case，key 與欄位名一致
 2. **標籤本地化**: label 使用繁體中文
 3. **類型推斷**: 根據內容智能判斷欄位類型
-   - 價格、數量 → `number`
-   - 是/否 → `boolean`
-   - 固定選項 → `select` 或 `multiselect`
-   - 複雜結構 → `object`
+   - 價格、數量 -> \`number\`
+   - 是/否 -> \`boolean\`
+   - 固定選項 -> \`select\` 或 \`multiselect\`
+   - 複雜結構 -> \`object\`
 4. **選項提取**: 從描述中提取可能的選項值，或使用常見選項
 5. **完整性**: 盡可能提取所有關鍵信息，缺失信息標記為 `required: false`
 6. **標籤生成**: 根據產品類型自動生成相關標籤（tags）
