@@ -65,6 +65,8 @@ export function EditCategoryDialog({
   const [isPending, startTransition] = useTransition();
   const [previousDescription, setPreviousDescription] = useState<string>('');
   const isEditMode = categoryId !== null;
+  const isAddRootCategory = categoryId === null && parentId === null;
+  const isAddSubCategory = categoryId === null && parentId !== null;
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
@@ -134,7 +136,8 @@ export function EditCategoryDialog({
         
         form.reset();
         onOpenChange(false);
-        router.refresh(); // 刷新 Server Component 數據
+        // 刷新 Server Component 數據
+        router.refresh();
       } catch (error) {
         console.error('Failed to save category:', error);
         if (error instanceof Error) {
@@ -149,12 +152,18 @@ export function EditCategoryDialog({
       <DialogContent onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? '編輯分類' : '新增子分類'}
+            {isEditMode 
+              ? '編輯分類' 
+              : isAddRootCategory 
+                ? '新增分類' 
+                : '新增子分類'}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
               ? '修改分類名稱和描述'
-              : '為此分類新增一個子分類'}
+              : isAddRootCategory
+                ? '創建一個新的根分類'
+                : '為此分類新增一個子分類'}
           </DialogDescription>
         </DialogHeader>
 

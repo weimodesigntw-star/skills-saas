@@ -29,9 +29,11 @@ import { DeleteAlert } from './DeleteAlert';
 interface TreeItemProps {
   node: TreeNode;
   level?: number;
+  isOver?: boolean;
+  dropPosition?: 'before' | 'after' | 'inside' | null;
 }
 
-export function TreeItem({ node, level = 0 }: TreeItemProps) {
+export function TreeItem({ node, level = 0, isOver = false, dropPosition = null }: TreeItemProps) {
   const { expandedIds, activeId, selectedId, toggleExpand, setSelectedId } = useCategoryStore();
   const isExpanded = expandedIds.has(node.id);
   const isActive = activeId === node.id;
@@ -93,12 +95,19 @@ export function TreeItem({ node, level = 0 }: TreeItemProps) {
           isDragging && 'z-50'
         )}
       >
+        {/* 拖拽位置指示器 - Before */}
+        {isOver && dropPosition === 'before' && (
+          <div className="h-0.5 bg-primary rounded-full mb-1 mx-2" />
+        )}
+        
         <Card
           className={cn(
             'mb-1 transition-all duration-200',
             isSelected && 'ring-2 ring-primary',
             isActive && 'bg-muted/50',
-            isDragging && 'shadow-lg'
+            isDragging && 'shadow-lg',
+            isOver && dropPosition === 'inside' && 'ring-2 ring-primary ring-dashed bg-primary/5',
+            isOver && dropPosition === 'after' && 'ring-2 ring-primary'
           )}
           onClick={handleClick}
         >
@@ -163,6 +172,11 @@ export function TreeItem({ node, level = 0 }: TreeItemProps) {
             </div>
           </CardContent>
         </Card>
+        
+        {/* 拖拽位置指示器 - After */}
+        {isOver && dropPosition === 'after' && (
+          <div className="h-0.5 bg-primary rounded-full mt-1 mx-2" />
+        )}
         
         {/* 遞迴渲染子節點 */}
         {hasChildren && isExpanded && (

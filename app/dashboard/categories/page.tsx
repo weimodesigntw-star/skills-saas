@@ -10,6 +10,7 @@ import { getCategories } from '@/app/actions/categories';
 import { CategoryTreeClient } from './CategoryTreeClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { TreeNode } from '@/lib/types/category';
+import { AiCategoryGenerator } from '@/components/ai-category-generator';
 
 // 此页面需要动态渲染，因为使用了 cookies 来获取用户认证状态
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,9 @@ export default async function CategoriesPage() {
             拖拽節點可以重新排序，支持無限層級嵌套
           </p>
         </div>
+        
+        {/* AI 分類生成器 */}
+        <AiCategoryGenerator />
         
         {/* Client Component：處理拖拽和交互 */}
         <CategoryTreeClient initialData={categories} />

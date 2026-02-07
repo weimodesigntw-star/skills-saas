@@ -63,7 +63,8 @@ export function DeleteAlert({
       try {
         await deleteCategory(category.id);
         onOpenChange(false);
-        router.refresh(); // 刷新 Server Component 數據
+        // 刷新 Server Component 數據
+        router.refresh();
       } catch (error) {
         console.error('Failed to delete category:', error);
         if (error instanceof Error) {
