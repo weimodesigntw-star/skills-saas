@@ -368,7 +368,12 @@ export function AiCategoryGenerator() {
                       </div>
 
                       <div className="space-y-3">
-                        {object.categories.map((category: Category, index: number) => {
+                        {object.categories.map((category, index) => {
+                          // 類型檢查：確保 category 存在且有名稱
+                          if (!category || !category.name) return null;
+                          
+                          // TypeScript 類型斷言：此時 category 一定是有效的 Category
+                          const validCategory = category as Category;
                           const isSelected = selectedCategories.has(index);
                           return (
                             <Card 
@@ -387,11 +392,11 @@ export function AiCategoryGenerator() {
                                       />
                                       <div className="flex-1">
                                         <h4 className="font-semibold text-lg">
-                                          {category.name}
+                                          {validCategory.name}
                                         </h4>
-                                        {category.description && (
+                                        {validCategory.description && (
                                           <p className="text-sm text-muted-foreground mt-1">
-                                            {category.description}
+                                            {validCategory.description}
                                           </p>
                                         )}
                                       </div>
@@ -399,20 +404,23 @@ export function AiCategoryGenerator() {
                                   </div>
                                 
                                 {/* 子分類 */}
-                                {category.subcategories && category.subcategories.length > 0 && (
+                                {validCategory.subcategories && validCategory.subcategories.length > 0 && (
                                   <div className="mt-3 ml-4 space-y-2 border-l-2 border-l-muted pl-4">
-                                    {category.subcategories.map((sub, subIndex) => (
-                                      <div key={subIndex} className="py-1">
-                                        <div className="font-medium text-sm">
-                                          {sub.name}
-                                        </div>
-                                        {sub.description && (
-                                          <div className="text-xs text-muted-foreground mt-0.5">
-                                            {sub.description}
+                                    {validCategory.subcategories.map((sub, subIndex) => {
+                                      if (!sub || !sub.name) return null;
+                                      return (
+                                        <div key={subIndex} className="py-1">
+                                          <div className="font-medium text-sm">
+                                            {sub.name}
                                           </div>
-                                        )}
-                                      </div>
-                                    ))}
+                                          {sub.description && (
+                                            <div className="text-xs text-muted-foreground mt-0.5">
+                                              {sub.description}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
