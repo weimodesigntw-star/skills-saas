@@ -190,7 +190,7 @@ export function AiCategoryGenerator() {
       
       for (const index of selectedCategoriesArray) {
         const category = object.categories?.[index];
-        if (!category) continue; // 如果找不到分類，跳過
+        if (!category || !category.name) continue; // 如果找不到分類或名稱不存在，跳過
         
         const createdCategory = await createCategory(
           category.name,
@@ -203,6 +203,7 @@ export function AiCategoryGenerator() {
         // 如果有子分類，創建它們
         if (category.subcategories && category.subcategories.length > 0) {
           for (const subcategory of category.subcategories) {
+            if (!subcategory.name) continue; // 如果子分類名稱不存在，跳過
             await createCategory(
               subcategory.name,
               subcategory.description || null,
