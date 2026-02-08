@@ -6,6 +6,7 @@
  */
 
 import { createServerClient as createSupabaseServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 export function createServerClient() {
@@ -29,6 +30,33 @@ export function createServerClient() {
             // 這是正常的，因為 Server Actions 在請求處理後執行
           }
         },
+      },
+    }
+  );
+}
+
+/**
+ * Supabase Admin Client
+ * 
+ * 使用 Service Role Key 繞過 RLS (Row Level Security)
+ * 僅用於需要管理員權限的操作（如 Webhook 更新用戶訂閱狀態）
+ * 
+ * ⚠️ 警告：此客戶端具有完整資料庫訪問權限，請謹慎使用
+ */
+export function createAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables');
+  }
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   );

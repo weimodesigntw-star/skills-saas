@@ -175,7 +175,11 @@ export function AiCategoryGenerator() {
     // 計算選中分類的總數（主分類 + 所有子分類）
     const selectedCategoriesArray = Array.from(selectedCategories);
     const totalCategories = selectedCategoriesArray.reduce((sum, index) => {
-      const category = object.categories[index];
+      // 👇 修改重點：加了 ?. 並做了防呆檢查
+      const category = object.categories?.[index]; 
+      
+      if (!category) return sum; // 如果找不到分類，就跳過
+
       return sum + 1 + (category.subcategories?.length || 0);
     }, 0);
     setImportProgress({ current: 0, total: totalCategories });
@@ -185,7 +189,9 @@ export function AiCategoryGenerator() {
       let importedCount = 0;
       
       for (const index of selectedCategoriesArray) {
-        const category = object.categories[index];
+        const category = object.categories?.[index];
+        if (!category) continue; // 如果找不到分類，跳過
+        
         const createdCategory = await createCategory(
           category.name,
           category.description || null,

@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { getCurrentUser } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
+import { UpgradeButton } from '@/components/stripe/UpgradeButton';
 import { 
   Sparkles, 
   Move, 
@@ -232,13 +233,24 @@ export default async function HomePage() {
               </li>
             </ul>
 
-            <Button 
-              className="w-full bg-white text-indigo-600 hover:bg-indigo-50"
-              size="lg"
-              disabled
-            >
-              Coming Soon
-            </Button>
+            {isLoggedIn ? (
+              <UpgradeButton
+                className="w-full bg-white text-indigo-600 hover:bg-indigo-50"
+                size="lg"
+              >
+                升級至 Pro
+              </UpgradeButton>
+            ) : (
+              <Button 
+                asChild
+                className="w-full bg-white text-indigo-600 hover:bg-indigo-50"
+                size="lg"
+              >
+                <Link href="/login">
+                  登入以升級
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>

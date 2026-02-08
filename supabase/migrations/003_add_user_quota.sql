@@ -56,6 +56,7 @@ WHERE tier IS NULL OR ai_usage_count IS NULL OR last_reset_date IS NULL;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- RLS 策略：用戶只能查看和更新自己的資料
+-- 方案 A: 分別設置 SELECT 和 UPDATE（更精細控制）
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile"
   ON profiles FOR SELECT
@@ -65,6 +66,15 @@ DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE
   USING (auth.uid() = id);
+
+-- 方案 B: 統一策略（備選方案，如果需要可以取消註釋）
+-- DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+-- DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+-- CREATE POLICY "Allow all actions for users" 
+-- ON "public"."profiles"
+-- FOR ALL 
+-- USING (auth.uid() = id)
+-- WITH CHECK (auth.uid() = id);
 
 -- 創建觸發器：自動更新 updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

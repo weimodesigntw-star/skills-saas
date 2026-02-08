@@ -56,9 +56,6 @@ export async function POST(request: NextRequest) {
     if (!quotaCheck.allowed) {
       console.log('[AI Generate] Quota limit reached', quotaCheck);
       
-      // 使用配置檔案中的常量，確保一致性
-      const limit = quotaCheck.limit ?? FREE_DAILY_LIMIT;
-      
       const resetDateStr = quotaCheck.resetDate 
         ? new Date(quotaCheck.resetDate).toLocaleDateString('zh-TW', {
             year: 'numeric',
@@ -70,10 +67,10 @@ export async function POST(request: NextRequest) {
       return new Response(
         JSON.stringify({ 
           error: '您已達到今日免費額度',
-          message: `免費方案每日限制 ${limit} 次 AI 生成。請於 ${resetDateStr} 再試，或升級至 Pro 方案以獲得無限制使用。`,
+          message: `免費方案每日限制 3 次 AI 生成。請於 ${resetDateStr} 再試，或升級至 Pro 方案以獲得無限制使用。`,
           quota: {
             remaining: quotaCheck.remaining ?? 0,
-            limit: limit,
+            limit: quotaCheck.limit ?? 3,
             resetDate: quotaCheck.resetDate,
             tier: quotaCheck.tier ?? 'free',
           },
