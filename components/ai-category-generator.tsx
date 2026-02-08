@@ -265,7 +265,7 @@ export function AiCategoryGenerator() {
               />
               <Button 
                 type="submit" 
-                disabled={isLoading || isGenerating || !topic.trim() || (quota && !quota.allowed && quota.tier !== 'pro')}
+                disabled={isLoading || isGenerating || !topic.trim() || (quota ? (!quota.allowed && quota.tier !== 'pro') : false)}
                 className="min-w-[100px]"
               >
                 {isLoading || isGenerating ? (
