@@ -203,7 +203,8 @@ export function AiCategoryGenerator() {
         // 如果有子分類，創建它們
         if (category.subcategories && category.subcategories.length > 0) {
           for (const subcategory of category.subcategories) {
-            if (!subcategory.name) continue; // 如果子分類名稱不存在，跳過
+            // 檢查子分類是否存在且有名稱
+            if (!subcategory || !subcategory.name) continue; // 如果子分類不存在或名稱不存在，跳過
             await createCategory(
               subcategory.name,
               subcategory.description || null,
