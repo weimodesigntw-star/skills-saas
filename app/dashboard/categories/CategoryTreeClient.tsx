@@ -210,28 +210,28 @@ export function CategoryTreeClient({ initialData }: CategoryTreeClientProps) {
   return (
     <div className="space-y-4">
       {/* 搜索栏和新增按钮 */}
-      <div className="flex gap-3 items-center">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         {/* 搜索输入框 */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative flex-1 w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
           <Input
             type="text"
             placeholder="搜索分類名稱或描述..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10"
+            className="pl-10 pr-10 w-full"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
               aria-label="清除搜索"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
-        <Button onClick={handleAddCategory} disabled={isPending}>
+        <Button onClick={handleAddCategory} disabled={isPending} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           新增分類
         </Button>
