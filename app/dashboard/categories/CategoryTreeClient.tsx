@@ -9,14 +9,15 @@
 
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { TreeNode } from '@/lib/types/category';
 import { SortableTree } from '@/components/category/SortableTree';
 import { EditCategoryDialog } from '@/components/category/EditCategoryDialog';
 import { updateCategoryOrder, deleteCategory, getCategories } from '@/app/actions/categories';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Plus, Loader2, Search, X } from 'lucide-react';
 
 interface CategoryTreeClientProps {
   initialData: TreeNode[];
@@ -30,11 +31,52 @@ export function CategoryTreeClient({ initialData }: CategoryTreeClientProps) {
   const [moveError, setMoveError] = useState<string | null>(null);
   const [isMoving, setIsMoving] = useState(false); // 跟踪拖拽操作状态
   const [progress, setProgress] = useState(0); // 进度百分比
+  const [searchQuery, setSearchQuery] = useState(''); // 搜索关键词
   
   // 當 initialData 更新時（例如 router.refresh() 後），同步更新本地 state
   useEffect(() => {
     setData(initialData);
   }, [initialData]);
+
+  // 搜索和过滤逻辑
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return data;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    
+    // 递归搜索函数：检查节点是否匹配，并保留匹配的节点及其父节点
+    const searchTree = (nodes: TreeNode[]): TreeNode[] => {
+      const result: TreeNode[] = [];
+      
+      for (const node of nodes) {
+        // 检查当前节点是否匹配
+        const matchesName = node.name.toLowerCase().includes(query);
+        const matchesDescription = node.description?.toLowerCase().includes(query) || false;
+        const isMatch = matchesName || matchesDescription;
+        
+        // 递归搜索子节点
+        const filteredChildren = node.children ? searchTree(node.children) : [];
+        const hasMatchingChildren = filteredChildren.length > 0;
+        
+        // 如果当前节点匹配或有匹配的子节点，则保留
+        if (isMatch || hasMatchingChildren) {
+          result.push({
+            ...node,
+            children: filteredChildren.length > 0 ? filteredChildren : node.children,
+            // 添加搜索匹配标记
+            _searchMatch: isMatch,
+            _hasMatchingChildren: hasMatchingChildren,
+          } as TreeNode);
+        }
+      }
+      
+      return result;
+    };
+    
+    return searchTree(data);
+  }, [data, searchQuery]);
   
   // 模擬進度條動畫
   useEffect(() => {
@@ -167,12 +209,44 @@ export function CategoryTreeClient({ initialData }: CategoryTreeClientProps) {
   
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      {/* 搜索栏和新增按钮 */}
+      <div className="flex gap-3 items-center">
+        {/* 搜索输入框 */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="搜索分類名稱或描述..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="清除搜索"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
         <Button onClick={handleAddCategory} disabled={isPending}>
           <Plus className="w-4 h-4 mr-2" />
           新增分類
         </Button>
       </div>
+      
+      {/* 搜索结果提示 */}
+      {searchQuery && (
+        <div className="text-sm text-muted-foreground">
+          {filteredData.length > 0 ? (
+            <>找到 {filteredData.length} 個匹配的分類</>
+          ) : (
+            <>未找到匹配的分類</>
+          )}
+        </div>
+      )}
       
       {data.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -181,11 +255,12 @@ export function CategoryTreeClient({ initialData }: CategoryTreeClientProps) {
       ) : (
         <div className="border rounded-lg p-4 bg-card relative">
           <SortableTree
-            data={data}
+            data={filteredData}
             onNodeMove={handleNodeMove}
             onNodeEdit={handleNodeEdit}
             onNodeDelete={handleNodeDelete}
-            disabled={isMoving}
+            disabled={isMoving || !!searchQuery}
+            searchQuery={searchQuery}
           />
           {isMoving && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">

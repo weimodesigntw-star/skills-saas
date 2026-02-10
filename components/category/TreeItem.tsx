@@ -14,7 +14,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronRight, GripVertical } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TreeNode } from '@/lib/types/category';
 import { useCategoryStore } from '@/store/useCategoryStore';
 import { cn } from '@/lib/utils';
@@ -31,14 +31,45 @@ interface TreeItemProps {
   level?: number;
   isOver?: boolean;
   dropPosition?: 'before' | 'after' | 'inside' | null;
+  searchQuery?: string; // 搜索关键词（用于高亮）
 }
 
-export function TreeItem({ node, level = 0, isOver = false, dropPosition = null }: TreeItemProps) {
+export function TreeItem({ node, level = 0, isOver = false, dropPosition = null, searchQuery = '' }: TreeItemProps) {
   const { expandedIds, activeId, selectedId, toggleExpand, setSelectedId } = useCategoryStore();
   const isExpanded = expandedIds.has(node.id);
   const isActive = activeId === node.id;
   const isSelected = selectedId === node.id;
   const hasChildren = node.children && node.children.length > 0;
+  
+  // 搜索匹配逻辑
+  const searchMatch = searchQuery ? {
+    nameMatch: node.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    descriptionMatch: node.description?.toLowerCase().includes(searchQuery.toLowerCase()) || false,
+  } : { nameMatch: false, descriptionMatch: false };
+  const isSearchMatch = searchMatch.nameMatch || searchMatch.descriptionMatch;
+  const hasMatchingChildren = (node as any)._hasMatchingChildren || false;
+  
+  // 如果有搜索关键词且有匹配的子节点，自动展开
+  useEffect(() => {
+    if (searchQuery && (isSearchMatch || hasMatchingChildren)) {
+      if (!isExpanded) {
+        toggleExpand(node.id);
+      }
+    }
+  }, [searchQuery, isSearchMatch, hasMatchingChildren, isExpanded, node.id, toggleExpand]);
+  
+  // 高亮文本函数
+  const highlightText = (text: string, query: string) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === query.toLowerCase() ? (
+        <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-1">
+          {part}
+        </mark>
+      ) : part
+    );
+  };
   
   // 對話框狀態
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -152,10 +183,18 @@ export function TreeItem({ node, level = 0, isOver = false, dropPosition = null 
                 className="flex-1 min-w-0"
                 style={{ paddingLeft: `${level * 1.5}rem` }}
               >
-                <div className="font-medium text-sm">{node.name}</div>
+                <div className={cn(
+                  "font-medium text-sm",
+                  isSearchMatch && searchQuery && "bg-yellow-100 dark:bg-yellow-900/30 rounded px-1"
+                )}>
+                  {searchQuery ? highlightText(node.name, searchQuery) : node.name}
+                </div>
                 {node.description && (
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {node.description}
+                  <div className={cn(
+                    "text-xs text-muted-foreground mt-0.5",
+                    searchMatch.descriptionMatch && searchQuery && "bg-yellow-100 dark:bg-yellow-900/30 rounded px-1"
+                  )}>
+                    {searchQuery ? highlightText(node.description, searchQuery) : node.description}
                   </div>
                 )}
               </div>
@@ -186,6 +225,7 @@ export function TreeItem({ node, level = 0, isOver = false, dropPosition = null 
                 key={child.id}
                 node={child}
                 level={level + 1}
+                searchQuery={searchQuery}
               />
             ))}
           </div>

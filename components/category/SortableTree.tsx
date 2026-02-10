@@ -39,6 +39,7 @@ interface SortableTreeProps {
   onNodeEdit?: (id: string) => void;
   onNodeDelete?: (id: string) => void;
   disabled?: boolean; // 禁用拖拽功能
+  searchQuery?: string; // 搜索关键词（用于高亮）
 }
 
 /**
@@ -173,6 +174,7 @@ export function SortableTree({
   onNodeEdit,
   onNodeDelete,
   disabled = false,
+  searchQuery = '',
 }: SortableTreeProps) {
   const { setItems, setActiveId, moveNode, getTree } = useCategoryStore();
   const [activeNode, setActiveNode] = useState<TreeNode | null>(null);
@@ -290,6 +292,7 @@ export function SortableTree({
               node={node}
               isOver={overId === node.id}
               dropPosition={overId === node.id ? dropPosition : null}
+              searchQuery={searchQuery}
             />
           ))}
         </div>

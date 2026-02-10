@@ -31,4 +31,7 @@ export interface FlatCategory extends Omit<Category, 'children'> {
  */
 export interface TreeNode extends Category {
   children?: TreeNode[];
+  // 搜索相关扩展字段（运行时添加）
+  _searchMatch?: boolean;
+  _hasMatchingChildren?: boolean;
 }
