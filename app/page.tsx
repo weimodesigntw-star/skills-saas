@@ -83,18 +83,21 @@ export default async function HomePage() {
               </Link>
             </Button>
             <Button 
+              asChild
               size="lg" 
               variant="outline"
               className="border-2 border-slate-300 hover:border-slate-400 px-8 py-6 text-lg"
             >
-              了解更多
+              <Link href="#features">
+                了解更多
+              </Link>
             </Button>
           </div>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             為什麼選擇 Skills SaaS？
@@ -258,7 +261,12 @@ export default async function HomePage() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-slate-600">
+          <div className="flex justify-center space-x-6 text-sm text-slate-500 mb-4">
+            <Link href="/privacy" className="hover:text-indigo-600 transition-colors">隱私權政策</Link>
+            <span>|</span>
+            <Link href="/terms" className="hover:text-indigo-600 transition-colors">服務條款</Link>
+          </div>
+          <div className="text-center text-slate-500 text-sm">
             <p>© 2026 Skills SaaS. All rights reserved.</p>
           </div>
         </div>
