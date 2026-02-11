@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
 
 請只返回描述文字，不要其他內容或標點符號。`,
       temperature: 0.7,
-      maxTokens: 100,
     });
 
     logger.info('[AI Description] Generated description for:', categoryName);
