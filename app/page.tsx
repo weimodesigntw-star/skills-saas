@@ -19,8 +19,13 @@ import {
 import { FREE_DAILY_LIMIT } from '@/lib/config/subscription';
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
-  const isLoggedIn = !!user;
+  let isLoggedIn = false;
+  try {
+    const user = await getCurrentUser();
+    isLoggedIn = !!user;
+  } catch (e) {
+    // Supabase 連線失敗時仍顯示首頁（未登入狀態）
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">

@@ -60,6 +60,27 @@ export async function getPublicCategories(): Promise<TreeNode[]> {
 }
 
 /**
+ * 獲取扁平化分類列表（用於下拉選單等）
+ * 返回 { id, name } 陣列
+ */
+export async function getCategoriesFlatForSelect(): Promise<{ id: string; name: string }[]> {
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .order('sort_order', { ascending: true });
+
+  if (error) throw new Error(`Failed to fetch categories: ${error.message}`);
+
+  // 扁平化樹狀結構的 name 顯示（可用 path 或 name）
+  return (data || []).map((c) => ({ id: c.id, name: c.name }));
+}
+
+/**
  * 獲取所有分類（樹狀結構）
  * 
  * 邏輯：
