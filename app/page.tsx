@@ -19,8 +19,13 @@ import {
 import { FREE_DAILY_LIMIT } from '@/lib/config/subscription';
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
-  const isLoggedIn = !!user;
+  let isLoggedIn = false;
+  try {
+    const user = await getCurrentUser();
+    isLoggedIn = !!user;
+  } catch (e) {
+    // Supabase 連線失敗時仍顯示首頁（未登入狀態）
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -130,7 +135,7 @@ export default async function HomePage() {
               拖拽排序
             </h3>
             <p className="text-slate-600 leading-relaxed">
-              直觀的層級管理，透過簡單的拖拽操作即可重新組織分類結構，無需複雜設定。
+              直觀的層紐管理，透過粁單的拖拽操作即可重新組織分類結構，無需複雜設定。
             </p>
           </div>
 
