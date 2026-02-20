@@ -3,7 +3,78 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  FolderTree,
+  ShoppingCart,
+  Package,
+  FileText,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+
+const navItems = [
+  { href: '/dashboard', label: '總覽', icon: LayoutDashboard },
+  { href: '/dashboard/categories', label: '分類管理', icon: FolderTree },
+  { href: '/dashboard/pos', label: 'POS 銷售', icon: ShoppingCart },
+  { href: '/dashboard/products', label: '商品', icon: Package },
+  { href: '/dashboard/specifications', label: '規格', icon: FileText },
+  { href: '/dashboard/reports', label: '報表', icon: BarChart3 },
+];
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-screen"><aside className="w-56 border-r bg-card p-4">Sidebar</aside><main className="flex-1">{children}</main></div>;
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="flex min-h-screen">
+      <aside
+        className={cn(
+          'border-r bg-card flex flex-col transition-[width] duration-200',
+          collapsed ? 'w-16' : 'w-56'
+        )}
+      >
+        <div className="flex h-14 items-center justify-between border-b px-3">
+          {!collapsed && (
+            <Link href="/dashboard" className="font-semibold text-foreground">
+              Skills
+            </Link>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? '展開' : '收合'}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        </div>
+        <nav className="flex-1 space-y-0.5 p-2">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+      <main className="flex-1 min-w-0">{children}</main>
+    </div>
+  );
 }
