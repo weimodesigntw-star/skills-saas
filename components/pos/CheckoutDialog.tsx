@@ -132,16 +132,19 @@ export function CheckoutDialog({ open, onClose }: CheckoutDialogProps) {
         unit_price: item.unitPrice,
       }));
 
-      const orderId = await createPosOrder(
+      const result = await createPosOrder(
         selectedPayment,
         items,
         discountAmount
       );
 
-      setOrderId(orderId);
-
-      // Extract order number from response (assuming it's the ID format)
-      setOrderNumber(`POS-${orderId.substring(0, 8).toUpperCase()}`);
+      if ('error' in result) {
+        toast.error(result.error);
+        setProcessing(false);
+        return;
+      }
+      setOrderId(result.orderId);
+      setOrderNumber(result.orderNumber);
 
       setStep('receipt');
     } catch (error) {
