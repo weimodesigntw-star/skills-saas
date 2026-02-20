@@ -63,7 +63,7 @@ export function ProductGrid({ isLoading: externalLoading = false }: ProductGridP
       <div className="flex items-center justify-center h-64 rounded-lg border border-dashed bg-muted/50">
         <div className="text-center">
           <p className="text-sm font-medium text-muted-foreground">
-            {searchQuery ? '查無相符的商品' : '此分類無商品'}
+            {searchQuery ? '柁無相符的商品' : '此分類無商品'}
           </p>
           {searchQuery && (
             <p className="text-xs text-muted-foreground mt-1">

@@ -47,7 +47,7 @@ const InvoiceInfoSchema = z.object({
     .optional()
     .refine(
       (val) => !val || /^\d{3,7}$/.test(val),
-      '愛心碼必須為 3-7 位數字'
+      '愛心碼必須炶 3-7 位數字'
     ),
 });
 
@@ -138,10 +138,10 @@ export async function createInvoice(
       invoiceNumber = await getNextInvoiceNumber(user.id);
     } catch (error) {
       const msg = error instanceof Error ? error.message : '未知錯誤';
-      return { success: false, error: `取得發票號碼失敗: ${msg}` };
+      return { success: false, error: `取得癹票號碼失敗: ${msg}` };
     }
 
-    // 組裝發票明細項（轉換為 ECPay 格式）
+    // 組裝癹票明細項（轉換為 ECPay 格式）
     const invoiceItems: InvoiceItem[] = (items as OrderItem[]).map((item) => ({
       itemName: item.product_name,
       itemCount: item.quantity,

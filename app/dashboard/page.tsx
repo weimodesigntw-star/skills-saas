@@ -1,7 +1,7 @@
 /**
  * Dashboard Overview Page
  *
- * 總覽頁面 — 顯示關鍵指標卡片、7日營收走勢、熱銷商品、最近訂單
+ * 總覽頁面 — 顯示關鍵指標卡片、7日營收趰勢、熱銷商品、最近訂單
  */
 
 import { createServerClient } from '@/lib/supabase/server';
@@ -189,7 +189,7 @@ export default async function DashboardOverviewPage() {
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">總覽</h1>
-        <p className="text-muted-foreground mt-1">歡迎回來！以下是您的系統概況。</p>
+        <p className="text-muted-foreground mt-1">歡迎回來！以下是您的系絭概況。</p>
       </div>
 
       {/* 4 StatCards */}

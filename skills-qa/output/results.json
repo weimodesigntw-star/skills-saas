@@ -1,0 +1,770 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-17T09:16:41.920502",
+    "total_duration_sec": 9.22,
+    "framework": "unittest"
+  },
+  "summary": {
+    "total": 57,
+    "passed": 56,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1,
+    "pass_rate": 0.9825
+  },
+  "by_tier": {
+    "tier_2": {
+      "passed": 5,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 5
+    },
+    "tier_1": {
+      "passed": 33,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 33
+    },
+    "tier_4": {
+      "passed": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 1,
+      "total": 7
+    },
+    "tier_3": {
+      "passed": 12,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 12
+    }
+  },
+  "by_skill": {
+    "docx": {
+      "passed": 7,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 7
+    },
+    "pdf": {
+      "passed": 9,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 9
+    },
+    "pptx": {
+      "passed": 7,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 7
+    },
+    "regression": {
+      "passed": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 1,
+      "total": 7
+    },
+    "skill_creator": {
+      "passed": 7,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 7
+    },
+    "stress": {
+      "passed": 12,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 12
+    },
+    "xlsx": {
+      "passed": 8,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "total": 8
+    }
+  },
+  "tests": [
+    {
+      "name": "test_create_validate_convert_workflow",
+      "class": "TestDocxIntegration",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.596,
+      "tier": "2",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_create_simple_document",
+      "class": "TestDocxUnit",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.044,
+      "tier": "1",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_empty_document",
+      "class": "TestDocxUnit",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.043,
+      "tier": "1",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_multiple_paragraphs",
+      "class": "TestDocxUnit",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.044,
+      "tier": "1",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_unicode_content",
+      "class": "TestDocxUnit",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.043,
+      "tier": "1",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_valid_zip_structure",
+      "class": "TestDocxUnit",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.043,
+      "tier": "1",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_xml_schema_validation",
+      "class": "TestDocxUnit",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.373,
+      "tier": "1",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_create_split_merge_verify",
+      "class": "TestPdfIntegration",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 1.118,
+      "tier": "2",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_create_pdf",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_merge_pdfs",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_page_count",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.002,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_qpdf_validation",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_rotation",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.001,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_split_pdf",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.002,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_text_extraction_pdfplumber",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.056,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_text_extraction_pypdf",
+      "class": "TestPdfUnit",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 0.001,
+      "tier": "1",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_create_convert_workflow",
+      "class": "TestPptxIntegration",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.244,
+      "tier": "2",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_text_extraction",
+      "class": "TestPptxIntegration",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.811,
+      "tier": "2",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_create_presentation",
+      "class": "TestPptxUnit",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.035,
+      "tier": "1",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_single_slide",
+      "class": "TestPptxUnit",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.033,
+      "tier": "1",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_slide_count",
+      "class": "TestPptxUnit",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.035,
+      "tier": "1",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_valid_zip_structure",
+      "class": "TestPptxUnit",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.035,
+      "tier": "1",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_xml_validation",
+      "class": "TestPptxUnit",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.129,
+      "tier": "1",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_pdf_merge_preserves_page_order",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_quick_validate_handles_bracket_description",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.026,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_skill_creator_yaml_bracket_bug",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "skipped",
+      "duration_sec": 0.01,
+      "tier": "4",
+      "skill": "regression",
+      "error": "Known bug: YAML bracket in description parsed as list (upstream issue)"
+    },
+    {
+      "name": "test_xlsx_division_by_zero",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.561,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_recalc_empty_formulas",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.418,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_docx_validates_after_creation",
+      "class": "TestRegressionPreviousFailures",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.374,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_cached_values_after_recalc",
+      "class": "TestRegressionPreviousFailures",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.43,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_copy_skill",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.026,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_init_json_evals",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.015,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_init_json_history",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.014,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_init_skill",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.011,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_kebab_case_naming",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.011,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_skill_md_has_frontmatter",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.011,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_validate_json",
+      "class": "TestSkillCreatorUnit",
+      "module": "test_skill_creator",
+      "status": "passed",
+      "duration_sec": 0.03,
+      "tier": "1",
+      "skill": "skill_creator",
+      "error": null
+    },
+    {
+      "name": "test_parallel_pdf_creation",
+      "class": "TestStressConcurrency",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.021,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_parallel_xlsx_creation",
+      "class": "TestStressConcurrency",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.03,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_empty_pdf",
+      "class": "TestStressEdgeCases",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.002,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_empty_xlsx",
+      "class": "TestStressEdgeCases",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_long_cell_content",
+      "class": "TestStressEdgeCases",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.004,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_special_chars_in_xlsx",
+      "class": "TestStressEdgeCases",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_unicode_all_scripts",
+      "class": "TestStressEdgeCases",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_pdf_100_pages",
+      "class": "TestStressLargeFiles",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.132,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_10k_rows",
+      "class": "TestStressLargeFiles",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 1.74,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_formula_stress",
+      "class": "TestStressLargeFiles",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.647,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_no_memory_leak_pdf",
+      "class": "TestStressMemory",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.148,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_no_memory_leak_xlsx",
+      "class": "TestStressMemory",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.341,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_create_recalc_verify",
+      "class": "TestXlsxIntegration",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.443,
+      "tier": "2",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_create_workbook",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.004,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_data_integrity",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_formula_creation",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_multiple_sheets",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.004,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_number_formats",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_unicode_cells",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.003,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_xml_validation",
+      "class": "TestXlsxUnit",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.042,
+      "tier": "1",
+      "skill": "xlsx",
+      "error": null
+    }
+  ],
+  "slowest_tests": [
+    {
+      "name": "test_xlsx_10k_rows",
+      "class": "TestStressLargeFiles",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 1.74,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_create_split_merge_verify",
+      "class": "TestPdfIntegration",
+      "module": "test_pdf",
+      "status": "passed",
+      "duration_sec": 1.118,
+      "tier": "2",
+      "skill": "pdf",
+      "error": null
+    },
+    {
+      "name": "test_text_extraction",
+      "class": "TestPptxIntegration",
+      "module": "test_pptx",
+      "status": "passed",
+      "duration_sec": 0.811,
+      "tier": "2",
+      "skill": "pptx",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_formula_stress",
+      "class": "TestStressLargeFiles",
+      "module": "test_stress",
+      "status": "passed",
+      "duration_sec": 0.647,
+      "tier": "3",
+      "skill": "stress",
+      "error": null
+    },
+    {
+      "name": "test_create_validate_convert_workflow",
+      "class": "TestDocxIntegration",
+      "module": "test_docx",
+      "status": "passed",
+      "duration_sec": 0.596,
+      "tier": "2",
+      "skill": "docx",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_division_by_zero",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.561,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_create_recalc_verify",
+      "class": "TestXlsxIntegration",
+      "module": "test_xlsx",
+      "status": "passed",
+      "duration_sec": 0.443,
+      "tier": "2",
+      "skill": "xlsx",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_cached_values_after_recalc",
+      "class": "TestRegressionPreviousFailures",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.43,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_xlsx_recalc_empty_formulas",
+      "class": "TestRegressionKnownBugs",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.418,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    },
+    {
+      "name": "test_docx_validates_after_creation",
+      "class": "TestRegressionPreviousFailures",
+      "module": "test_regression",
+      "status": "passed",
+      "duration_sec": 0.374,
+      "tier": "4",
+      "skill": "regression",
+      "error": null
+    }
+  ]
+}

@@ -7,7 +7,7 @@
  * - B2C / B2B 切換
  * - 統編驗証（B2B）
  * - 載具選擇（互斥：選載具或捐贈）
- * - 愛心碼輸入
+ * - 愛心碾輸入
  *
  * 使用 React Hook Form + Zod 驗証
  * 透過 setInvoiceInfo 更新 POS Store
@@ -39,7 +39,7 @@ const InvoiceFormSchema = z.object({
     .refine(
       (val) =>
         !val || /^\d{8}$/.test(val),
-      '統編必須為 8 位數字'
+      '統編必須炶 8 位數字'
     ),
   carrierType: z
     .enum(['phone_barcode', 'cert', 'member'])
@@ -59,7 +59,7 @@ const InvoiceFormSchema = z.object({
 })
   .refine(
     (data) => {
-      // B2B 必須有統編
+      // B2B 必須有統縘
       if (data.invoiceType === 'B2B' && !data.buyerIdentifier) {
         return false;
       }
@@ -183,7 +183,7 @@ export function InvoiceForm({ onClose }: InvoiceFormProps) {
                       : 'border-input hover:border-primary'
                   }`}
                 >
-                  {type === 'B2C' ? '二聯式(B2C)' : '三聯式(B2B)'}
+                  {type === 'B2C' ? '二�k式(B2C)' : '三聯式(B2B)'}
                 </button>
               ))}
             </div>
@@ -271,7 +271,7 @@ export function InvoiceForm({ onClose }: InvoiceFormProps) {
           {watchCarrierType && (
             <div className="space-y-2">
               <Label htmlFor="carrier-id">
-                {watchCarrierType === 'phone_barcode' ? '手機條碼號碼' : '自然人憑證號碼'}
+                {watchCarrierType === 'phone_barcode' ? '手機榊{�9號碼' : '自然人憑證號碼'}
                 {errors.carrierId && (
                   <span className="ml-2 text-destructive text-xs">
                     {errors.carrierId.message}
@@ -322,7 +322,7 @@ export function InvoiceForm({ onClose }: InvoiceFormProps) {
                   <Input
                     id="donate-code"
                     type="text"
-                    placeholder="輸入 3-7 位愛心碼"
+                    placeholder="輲入 3-7 位愛心碼"
                     {...register('donateCode')}
                     maxLength={7}
                   />

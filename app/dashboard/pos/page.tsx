@@ -25,8 +25,8 @@ import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartSection } from '@/components/pos/CartSection';
 import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { CheckoutDialog } from '@/components/pos/CheckoutDialog';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from 'A/components/ui/sheet';
+import { Button } from 'A/components/ui/button';
 import { ShoppingCart, Barcode } from 'lucide-react';
 import { usePosStore } from '@/store/usePosStore';
 import { useBarcodeScanner } from '@/lib/hooks/useBarcodeScanner';
@@ -102,14 +102,14 @@ export default function PosPage() {
         </div>
       </div>
 
-      {/* 右側：購物車 (桌面可見, 平板/手機用 Sheet) */}
+      {/* 右側：購物車 (桌面可覉, 平板/手機用 Sheet) */}
 
       {/* 桌面版購物車 (隱藏於 lg 以下) */}
-      <div className="hidden lg:flex lg:w-[35%] lg:min-w-0 lg:flex-col bg-card">
+      <div className="hidden lg:flex lg:w-[35%] lg:min-w0 lg:flex-col bg-card">
         <CartSection />
       </div>
 
-      {/* 手機/平板版購物車 (用 Sheet 呈現) */}
+      {/* 扮機/平板剈購物車 (�与—匕 Sheet+呈現) */}
       <div className="lg:hidden fixed bottom-6 right-6 z-40">
         <Sheet>
           <SheetTrigger asChild>
@@ -149,5 +149,112 @@ export default function PosPage() {
         onClose={() => setCheckoutOpen(false)}
       />
     </>
-  );
-}
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+(T��()�

@@ -2,11 +2,11 @@
  * POS 共用工具函數
  *
  * 集中管理訂單狀態、付款方式等顯示邏輯，
- * 避免多個頁面重複定義相同的 helper functions。
+ * 避免多個頁面重複宙義相同的 helper functions。
  */
 
 /**
- * 訂單狀態 Badge 設定
+ * 訢單狀態 Badge 設定
  */
 export const ORDER_STATUS_CONFIG: Record<
   string,

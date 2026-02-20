@@ -13,7 +13,7 @@ export interface CartItem {
 
 export interface InvoiceInfo {
   invoiceType: 'B2C' | 'B2B';
-  buyerIdentifier: string;        // 統編或0000000000
+  buyerIdentifier: string;        // 統／號或0000000000
   carrierType: string | null;     // phone_barcode / cert / member
   carrierId: string | null;       // 載具編號
   donateCode: string | null;      // 愛心碼
