@@ -21,7 +21,6 @@ import { Label } from '@/components/ui/label';
 import { usePosStore } from '@/store/usePosStore';
 import { toast } from '@/components/ui/toast';
 import { formatNTD, PAYMENT_METHODS } from '@/lib/constants';
-import { createPosOrder, fetchProductByBarcode } from '@/app/actions/pos';
 import { NumPad } from './NumPad';
 import { ReceiptPreview } from './ReceiptPreview';
 import { Banknote, CreditCard, Smartphone } from 'lucide-react';
@@ -132,23 +131,34 @@ export function CheckoutDialog({ open, onClose }: CheckoutDialogProps) {
         unit_price: item.unitPrice,
       }));
 
-      const result = await createPosOrder(
-        selectedPayment,
-        items,
-        discountAmount
-      );
+      const resp = await fetch('/api/pos/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentMethod: selectedPayment,
+          items,
+          discountAmount,
+        }),
+      });
 
-      if ('error' in result) {
-        toast.error(result.error);
+      const result = await resp.json();
+
+      if (!resp.ok || result.error) {
+        const errMsg = result.error || '建立訂單失敗';
+        console.error('POS Order Error:', resp.status, errMsg);
+        /* alert removed */
+        toast.error(errMsg);
         setProcessing(false);
         return;
       }
+
       setOrderId(result.orderId);
       setOrderNumber(result.orderNumber);
-
       setStep('receipt');
     } catch (error) {
       const message = error instanceof Error ? error.message : '建立訂單失敗';
+      console.error('POS Order Exception:', error);
+      /* alert removed */
       toast.error(message);
       setProcessing(false);
     }
