@@ -57,3 +57,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Barcode scanner scan line animation */
+@keyframes scan {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(100% - 2px)); }
+}
+
+.animate-scan {
+  animation: scan 2s ease-in-out infinite;
+}
+
+/* Hide scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
