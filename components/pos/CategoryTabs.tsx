@@ -43,7 +43,7 @@ export function CategoryTabs() {
 
   if (isLoading) {
     return (
-      <div className="flex gap-2 pb-2 overflow-x-auto">
+      <div className="flex gap-2 pb-2">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
@@ -55,7 +55,7 @@ export function CategoryTabs() {
   }
 
   return (
-    <div className="flex gap-2 pb-2 overflow-x-auto scrollbar-hide">
+    <div className="flex gap-2 pb-2">
       {/* 全部 Tab */}
       <button
         onClick={() => selectCategory(null)}

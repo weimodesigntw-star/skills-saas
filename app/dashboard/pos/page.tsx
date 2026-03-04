@@ -80,13 +80,13 @@ export default function PosPage() {
           {/* 分類、搜尋和掃碼 */}
           <div className="flex-shrink-0 px-4 py-3 space-y-3 border-b bg-card">
             <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
                 <CategoryTabs />
               </div>
               <Button
                 variant="outline"
                 size="icon"
-                className="flex-shrink-0"
+                className="flex-shrink-0 ml-auto"
                 onClick={() => setScannerOpen(true)}
                 disabled={isScanning}
                 title="掃描條碼"
