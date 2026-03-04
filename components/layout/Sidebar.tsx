@@ -10,6 +10,10 @@ import {
   Package,
   FileText,
   BarChart3,
+  Newspaper,
+  ImageIcon,
+  Video,
+  Users,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -22,6 +26,10 @@ const navItems = [
   { href: '/dashboard/pos', label: 'POS 銷售', icon: ShoppingCart },
   { href: '/dashboard/products', label: '商品', icon: Package },
   { href: '/dashboard/specifications', label: '規格', icon: FileText },
+  { href: '/dashboard/news', label: '最新消息', icon: Newspaper },
+  { href: '/dashboard/videos', label: '影片管理', icon: Video },
+  { href: '/dashboard/galleries', label: '照片集', icon: ImageIcon },
+  { href: '/dashboard/members', label: '會員管理', icon: Users },
   { href: '/dashboard/reports', label: '報表', icon: BarChart3 },
 ];
 

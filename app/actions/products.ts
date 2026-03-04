@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 /**
@@ -208,12 +208,19 @@ export async function createProduct(formData: FormData) {
 
   let imageUrl: string | null = null;
 
-  // Upload image if provided
+  // Upload image if provided (use admin client to bypass storage RLS)
   if (imageFile && imageFile.size > 0) {
+    const adminClient = createAdminClient();
     const timestamp = Date.now();
-    const filename = `${user.id}/${timestamp}-${imageFile.name}`;
+    // Sanitize filename: keep only ASCII-safe chars, replace others with underscore
+    const ext = imageFile.name.split('.').pop() || 'png';
+    const safeName = imageFile.name
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 50) || 'image';
+    const filename = `${user.id}/${timestamp}-${safeName}.${ext}`;
 
-    const { data, error: uploadError } = await supabase.storage
+    const { data, error: uploadError } = await adminClient.storage
       .from('product-images')
       .upload(filename, imageFile, {
         cacheControl: '3600',
@@ -225,7 +232,7 @@ export async function createProduct(formData: FormData) {
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = adminClient.storage
       .from('product-images')
       .getPublicUrl(data.path);
 
@@ -332,14 +339,16 @@ export async function updateProduct(id: string, formData: FormData) {
 
   let imageUrl = existing.image_url;
 
+  // Use admin client for storage operations (bypass RLS)
+  const adminClient = createAdminClient();
+
   // Handle image removal
   if (removeImage && existing.image_url) {
     imageUrl = null;
-    // Optionally delete old image from storage
     try {
       const urlParts = existing.image_url.split('/');
       const filepath = urlParts.slice(-2).join('/');
-      await supabase.storage.from('product-images').remove([filepath]);
+      await adminClient.storage.from('product-images').remove([filepath]);
     } catch (err) {
       console.error('Failed to delete old image:', err);
     }
@@ -352,16 +361,21 @@ export async function updateProduct(id: string, formData: FormData) {
       try {
         const urlParts = existing.image_url.split('/');
         const filepath = urlParts.slice(-2).join('/');
-        await supabase.storage.from('product-images').remove([filepath]);
+        await adminClient.storage.from('product-images').remove([filepath]);
       } catch (err) {
         console.error('Failed to delete old image:', err);
       }
     }
 
     const timestamp = Date.now();
-    const filename = `${user.id}/${timestamp}-${imageFile.name}`;
+    const ext = imageFile.name.split('.').pop() || 'png';
+    const safeName = imageFile.name
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 50) || 'image';
+    const filename = `${user.id}/${timestamp}-${safeName}.${ext}`;
 
-    const { data, error: uploadError } = await supabase.storage
+    const { data, error: uploadError } = await adminClient.storage
       .from('product-images')
       .upload(filename, imageFile, {
         cacheControl: '3600',
@@ -373,7 +387,7 @@ export async function updateProduct(id: string, formData: FormData) {
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = adminClient.storage
       .from('product-images')
       .getPublicUrl(data.path);
 

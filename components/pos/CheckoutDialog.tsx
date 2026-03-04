@@ -146,9 +146,7 @@ export function CheckoutDialog({ open, onClose }: CheckoutDialogProps) {
       if (!resp.ok || result.error) {
         const errMsg = result.error || '建立訂單失敗';
         console.error('POS Order Error:', resp.status, errMsg);
-        /* alert removed */
         toast.error(errMsg);
-        setProcessing(false);
         return;
       }
 
@@ -158,8 +156,8 @@ export function CheckoutDialog({ open, onClose }: CheckoutDialogProps) {
     } catch (error) {
       const message = error instanceof Error ? error.message : '建立訂單失敗';
       console.error('POS Order Exception:', error);
-      /* alert removed */
       toast.error(message);
+    } finally {
       setProcessing(false);
     }
   };
