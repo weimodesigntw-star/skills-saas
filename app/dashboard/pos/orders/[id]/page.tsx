@@ -95,7 +95,7 @@ export default function OrderDetailPage() {
       return;
     }
     toast.success(`發票已開立：${result.invoice.invoice_number}`);
-    if (result.warning) toast.warning(result.warning);
+    if (result.warning) toast.info(result.warning);
     setInvoice({ id: result.invoice.id, invoice_number: result.invoice.invoice_number });
   };
 
