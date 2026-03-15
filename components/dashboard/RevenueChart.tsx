@@ -27,7 +27,7 @@ export function RevenueChart({ data }: Props) {
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="date" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v.toLocaleString()}`} />
-            <Tooltip formatter={(v: number) => [`NT$ ${v.toLocaleString()}`, '營收']} />
+            <Tooltip formatter={(v) => [`NT$ ${(v as number).toLocaleString()}`, '營收']} />
             <Line
               type="monotone"
               dataKey="revenue"

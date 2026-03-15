@@ -34,7 +34,7 @@ export function TopProductsChart({ data }: Props) {
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis type="number" tick={{ fontSize: 12 }} />
             <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
-            <Tooltip formatter={(v: number) => [`${v} 件`, '銷售量']} />
+            <Tooltip formatter={(v) => [`${(v as number)} 件`, '銷售量']} />
             <Bar dataKey="total_sold" radius={[0, 4, 4, 0]}>
               {data.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
