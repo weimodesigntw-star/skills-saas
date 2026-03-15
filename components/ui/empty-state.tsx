@@ -1,38 +1,27 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
-import { PackageOpen } from 'lucide-react';
+import * as React from 'react'
+import { ReactNode } from 'react'
+import { LucideIcon } from 'lucide-react'
 
-interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
-  icon?: React.ElementType;
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
+interface EmptyStateProps {
+  title: string
+  description: string
+  action?: ReactNode
+  icon?: ReactNode | LucideIcon
 }
 
-export function EmptyState({
-  icon: Icon = PackageOpen,
-  title,
-  description,
-  action,
-  className,
-  ...props
-}: EmptyStateProps) {
+export function EmptyState({ title, description, action, icon }: EmptyStateProps) {
   return (
-    <div
-      className={cn(
-        'flex flex-col items-center justify-center py-16 px-4 text-center',
-        className
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      {icon && (
+        <div className="mb-4">
+          {typeof icon === 'function'
+            ? React.createElement(icon as LucideIcon, { className: 'h-12 w-12 text-muted-foreground' })
+            : icon}
+        </div>
       )}
-      {...props}
-    >
-      <div className="mb-4 rounded-full bg-muted p-4">
-        <Icon className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {description && (
-        <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{description}</p>
-      )}
-      {action && <div className="mt-4">{action}</div>}
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-gray-500 mb-6 max-w-sm">{description}</p>
+      {action && action}
     </div>
-  );
+  )
 }

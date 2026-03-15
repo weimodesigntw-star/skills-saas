@@ -30,6 +30,7 @@ npx supabase db push
 | 7 | `supabase/migrations/022_members.sql` | members 表 |
 | 8 | `supabase/migrations/023_create_pos_order_customer.sql` | create_pos_order 擴充顧客欄位 |
 | 9 | `supabase/migrations/024_orders_member_id.sql` | 選做，orders.member_id |
+| 10～13 | **方案 C S1**：`025_vendors.sql` → `026_depots.sql` → `027_products_erp_fields.sql` → `028_members_erp_fields.sql` | 廠商、倉庫、商品/會員 ERP 欄位 |
 
 3. 每支執行後確認無錯誤再執行下一支。
 4. **024 為選做**：若暫不做會員消費紀錄，可略過；會員詳情頁會顯示「尚無消費紀錄」。

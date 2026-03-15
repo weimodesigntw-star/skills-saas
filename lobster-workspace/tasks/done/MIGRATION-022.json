@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-022",
+  "title": "建立 members 表",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/022_members.sql",
+  "description": "顧客會員表，含 RLS、索引、updated_at trigger",
+  "acceptance_criteria": [
+    "members 表存在",
+    "RLS 已啟用",
+    "updated_at trigger 正常運作"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

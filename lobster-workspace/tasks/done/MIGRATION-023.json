@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-023",
+  "title": "create_pos_order 擴充顧客欄位",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/023_create_pos_order_customer.sql",
+  "description": "RPC 新增 p_customer_name / p_customer_phone 參數",
+  "acceptance_criteria": [
+    "create_pos_order RPC 支援 p_customer_name",
+    "create_pos_order RPC 支援 p_customer_phone",
+    "orders 表寫入正確"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-019",
+  "title": "建立 adjust_stock RPC",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/019_adjust_stock_rpc.sql",
+  "description": "原子性庫存調整 RPC，支援 restock / loss / manual",
+  "acceptance_criteria": [
+    "adjust_stock RPC 存在",
+    "restock 會增加庫存",
+    "loss 不會讓庫存低於 0"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-027",
+  "title": "商品表補 ERP 欄位",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/027_products_erp_fields.sql",
+  "description": "products 補欄位：product_code, whole_sell_price, purchase_price, vendor_id, depot_id",
+  "acceptance_criteria": [
+    "products 表有 product_code 欄位",
+    "products 表有 whole_sell_price 欄位",
+    "products 表有 vendor_id FK"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

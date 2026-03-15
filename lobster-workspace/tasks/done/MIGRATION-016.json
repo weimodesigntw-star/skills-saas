@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-016",
+  "title": "字軌 unique constraint + get_next_invoice_number RPC",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/016_invoice_sequence_unique_and_rpc.sql",
+  "description": "invoice_track_numbers partial unique (is_active=TRUE) + RPC",
+  "acceptance_criteria": [
+    "invoice_track_numbers 同一 user 只能有一筆 is_active=TRUE",
+    "get_next_invoice_number RPC 存在且可呼叫"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

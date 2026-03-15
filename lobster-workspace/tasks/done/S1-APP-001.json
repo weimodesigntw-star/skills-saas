@@ -1,0 +1,38 @@
+{
+  "id": "S1-APP-001",
+  "title": "S1 應用層：depots + vendors + 商品/會員表單補欄 + Sidebar",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_S1_APP_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "依 docs/ERP_S1_APP_SPEC.md 實作：1) app/actions/depots.ts 2) lib/schemas/vendor.ts + app/actions/vendors.ts 3) 廠商管理頁 /dashboard/vendors + VendorsClient + VendorDialog 4) Sidebar 新增廠商管理 5) 商品新增/編輯表單補 5 欄 6) 會員表單補 7 欄 + member schema",
+  "acceptance_criteria": [
+    "getDepots() 可正常回傳",
+    "/dashboard/vendors 可新增、編輯、刪除廠商，列表與搜尋正常",
+    "Sidebar 有廠商管理連結",
+    "商品新增/編輯頁有 5 個新欄位，廠商/倉庫下拉有資料",
+    "會員新增/編輯有 7 個新欄位",
+    "npm run build 通過"
+  ],
+  "result": {
+    "success": false,
+    "error": "Build 失敗",
+    "files_written": [
+      "app/actions/depots.ts",
+      "lib/schemas/vendor.ts",
+      "app/actions/vendors.ts",
+      "app/dashboard/vendors/page.tsx",
+      "app/dashboard/vendors/VendorsClient.tsx",
+      "components/vendors/VendorDialog.tsx",
+      "components/ui/confirm-dialog.tsx",
+      "components/ui/empty-state.tsx",
+      "components/layout/Sidebar.tsx"
+    ],
+    "build": {
+      "success": false,
+      "stdout": "\n> skills-saas@0.1.0 build\n> next build\n\n  ▲ Next.js 14.2.35\n  - Environments: .env.local\n\n   Creating an optimized production build ...\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm.\n ⚠ Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues\nFailed to compile.\n\n./app/dashboard/vendors/VendorsClient.tsx\nModule not found: Can't resolve 'sonner'\n\nhttps://nextjs.org/docs/messages/module-not-found\n\n./components/vendors/VendorDialog.tsx\nModule not found: Can't resolve '@/components/ui/select'\n\nhttps://nextjs.org/docs/messages/module-not-found\n\nImport trace for requested module:\n./app/dashboard/vendors/VendorsClient.tsx\n\n./components/vendors/VendorDialog.tsx\nModule not found: Can't resolve 'sonner'\n\nhttps://nextjs.org/docs/messages/module-not-found\n\nImport trace for requested module:\n./app/dashboard/vendors/VendorsClient.tsx\n\n\n> Build failed because of webpack errors\n"
+    }
+  }
+}

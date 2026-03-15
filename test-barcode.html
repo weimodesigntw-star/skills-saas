@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS 測試條碼</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 30px;
+    }
+    h1 { color: #1a1a2e; font-size: 24px; }
+    .barcode-card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .barcode-card h3 {
+      margin-bottom: 15px;
+      color: #333;
+      font-size: 18px;
+    }
+    .barcode-card p {
+      margin-top: 10px;
+      color: #666;
+      font-size: 14px;
+    }
+    .print-btn {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .print-btn:hover { background: #4338ca; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+    }
+    @media print {
+      body { background: white; padding: 10px; }
+      .print-btn, h1, .note { display: none; }
+      .barcode-card { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🏷️ POS 測試條碼</h1>
+  <p class="note" style="color:#666; margin-bottom: 10px;">以下條碼可用於掃描測試 POS 系統</p>
+
+  <div class="grid">
+    <div class="barcode-card">
+      <h3>商品 A - 測試咖啡</h3>
+      <svg id="barcode1"></svg>
+      <p>EAN-13: 4710088120001</p>
+    </div>
+
+    <div class="barcode-card">
+      <h3>商品 B - 布料樣品</h3>
+      <svg id="barcode2"></svg>
+      <p>EAN-13: 4710088120018</p>
+    </div>
+
+    <div class="barcode-card">
+      <h3>商品 C - 飲料</h3>
+      <svg id="barcode3"></svg>
+      <p>Code128: SKU-DRINK-001</p>
+    </div>
+
+    <div class="barcode-card">
+      <h3>商品 D - 通用測試</h3>
+      <svg id="barcode4"></svg>
+      <p>Code128: TEST123456</p>
+    </div>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">🖨️ 列印條碼</button>
+
+  <script>
+    JsBarcode("#barcode1", "4710088120001", {
+      format: "EAN13", width: 2, height: 80, fontSize: 16, margin: 10
+    });
+    JsBarcode("#barcode2", "4710088120018", {
+      format: "EAN13", width: 2, height: 80, fontSize: 16, margin: 10
+    });
+    JsBarcode("#barcode3", "SKU-DRINK-001", {
+      format: "CODE128", width: 2, height: 80, fontSize: 16, margin: 10
+    });
+    JsBarcode("#barcode4", "TEST123456", {
+      format: "CODE128", width: 2, height: 80, fontSize: 16, margin: 10
+    });
+  </script>
+</body>
+</html>

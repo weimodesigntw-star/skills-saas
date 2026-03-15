@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-026",
+  "title": "建立 depots 倉庫主檔表",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/026_depots.sql",
+  "description": "倉庫主檔 + RLS + updated_at trigger",
+  "acceptance_criteria": [
+    "depots 表存在",
+    "RLS 已啟用"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

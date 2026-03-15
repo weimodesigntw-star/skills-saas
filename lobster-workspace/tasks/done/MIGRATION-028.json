@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-028",
+  "title": "會員表補 ERP 欄位",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/028_members_erp_fields.sql",
+  "description": "members 補欄位：client_code, uniform_num, currency, tax_type, taxrate, prepaid, client_cat",
+  "acceptance_criteria": [
+    "members 表有 client_code 欄位",
+    "members 表有 uniform_num 欄位",
+    "members 表有 taxrate 欄位"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

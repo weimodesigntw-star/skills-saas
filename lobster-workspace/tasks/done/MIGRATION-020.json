@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-020",
+  "title": "Dashboard RPCs",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/020_dashboard_rpcs.sql",
+  "description": "get_daily_revenue + get_top_products，供 Dashboard 圖表使用",
+  "acceptance_criteria": [
+    "get_daily_revenue RPC 存在",
+    "get_top_products RPC 存在"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

@@ -4,10 +4,10 @@
  * Barcode Scanner Component
  *
  * - 鍵盤/掃碼槍：由 POS 頁面 useBarcodeScanner 處理（不在此元件內）
- * - 相機掃碼：使用 @zxing/browser，支援 iOS/Android（BarcodeDetector API 相容性差故改用 ZXing）
+ * - 相機掃碼：使用 @zxing/browser，支援 iOS/Android
  * - 手動輸入：相機失敗或無相機時可手動輸入條碼
  *
- * 注意：相機需 HTTPS、iOS 需 video playsInline
+ * 注意：相機需 HTTPS、iOS 需 video playsInline；手機/平板需讓 video 有尺寸且先取得權限。
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -34,6 +34,11 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const mountedRef = useRef(true);
+  const lastScannedRef = useRef<string | null>(null);
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
+  onScanRef.current = onScan;
+  onCloseRef.current = onClose;
 
   const stopCamera = useCallback(() => {
     if (controlsRef.current) {
@@ -54,6 +59,7 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
     setCameraError(null);
     setCameraReady(false);
     setScanning(false);
+    lastScannedRef.current = null;
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('此瀏覽器不支援相機功能，請使用手動輸入');
@@ -63,6 +69,27 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
     const video = videoRef.current;
     if (!video) return;
 
+    try {
+      // 先取得相機權限（尤其 iOS），再交給 ZXing，避免手機上無反應
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (preErr: unknown) {
+      const e = preErr as { name?: string };
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        setCameraError('請允許相機權限以使用掃碼功能。\n可在瀏覽器網址列左側的鎖頭圖示中開啟。');
+      } else {
+        setCameraError('無法取得相機權限，請使用手動輸入');
+      }
+      return;
+    }
+
     const reader = new BrowserMultiFormatReader();
     readerRef.current = reader;
 
@@ -70,18 +97,18 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
       const controls = await reader.decodeFromVideoDevice(
         undefined,
         video,
-        (result, err) => {
+        (result, _err) => {
           if (!mountedRef.current) return;
-          if (result) {
-            const code = result.getText();
-            if (code) {
-              onScan(code);
-              controlsRef.current?.stop();
-              controlsRef.current = null;
-              stopCamera();
-              onClose();
-            }
-          }
+          if (!result) return;
+          const code = result.getText()?.trim();
+          if (!code) return;
+          if (lastScannedRef.current === code) return;
+          lastScannedRef.current = code;
+          controlsRef.current?.stop();
+          controlsRef.current = null;
+          stopCamera();
+          onScanRef.current(code);
+          onCloseRef.current();
         }
       );
       if (!mountedRef.current) {
@@ -91,6 +118,7 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
       controlsRef.current = controls;
       setCameraReady(true);
       setScanning(true);
+      video.play().catch(() => {});
     } catch (err: unknown) {
       if (!mountedRef.current) return;
       const e = err as { name?: string; message?: string };
@@ -104,14 +132,14 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
         setCameraError(`無法啟動相機：${e.message || e.name || '未知錯誤'}`);
       }
     }
-  }, [onScan, onClose, stopCamera]);
+  }, [stopCamera]);
 
   useEffect(() => {
     mountedRef.current = true;
     if (open) {
       const timer = setTimeout(() => {
         startCamera();
-      }, 300);
+      }, 100);
       return () => {
         clearTimeout(timer);
         mountedRef.current = false;
@@ -162,14 +190,14 @@ export function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
           <X className="h-6 w-6" />
         </button>
 
-        <div className="flex-1 bg-gradient-to-br from-gray-900 to-black flex items-center justify-center relative overflow-hidden">
+        <div className="flex-1 min-h-[200px] bg-gradient-to-br from-gray-900 to-black flex items-center justify-center relative overflow-hidden">
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
             playsInline
             muted
             autoPlay
-            style={{ display: cameraReady ? 'block' : 'none' }}
+            style={{ visibility: cameraReady ? 'visible' : 'hidden' }}
           />
 
           {cameraReady && (

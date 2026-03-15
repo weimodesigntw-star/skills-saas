@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-025",
+  "title": "建立 vendors 廠商主檔表",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/025_vendors.sql",
+  "description": "廠商主檔 + RLS + updated_at trigger",
+  "acceptance_criteria": [
+    "vendors 表存在",
+    "RLS 已啟用",
+    "updated_at trigger 正常"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

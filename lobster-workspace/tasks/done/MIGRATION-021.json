@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-021",
+  "title": "invoices 補 ECPay 欄位",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/021_invoices_ecpay_fields.sql",
+  "description": "invoices 表新增 ecpay_invoice_number / ecpay_random_number",
+  "acceptance_criteria": [
+    "invoices 表有 ecpay_invoice_number 欄位",
+    "invoices 表有 ecpay_random_number 欄位"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

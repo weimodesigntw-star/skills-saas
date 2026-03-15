@@ -1,0 +1,15 @@
+{
+  "id": "MIGRATION-017",
+  "title": "orders 補 invoice_number 欄位",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/017_orders_invoice_number.sql",
+  "description": "orders 表新增 invoice_number TEXT 欄位",
+  "acceptance_criteria": [
+    "orders 表有 invoice_number 欄位"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-018",
+  "title": "建立 stock_adjustments 表",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/018_stock_adjustments.sql",
+  "description": "庫存調整記錄表，含 RLS 與索引",
+  "acceptance_criteria": [
+    "stock_adjustments 表存在",
+    "RLS 已啟用",
+    "user_id / product_id 索引存在"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}
