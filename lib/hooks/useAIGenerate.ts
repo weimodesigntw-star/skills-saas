@@ -13,7 +13,8 @@ interface UseAIGenerateOptions {
 }
 
 interface UseAIGenerateReturn {
-  generate: (categoryName: string, parentCategory?: string) => Promise<void>;
+  /** parentChain 為完整父層路徑，例：「電子產品 > 手機」 */
+  generate: (categoryName: string, parentChain?: string) => Promise<void>;
   isLoading: boolean;
   error: Error | null;
 }
@@ -39,7 +40,7 @@ export function useAIGenerate(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const generate = async (categoryName: string, parentCategory?: string) => {
+  const generate = async (categoryName: string, parentChain?: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -51,7 +52,8 @@ export function useAIGenerate(
         },
         body: JSON.stringify({
           categoryName,
-          parentCategory,
+          parentChain,
+          parentCategory: parentChain, // 向後相容
         }),
       });
 

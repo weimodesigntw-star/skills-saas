@@ -12,15 +12,17 @@
 
 import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
-import { getNextInvoiceNumber, parseInvoiceNumber } from '@/lib/einvoice/track-number';
+import { getNextInvoiceNumber as getNextFromLegacy, parseInvoiceNumber } from '@/lib/einvoice/track-number';
 import {
   buildInvoicePayload,
-  issueInvoice,
+  issueInvoice as issueInvoiceECPay,
   voidInvoice as voidInvoiceECPay,
   InvoiceItem,
 } from '@/lib/einvoice/ecpay';
 import { formatNTD } from '@/lib/constants';
 import { Order, OrderItem } from '@/lib/types/pos';
+import { fetchInvoiceSequences, getNextInvoiceNumber as getNextFromSequence } from '@/app/actions/invoice-sequences';
+import { ecpayIssueInvoice, ecpayVoidInvoice } from '@/lib/ecpay/invoice';
 
 // ============================================
 // Validation Schemas
@@ -76,6 +78,8 @@ interface InvoiceRow {
   void_date: string | null;
   created_at: string;
   updated_at: string;
+  ecpay_invoice_number?: string | null;
+  ecpay_random_number?: string | null;
 }
 
 // ============================================
@@ -135,7 +139,7 @@ export async function createInvoice(
     // 取得下一個發票號碼
     let invoiceNumber: string;
     try {
-      invoiceNumber = await getNextInvoiceNumber(user.id);
+      invoiceNumber = await getNextFromLegacy(user.id);
     } catch (error) {
       const msg = error instanceof Error ? error.message : '未知錯誤';
       return { success: false, error: `取得癹票號碼失敗: ${msg}` };
@@ -176,7 +180,7 @@ export async function createInvoice(
     );
 
     // 呼叫 ECPay API
-    const ecpayResult = await issueInvoice(
+    const ecpayResult = await issueInvoiceECPay(
       payload,
       process.env.ECPAY_HASH_KEY,
       process.env.ECPAY_HASH_IV
@@ -265,13 +269,44 @@ export async function voidInvoice(
       };
     }
 
-    // 呼叫 ECPay 作廢 API
-    const ecpayResult = await voidInvoiceECPay(
-      invoiceRecord.invoice_number,
-      reason,
-      process.env.ECPAY_HASH_KEY,
+    // ECPay 作廢（P2-1）：有設定且此筆發票有 ecpay 號碼時呼叫 B2C 作廢 API
+    const hasEcpay = !!(
+      process.env.ECPAY_MERCHANT_ID &&
+      process.env.ECPAY_HASH_KEY &&
       process.env.ECPAY_HASH_IV
     );
+    let einvoiceStatus = 'pending';
+    let einvoiceResponse: Record<string, unknown> | null = null;
+    if (hasEcpay && (invoiceRecord as InvoiceRow).ecpay_invoice_number) {
+      try {
+        const invoiceDate =
+          typeof invoiceRecord.invoice_date === 'string'
+            ? invoiceRecord.invoice_date.slice(0, 10)
+            : new Date(invoiceRecord.invoice_date).toISOString().slice(0, 10);
+        const ecpayResult = await ecpayVoidInvoice({
+          invoiceNumber: (invoiceRecord as InvoiceRow).ecpay_invoice_number!,
+          invoiceDate,
+          reason,
+        });
+        einvoiceStatus = ecpayResult.success ? 'uploaded' : 'failed';
+        einvoiceResponse = ecpayResult.success ? {} : { error: ecpayResult.error };
+      } catch {
+        einvoiceStatus = 'failed';
+      }
+    } else if (process.env.ECPAY_HASH_KEY && process.env.ECPAY_HASH_IV) {
+      try {
+        const ecpayResult = await voidInvoiceECPay(
+          invoiceRecord.invoice_number,
+          reason,
+          process.env.ECPAY_HASH_KEY,
+          process.env.ECPAY_HASH_IV
+        );
+        einvoiceStatus = ecpayResult.success ? 'uploaded' : 'failed';
+        einvoiceResponse = ecpayResult.rawResponse || null;
+      } catch {
+        einvoiceStatus = 'failed';
+      }
+    }
 
     // 更新資料庫
     const { error: updateError } = await supabase
@@ -280,8 +315,8 @@ export async function voidInvoice(
         status: 'voided',
         void_reason: reason,
         void_date: new Date().toISOString(),
-        einvoice_status: ecpayResult.success ? 'uploaded' : 'failed',
-        einvoice_response: ecpayResult.rawResponse || null,
+        einvoice_status: einvoiceStatus,
+        einvoice_response: einvoiceResponse,
       })
       .eq('id', invoiceId);
 
@@ -302,8 +337,73 @@ export async function voidInvoice(
   }
 }
 
+/** 發票列表項（含對應訂單編號） */
+export type InvoiceWithOrderNumber = InvoiceRow & { order_number?: string };
+
 /**
- * 取得發票列表（分頁）
+ * 取得發票列表（分頁，含訂單編號）
+ * page 1-based；status: '' | 'issued' | 'voided'
+ */
+export async function fetchInvoices(params: {
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  invoices: InvoiceWithOrderNumber[];
+  total: number;
+  page: number;
+  pageSize: number;
+  error?: string;
+}> {
+  const { status, dateFrom, dateTo, page = 1, pageSize = 20 } = params;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const supabase = createServerClient();
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { invoices: [], total: 0, page, pageSize, error: '未授權' };
+    }
+
+    let query = supabase
+      .from('invoices')
+      .select('*, orders!order_id(order_number)', { count: 'exact' })
+      .eq('user_id', user.id)
+      .order('invoice_date', { ascending: false })
+      .range(from, to);
+
+    if (status) query = query.eq('status', status);
+    if (dateFrom) query = query.gte('invoice_date', dateFrom);
+    if (dateTo) query = query.lte('invoice_date', dateTo);
+
+    const { data, count, error } = await query;
+    if (error) {
+      return { invoices: [], total: 0, page, pageSize, error: error.message };
+    }
+
+    const rows = (data ?? []) as (InvoiceRow & { orders: { order_number: string } | null })[];
+    const invoices: InvoiceWithOrderNumber[] = rows.map((r) => {
+      const { orders, ...inv } = r;
+      return { ...inv, order_number: orders?.order_number ?? undefined };
+    });
+
+    return {
+      invoices,
+      total: count ?? 0,
+      page,
+      pageSize,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '查詢失敗';
+    return { invoices: [], total: 0, page, pageSize, error: msg };
+  }
+}
+
+/**
+ * 取得發票列表（分頁）- 舊 API，保留相容
  */
 export async function getInvoices(
   page = 0,
@@ -316,61 +416,22 @@ export async function getInvoices(
   total: number;
   error?: string;
 }> {
-  const supabase = createServerClient();
-
-  try {
-    // 取得當前使用者
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { invoices: [], total: 0, error: '未授權' };
-    }
-
-    // 構建查詢
-    let query = supabase
-      .from('invoices')
-      .select('*', { count: 'exact' })
-      .eq('user_id', user.id)
-      .order('invoice_date', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    if (dateFrom) {
-      query = query.gte('invoice_date', dateFrom);
-    }
-
-    if (dateTo) {
-      query = query.lte('invoice_date', dateTo);
-    }
-
-    const { data, count, error } = await query;
-
-    if (error) {
-      return {
-        invoices: [],
-        total: 0,
-        error: `查詢失敗: ${error.message}`,
-      };
-    }
-
-    return {
-      invoices: (data as InvoiceRow[]) || [],
-      total: count || 0,
-    };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return {
-      invoices: [],
-      total: 0,
-      error: `查詢發票失敗: ${msg}`,
-    };
-  }
+  const res = await fetchInvoices({
+    status,
+    dateFrom,
+    dateTo,
+    page: page + 1,
+    pageSize,
+  });
+  return {
+    invoices: res.invoices,
+    total: res.total,
+    error: res.error,
+  };
 }
 
 /**
- * 取得發票詳情（含訂單資訊）
+ * 取得發票詳情（含訂單資訊，重印用）
  */
 export async function getInvoiceDetail(invoiceId: string): Promise<{
   invoice?: InvoiceRow;
@@ -441,4 +502,128 @@ export async function getInvoiceDetail(invoiceId: string): Promise<{
       error: `查詢發票詳情失敗: ${msg}`,
     };
   }
+}
+
+/** 依訂單 ID 取得該訂單的發票（若已開立） */
+export async function getInvoiceByOrderId(orderId: string): Promise<InvoiceRow | null> {
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('order_id', orderId)
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data as InvoiceRow | null;
+}
+
+/**
+ * P0-3 開立發票（僅寫 DB，使用 P0-4 字軌 RPC 取號）
+ * 若設定 ECPay 環境變數則一併呼叫 ECPay 開立，失敗不擋流程、回傳 warning。
+ * 無啟用字軌時回傳 { error: 'NO_ACTIVE_TRACK' }，前端需導向 /dashboard/pos/sequences
+ */
+export async function issueInvoice(
+  orderId: string,
+  buyerInfo?: { buyerName?: string; buyerTaxId?: string }
+): Promise<{ invoice: InvoiceRow; warning?: string } | { error: string }> {
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: '未登入' };
+
+  const sequences = await fetchInvoiceSequences();
+  const active = sequences.find((s) => s.is_active);
+  if (!active) return { error: 'NO_ACTIVE_TRACK' };
+
+  const nextResult = await getNextFromSequence(active.id);
+  if ('error' in nextResult) return { error: nextResult.error };
+
+  const invoiceNumber = nextResult.number;
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (orderError || !order) return { error: '訂單不存在' };
+  const orderRow = order as Record<string, unknown>;
+
+  const subtotal = Number(orderRow.subtotal ?? orderRow.total_amount ?? 0);
+  const taxAmount = Number(orderRow.tax_amount ?? 0);
+  const totalAmount = Number(orderRow.total_amount ?? subtotal + taxAmount);
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+
+  const { data: inv, error: insertError } = await supabase
+    .from('invoices')
+    .insert({
+      order_id: orderId,
+      user_id: user.id,
+      invoice_number: invoiceNumber,
+      invoice_date: dateStr,
+      invoice_type: 'B2C',
+      buyer_identifier: buyerInfo?.buyerTaxId ?? '0000000000',
+      buyer_name: buyerInfo?.buyerName ?? null,
+      sales_amount: subtotal,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      status: 'issued',
+      einvoice_status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (insertError || !inv) return { error: insertError?.message ?? '寫入發票失敗' };
+
+  await supabase
+    .from('orders')
+    .update({ invoice_number: invoiceNumber })
+    .eq('id', orderId)
+    .eq('user_id', user.id);
+
+  const hasEcpay = !!(process.env.ECPAY_MERCHANT_ID && process.env.ECPAY_HASH_KEY && process.env.ECPAY_HASH_IV);
+
+  if (hasEcpay) {
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select('product_name, quantity, unit_price')
+      .eq('order_id', orderId);
+
+    const result = await ecpayIssueInvoice({
+      invoiceNumber,
+      buyerName: buyerInfo?.buyerName,
+      buyerTaxId: buyerInfo?.buyerTaxId,
+      items: (orderItems ?? []).map((i: { product_name: string; quantity: number; unit_price: number }) => ({
+        name: i.product_name,
+        qty: i.quantity,
+        unitPrice: Number(i.unit_price),
+      })),
+      totalAmount,
+    });
+
+    if (result.success && (result.invoiceNo != null || result.randomNumber != null)) {
+      await supabase
+        .from('invoices')
+        .update({
+          ecpay_invoice_number: result.invoiceNo ?? null,
+          ecpay_random_number: result.randomNumber ?? null,
+        })
+        .eq('id', inv.id);
+    }
+
+    if (!result.success) {
+      return {
+        invoice: inv as InvoiceRow,
+        warning: `發票已開立但 ECPay 回報錯誤：${result.error}`,
+      };
+    }
+  }
+
+  return { invoice: inv as InvoiceRow };
 }

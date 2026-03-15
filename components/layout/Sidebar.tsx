@@ -16,6 +16,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Hash,
+  Warehouse,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,8 @@ const navItems = [
   { href: '/dashboard', label: '總覽', icon: LayoutDashboard },
   { href: '/dashboard/categories', label: '分類管理', icon: FolderTree },
   { href: '/dashboard/pos', label: 'POS 銷售', icon: ShoppingCart },
+  { href: '/dashboard/inventory', label: '庫存管理', icon: Warehouse },
+  { href: '/dashboard/pos/sequences', label: '字軌設定', icon: Hash },
   { href: '/dashboard/products', label: '商品', icon: Package },
   { href: '/dashboard/specifications', label: '規格', icon: FileText },
   { href: '/dashboard/news', label: '最新消息', icon: Newspaper },
@@ -63,7 +67,10 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 space-y-0.5 p-2">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+            // /dashboard/pos 僅在完全符合時 active，避免 /dashboard/pos/inventory 時也亮起
+            const isActive =
+              pathname === href ||
+              (href !== '/dashboard' && href !== '/dashboard/pos' && pathname.startsWith(href));
             return (
               <Link
                 key={href}

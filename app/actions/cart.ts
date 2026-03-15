@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { calcTaxIncluded } from '@/lib/constants';
+import type { CheckoutFormValues } from '@/lib/schemas/checkout';
 
 export interface CartItemWithProduct {
   id: string;
@@ -179,123 +180,104 @@ export async function clearCart() {
   return { success: true };
 }
 
+/** Guest 購物車項目（用於登入後合併） */
+export type GuestCartItem = {
+  product_id: string;
+  quantity: number;
+  name?: string;
+  price?: number;
+  stock?: number;
+  image_url?: string | null;
+};
+
 /**
- * 從購物車建立訂單
+ * 登入後將 localStorage 的 guest 購物車合併到 DB
  */
-export async function createOrderFromCart(paymentMethod: string) {
+export async function mergeGuestCart(userId: string, guestItems: GuestCartItem[]) {
+  if (guestItems.length === 0) return;
+  const admin = createAdminClient();
+  for (const item of guestItems) {
+    const { data: existing } = await admin
+      .from('shopping_carts')
+      .select('id, quantity')
+      .eq('user_id', userId)
+      .eq('product_id', item.product_id)
+      .single();
+    const qty = Math.max(1, item.quantity || 1);
+    if (existing) {
+      await admin
+        .from('shopping_carts')
+        .update({ quantity: existing.quantity + qty })
+        .eq('id', existing.id);
+    } else {
+      await admin.from('shopping_carts').insert({
+        user_id: userId,
+        product_id: item.product_id,
+        quantity: qty,
+      });
+    }
+  }
+  revalidatePath('/cart');
+}
+
+/**
+ * 從購物車建立訂單（P2-2：改用 create_pos_order RPC，防超賣 + 寫入顧客資料）
+ */
+export async function createOrderFromCart(
+  formData: CheckoutFormValues
+): Promise<{ orderId: string; orderNumber: string } | { error: string }> {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('請先登入');
+  if (!user) return { error: '請先登入' };
+
+  const cartItems = await getCart();
+  if (cartItems.length === 0) return { error: '購物車是空的' };
+
+  const pItems = cartItems.map((i) => ({
+    product_id: i.product_id,
+    quantity: i.quantity,
+    unit_price: i.price,
+  }));
+
+  const noteParts: string[] = [`地址：${formData.address}`];
+  if (formData.note?.trim()) noteParts.push(`備註：${formData.note.trim()}`);
+  const fullNote = noteParts.join('\n');
+
+  const { data: orderId, error } = await supabase.rpc('create_pos_order', {
+    p_user_id: user.id,
+    p_payment_method: formData.paymentMethod,
+    p_items: pItems,
+    p_discount_amount: 0,
+    p_note: fullNote,
+    p_customer_name: formData.customerName,
+    p_customer_phone: formData.customerPhone,
+  });
+
+  if (error) {
+    if (error.message?.includes('庫存不足')) {
+      return { error: '部分商品庫存不足，請返回購物車確認' };
+    }
+    console.error('create_pos_order error:', error);
+    return { error: error.message || '訂單建立失敗，請稍後再試' };
+  }
+
+  if (!orderId) return { error: '訂單建立失敗' };
 
   const admin = createAdminClient();
-
-  // 1. Get cart items with product info
-  const cartItems = await getCart();
-  if (cartItems.length === 0) throw new Error('購物車是空的');
-
-  // 2. Validate stock
-  for (const item of cartItems) {
-    if (item.quantity > item.stock) {
-      throw new Error(`「${item.name}」庫存不足（剩餘 ${item.stock} 件）`);
-    }
-  }
-
-  // 3. Calculate totals
-  const totalCalc = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const taxAmount = calcTaxIncluded(totalCalc);
-
-  // 4. Payment method mapping
-  const paymentMethodMap: Record<string, string> = {
-    cash: 'CASH',
-    credit_card: 'CREDIT',
-    line_pay: 'LINEPAY',
-    easy_card: 'EASYCARD',
-  };
-  const dbPaymentMethod = paymentMethodMap[paymentMethod] ?? paymentMethod.toUpperCase();
-
-  // 5. Generate order number
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const orderNum = `WEB-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  // 6. Item description
-  const itemDesc = cartItems
-    .map((i) => `${i.name} x${i.quantity}`)
-    .join(', ');
-
-  // 7. Create order (compatible with original schema: order_no/amount/items/item_desc/email + newer columns)
-  const { data: order, error: orderErr } = await admin
+  const { data: order } = await admin
     .from('orders')
-    .insert({
-      user_id: user.id,
-      order_no: orderNum,
-      order_number: orderNum,
-      status: 'pending',
-      payment_method: dbPaymentMethod,
-      amount: totalCalc,
-      items: cartItems.map((i) => ({
-        product_id: i.product_id,
-        name: i.name,
-        quantity: i.quantity,
-        unit_price: i.price,
-      })),
-      item_desc: itemDesc,
-      email: user.email ?? '',
-      subtotal: totalCalc - taxAmount,
-      tax_amount: taxAmount,
-      discount_amount: 0,
-      total_amount: totalCalc,
-      note: itemDesc,
-      metadata: { source: 'web_shop' },
-    })
-    .select('id, order_number, order_no')
+    .select('id, order_number')
+    .eq('id', orderId)
     .single();
 
-  if (orderErr || !order) {
-    console.error('Order insert error:', orderErr);
-    throw new Error(orderErr?.message ?? '建立訂單失敗');
-  }
-
-  // 8. Create order items
-  await admin.from('order_items').insert(
-    cartItems.map((i) => ({
-      order_id: order.id,
-      product_id: i.product_id,
-      product_name: i.name,
-      product_barcode: null,
-      quantity: i.quantity,
-      unit_price: i.price,
-      subtotal: i.price * i.quantity,
-      metadata: {},
-    }))
-  );
-
-  // 9. Deduct stock
-  for (const item of cartItems) {
-    const { data: p } = await admin
-      .from('products')
-      .select('stock')
-      .eq('id', item.product_id)
-      .single();
-    if (p) {
-      await admin
-        .from('products')
-        .update({ stock: Math.max(0, p.stock - item.quantity) })
-        .eq('id', item.product_id);
-    }
-  }
-
-  // 10. Clear cart
-  await admin
-    .from('shopping_carts')
-    .delete()
-    .eq('user_id', user.id);
+  await admin.from('shopping_carts').delete().eq('user_id', user.id);
 
   revalidatePath('/cart');
   revalidatePath('/shop');
   revalidatePath('/dashboard/products');
 
   return {
-    orderId: order.id,
-    orderNumber: order.order_number || order.order_no || orderNum,
+    orderId: order?.id ?? orderId,
+    orderNumber: order?.order_number ?? String(orderId),
   };
 }

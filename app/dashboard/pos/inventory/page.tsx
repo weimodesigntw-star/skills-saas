@@ -1,11 +1,11 @@
-import { redirect } from 'next/navigation';
+'use client';
 
 /**
- * POS 庫存管理 — 重導向至商品管理頁面
- *
- * 庫存管理目前與商品管理共用同一頁面，
- * 此頁面自動將使用者重導向至 /dashboard/products。
+ * 庫存管理（從 POS 進入，保留舊路徑相容）
  */
-export default function InventoryPage() {
-  redirect('/dashboard/products');
+
+import { InventoryPageContent } from '@/components/dashboard/InventoryPageContent';
+
+export default function PosInventoryPage() {
+  return <InventoryPageContent backHref="/dashboard/pos" />;
 }

@@ -1,28 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ShoppingCart, ArrowLeft, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getCart, type CartItemWithProduct } from '@/app/actions/cart';
+import { useCart } from '@/lib/hooks/useCart';
 import { CheckoutForm } from '@/components/shop/CheckoutForm';
 
 export default function CheckoutPage() {
-  const [items, setItems] = useState<CartItemWithProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { items, loading, isLoggedIn, clearCart } = useCart();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getCart();
-        setItems(data);
-      } catch {}
-      setIsLoading(false);
-    }
-    load();
-  }, []);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
         載入中...
@@ -43,6 +30,26 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!isLoggedIn) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center max-w-md mx-auto">
+        <LogIn className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-40" />
+        <h2 className="text-xl font-semibold mb-2">請先登入以結帳</h2>
+        <p className="text-muted-foreground mb-6">
+          您目前有 {items.length} 項商品在購物車，登入後即可結帳，購物車內容會保留。
+        </p>
+        <Button asChild>
+          <Link href="/login?redirect=/checkout">登入</Link>
+        </Button>
+        <Button variant="outline" className="ml-3" asChild>
+          <Link href="/shop">繼續購物</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const cartItems = items.map((i) => ({ ...i, id: i.id || i.product_id }));
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <Link
@@ -55,7 +62,7 @@ export default function CheckoutPage() {
 
       <h1 className="text-3xl font-bold mb-8">結帳</h1>
 
-      <CheckoutForm cartItems={items} />
+      <CheckoutForm cartItems={cartItems} onSuccess={clearCart} />
     </div>
   );
 }

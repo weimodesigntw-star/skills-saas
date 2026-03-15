@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNTD } from '@/lib/constants';
 import { useTransition } from 'react';
-import { addToCart } from '@/app/actions/cart';
+import { useCart } from '@/lib/hooks/useCart';
 import { toast } from '@/components/ui/toast';
 
 interface ProductCardProps {
@@ -24,16 +24,26 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const [isPending, startTransition] = useTransition();
+  const { addToCart } = useCart();
 
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     startTransition(async () => {
       try {
-        await addToCart(product.id, 1);
+        await addToCart(
+          {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            stock: product.stock,
+            image_url: product.image_url,
+          },
+          1
+        );
         toast.success(`已加入「${product.name}」`);
       } catch (err: any) {
-        toast.error(err.message || '加入購物車失敗');
+        toast.error(err?.message || '加入購物車失敗');
       }
     });
   }
@@ -41,7 +51,6 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link href={`/shop/${product.id}`}>
       <Card className="group overflow-hidden hover:shadow-lg transition-shadow h-full">
-        {/* Image */}
         <div className="relative aspect-square bg-muted overflow-hidden">
           {product.image_url ? (
             <Image
@@ -56,7 +65,12 @@ export function ProductCard({ product }: ProductCardProps) {
               📦
             </div>
           )}
-          {product.stock <= 5 && product.stock > 0 && (
+          {product.stock === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+              <span className="text-white font-semibold text-sm">已售完</span>
+            </div>
+          )}
+          {product.stock > 0 && product.stock <= 5 && (
             <Badge className="absolute top-2 left-2 bg-amber-500 text-white">
               僅剩 {product.stock} 件
             </Badge>
@@ -83,7 +97,7 @@ export function ProductCard({ product }: ProductCardProps) {
               disabled={isPending || product.stock === 0}
             >
               <ShoppingCart className="h-3.5 w-3.5 mr-1" />
-              {product.stock === 0 ? '缺貨' : '加入'}
+              {product.stock === 0 ? '已售完' : '加入購物車'}
             </Button>
           </div>
         </CardContent>

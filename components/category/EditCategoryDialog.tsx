@@ -13,6 +13,8 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Sparkles, RotateCcw, Loader2 } from 'lucide-react';
 import { updateCategory, createCategory } from '@/app/actions/categories';
+import { fetchAiQuota } from '@/app/actions/ai-quota';
+import { AiQuotaBadge } from '@/components/ui/AiQuotaBadge';
 import { useAIGenerate } from '@/lib/hooks/useAIGenerate';
 import {
   Dialog,
@@ -51,6 +53,8 @@ interface EditCategoryDialogProps {
   parentId: string | null; // 父分類 ID（新增子分類時使用）
   initialName?: string;
   initialDescription?: string | null;
+  /** 父層路徑用於 AI 描述，例：「電子產品 > 手機」 */
+  parentChain?: string;
 }
 
 export function EditCategoryDialog({
@@ -60,10 +64,12 @@ export function EditCategoryDialog({
   parentId,
   initialName = '',
   initialDescription = null,
+  parentChain,
 }: EditCategoryDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [previousDescription, setPreviousDescription] = useState<string>('');
+  const [quota, setQuota] = useState<{ remaining: number; limit: number } | null>(null);
   const isEditMode = categoryId !== null;
   const isAddRootCategory = categoryId === null && parentId === null;
   const isAddSubCategory = categoryId === null && parentId !== null;
@@ -104,17 +110,20 @@ export function EditCategoryDialog({
     onOpenChange(newOpen);
   };
 
-  // 處理 AI 生成
+  useEffect(() => {
+    if (open) {
+      fetchAiQuota().then((q) => setQuota(q ? { remaining: q.remaining, limit: q.limit } : null));
+    }
+  }, [open]);
+
+  // 處理 AI 生成（帶入父層路徑，讓描述具層級語意）
   const handleAIGenerate = () => {
     const categoryName = form.getValues('name');
     if (!categoryName) {
       form.setError('name', { message: '請先輸入分類名稱' });
       return;
     }
-    
-    // TODO: 獲取父分類名稱（如果需要）
-    // 目前先傳遞 undefined，未來可以從 parentId 查詢
-    generateDescription(categoryName);
+    generateDescription(categoryName, parentChain);
   };
 
   // 撤銷 AI 生成
@@ -213,7 +222,12 @@ export function EditCategoryDialog({
                         variant="ghost"
                         size="sm"
                         onClick={handleAIGenerate}
-                        disabled={isPending || isAIGenerating || !form.watch('name')}
+                        disabled={
+                          isPending ||
+                          isAIGenerating ||
+                          !form.watch('name') ||
+                          (quota !== null && quota.limit >= 0 && quota.remaining === 0)
+                        }
                         className="h-7 text-xs"
                       >
                         {isAIGenerating ? (
@@ -228,6 +242,9 @@ export function EditCategoryDialog({
                           </>
                         )}
                       </Button>
+                      {quota && (
+                        <AiQuotaBadge remaining={quota.remaining} limit={quota.limit} />
+                      )}
                     </div>
                   </div>
                   <FormControl>

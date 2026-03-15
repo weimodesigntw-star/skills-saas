@@ -19,12 +19,26 @@ interface CartItemRowProps {
     image_url: string | null;
   };
   onUpdate?: () => void;
+  /** 若提供則使用 hook 的 callback（支援 guest cart），不呼叫 server action */
+  onQuantityChange?: (productId: string, qty: number) => void | Promise<void>;
+  onRemove?: (productId: string) => void | Promise<void>;
 }
 
-export function CartItemRow({ item, onUpdate }: CartItemRowProps) {
+export function CartItemRow({ item, onUpdate, onQuantityChange, onRemove }: CartItemRowProps) {
   const [isPending, startTransition] = useTransition();
 
   function handleQuantity(newQty: number) {
+    if (onQuantityChange !== undefined && onRemove !== undefined) {
+      startTransition(async () => {
+        try {
+          if (newQty <= 0) await onRemove(item.product_id);
+          else await onQuantityChange(item.product_id, newQty);
+        } catch (err: any) {
+          toast.error(err?.message || '更新失敗');
+        }
+      });
+      return;
+    }
     startTransition(async () => {
       try {
         if (newQty <= 0) {
@@ -40,6 +54,16 @@ export function CartItemRow({ item, onUpdate }: CartItemRowProps) {
   }
 
   function handleRemove() {
+    if (onRemove !== undefined) {
+      startTransition(async () => {
+        try {
+          await onRemove(item.product_id);
+        } catch (err: any) {
+          toast.error(err?.message || '移除失敗');
+        }
+      });
+      return;
+    }
     startTransition(async () => {
       try {
         await removeFromCart(item.product_id);

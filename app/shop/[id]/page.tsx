@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, ShoppingCart, Minus, Plus, Package } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatNTD } from '@/lib/constants';
 import { getShopProductById } from '@/app/actions/shop';
-import { addToCart } from '@/app/actions/cart';
+import { useCart } from '@/lib/hooks/useCart';
 import { toast } from '@/components/ui/toast';
 
 type Product = {
@@ -26,11 +26,11 @@ type Product = {
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition();
+  const { addToCart } = useCart();
 
   useEffect(() => {
     async function load() {
@@ -50,10 +50,19 @@ export default function ProductDetailPage() {
     if (!product) return;
     startTransition(async () => {
       try {
-        await addToCart(product.id, quantity);
+        await addToCart(
+          {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            stock: product.stock,
+            image_url: product.image_url,
+          },
+          quantity
+        );
         toast.success(`已將 ${quantity} 件「${product.name}」加入購物車`);
       } catch (err: any) {
-        toast.error(err.message || '加入購物車失敗');
+        toast.error(err?.message || '加入購物車失敗');
       }
     });
   }

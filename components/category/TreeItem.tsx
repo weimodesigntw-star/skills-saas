@@ -32,9 +32,11 @@ interface TreeItemProps {
   isOver?: boolean;
   dropPosition?: 'before' | 'after' | 'inside' | null;
   searchQuery?: string; // 搜索关键词（用于高亮）
+  /** 祖先分類名稱陣列，用於 AI 描述完整路徑 */
+  ancestorNames?: string[];
 }
 
-export function TreeItem({ node, level = 0, isOver = false, dropPosition = null, searchQuery = '' }: TreeItemProps) {
+export function TreeItem({ node, level = 0, isOver = false, dropPosition = null, searchQuery = '', ancestorNames = [] }: TreeItemProps) {
   const { expandedIds, activeId, selectedId, toggleExpand, setSelectedId } = useCategoryStore();
   const isExpanded = expandedIds.has(node.id);
   const isActive = activeId === node.id;
@@ -226,13 +228,14 @@ export function TreeItem({ node, level = 0, isOver = false, dropPosition = null,
                 node={child}
                 level={level + 1}
                 searchQuery={searchQuery}
+                ancestorNames={[...ancestorNames, node.name]}
               />
             ))}
           </div>
         )}
       </div>
       
-      {/* 編輯對話框 */}
+      {/* 編輯對話框（帶入父層路徑供 AI 描述） */}
       <EditCategoryDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
@@ -240,9 +243,10 @@ export function TreeItem({ node, level = 0, isOver = false, dropPosition = null,
         parentId={node.parent_id}
         initialName={node.name}
         initialDescription={node.description}
+        parentChain={ancestorNames.length > 0 ? ancestorNames.join(' > ') : undefined}
       />
       
-      {/* 新增子分類對話框 */}
+      {/* 新增子分類對話框（父層路徑含當前節點） */}
       <EditCategoryDialog
         open={addSubDialogOpen}
         onOpenChange={setAddSubDialogOpen}
@@ -250,6 +254,7 @@ export function TreeItem({ node, level = 0, isOver = false, dropPosition = null,
         parentId={node.id}
         initialName=""
         initialDescription={null}
+        parentChain={[...ancestorNames, node.name].join(' > ')}
       />
       
       {/* 刪除確認對話框 */}

@@ -15,12 +15,14 @@ import { logger } from '@/lib/logger';
 const requestSchema = z.object({
   categoryName: z.string().min(1),
   parentCategory: z.string().optional(),
+  parentChain: z.string().optional(), // 完整父層路徑，例：「電子產品 > 手機」
 });
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { categoryName, parentCategory } = requestSchema.parse(body);
+    const { categoryName, parentCategory, parentChain: chain } = requestSchema.parse(body);
+    const parentChain = chain ?? parentCategory;
 
     // 檢查 Google AI API Key
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -38,20 +40,20 @@ export async function POST(request: NextRequest) {
     // 使用 Google Gemini 生成描述
     const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash';
     
-    const parentContext = parentCategory 
-      ? `此分類隸屬於「${parentCategory}」分類下，` 
+    const fullPath = parentChain ? `${parentChain} > ${categoryName}` : categoryName;
+    const pathContext = parentChain
+      ? `完整路徑：${fullPath}。請描述此分類的商品範圍，`
       : '';
 
     const { text } = await generateText({
       model: google(modelName),
-      prompt: `你是一個電商平台的分類專家。請為分類「${categoryName}」${parentContext}生成一個專業、簡潔的繁體中文描述。
+      prompt: `你是電商平台的分類專家。請為分類「${fullPath}」生成一段繁體中文描述。${pathContext}
 
 要求：
-- 描述長度：20-50 字
+- 描述長度：約 50 字
 - 語言：繁體中文
-- 風格：專業、簡潔、吸引人
-- 內容：突出分類特色，吸引目標客戶
-- 用途：用於電商平台的分類描述
+- 風格：專業、簡潔
+- 內容：描述此分類的商品範圍與定位
 
 請只返回描述文字，不要其他內容或標點符號。`,
       temperature: 0.7,

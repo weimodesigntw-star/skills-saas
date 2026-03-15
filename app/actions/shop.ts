@@ -13,7 +13,6 @@ export async function getShopProducts(categoryId?: string, search?: string) {
     .from('products')
     .select('id, name, description, price, stock, image_url, category_id, sku')
     .eq('is_active', true)
-    .gt('stock', 0)
     .order('created_at', { ascending: false });
 
   if (categoryId) {
