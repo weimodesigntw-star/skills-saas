@@ -23,6 +23,8 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.39.3",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "ai": "^6.0.73",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
