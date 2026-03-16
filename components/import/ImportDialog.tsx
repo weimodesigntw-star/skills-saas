@@ -110,7 +110,7 @@ export function ImportDialog({ type, trigger }: ImportDialogProps) {
     setResult(null);
     try {
       if (type === 'products') {
-        const parsed = rows as unknown as ImportProductRow[];
+        const parsed = rows as unknown as Record<string, unknown>[];
         const CHUNK = 200;
         let totalSuccess = 0;
         let totalFailed = 0;
@@ -118,7 +118,23 @@ export function ImportDialog({ type, trigger }: ImportDialogProps) {
 
         for (let i = 0; i < parsed.length; i += CHUNK) {
           const chunk = parsed.slice(i, i + CHUNK);
-          const res = await importProducts(chunk);
+          const mappedChunk = chunk.map((row) => ({
+            產品代碼: String(row['產品代碼'] ?? ''),
+            產品名稱: String(row['產品名稱'] ?? ''),
+            規格: String(row['規格'] ?? ''),
+            顏色: String(row['顏色'] ?? ''),
+            單位: String(row['單位'] ?? ''),
+            標準單位: String(row['標準單位'] ?? ''),
+            產品類別名稱: String(row['產品類別名稱'] ?? ''),
+            數量: row['數量'],
+            金額: row['金額'],
+            零售價: row['零售價'],
+            批發價: row['批發價'],
+            採購單價: row['採購單價'],
+            停用: row['停用'],
+          })) as ImportProductRow[];
+
+          const res = await importProducts(mappedChunk);
           if ('error' in res) {
             toast.error(res.error);
             setStep('preview');
