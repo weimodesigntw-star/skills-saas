@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-029",
+  "title": "建立 customer_orders 客戶訂單主檔",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/029_customer_orders.sql",
+  "description": "客戶訂單主檔 + RLS + updated_at trigger + 索引",
+  "acceptance_criteria": [
+    "customer_orders 表存在",
+    "RLS 已啟用",
+    "status 欄位預設 pending"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

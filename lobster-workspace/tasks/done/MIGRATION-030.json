@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-030",
+  "title": "建立 customer_order_items 訂單明細",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/030_customer_order_items.sql",
+  "description": "訂單明細 + RLS（via order）+ ON DELETE CASCADE",
+  "acceptance_criteria": [
+    "customer_order_items 表存在",
+    "RLS 已啟用",
+    "order_id FK 有 ON DELETE CASCADE"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

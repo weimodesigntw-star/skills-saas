@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-031",
+  "title": "建立 generate_order_code RPC",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/031_customer_order_code_rpc.sql",
+  "description": "自動產生訂單號 BA201-YYYYMMDD-XXXX",
+  "acceptance_criteria": [
+    "generate_order_code RPC 存在",
+    "回傳格式為 BA201-YYYYMMDD-XXXX"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

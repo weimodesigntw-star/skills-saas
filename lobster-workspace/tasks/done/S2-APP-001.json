@@ -1,0 +1,22 @@
+{
+  "id": "S2-APP-001",
+  "title": "S2 應用層：客戶訂單 CRUD + 明細表格 + 選品 Dialog",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_S2_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "acceptance_criteria": [
+    "app/actions/customer-orders.ts 存在",
+    "lib/schemas/customer-order.ts 存在",
+    "app/dashboard/orders/page.tsx 存在",
+    "components/orders/OrderForm.tsx 存在",
+    "components/orders/OrderItemsTable.tsx 存在",
+    "components/orders/ProductPickerDialog.tsx 存在",
+    "npm run build 通過"
+  ],
+  "result": {
+    "success": false,
+    "error": "缺少 ANTHROPIC_API_KEY（config.anthropic.api_key 或環境變數）"
+  }
+}

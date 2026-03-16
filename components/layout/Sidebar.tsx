@@ -19,6 +19,7 @@ import {
   Hash,
   Warehouse,
   Building2,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ const navItems = [
   { href: '/dashboard/pos/sequences', label: '字軌設定', icon: Hash },
   { href: '/dashboard/products', label: '商品', icon: Package },
   { href: '/dashboard/vendors', label: '廠商管理', icon: Building2 },
+  { href: '/dashboard/orders', label: '客戶訂單', icon: ClipboardList },
   { href: '/dashboard/specifications', label: '規格', icon: FileText },
   { href: '/dashboard/news', label: '最新消息', icon: Newspaper },
   { href: '/dashboard/videos', label: '影片管理', icon: Video },
