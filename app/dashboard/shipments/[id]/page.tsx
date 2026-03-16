@@ -1,14 +1,14 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, Trash2, Truck } from 'lucide-react';
-import { fetchCustomerOrderById, deleteCustomerOrder } from '@/app/actions/customer-orders';
+import { ArrowLeft, DollarSign } from 'lucide-react';
+import { fetchShipmentById } from '@/app/actions/shipments';
 import { createServerClient } from '@/lib/supabase/server';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList } from 'lucide-react';
+import { Truck } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
-import { OrderDetailActions } from './OrderDetailActions';
+import { ShipmentDetailActions } from './ShipmentDetailActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,41 +16,26 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function OrderDetailPage({ params }: PageProps) {
+export default async function ShipmentDetailPage({ params }: PageProps) {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     return (
       <div className="container mx-auto py-8 px-4">
-        <EmptyState
-          icon={ClipboardList}
-          title="請先登入"
-          description="登入後即可查看訂單"
-        />
+        <EmptyState icon={Truck} title="請先登入" description="登入後即可查看出貨單" />
       </div>
     );
   }
 
   const { id } = await params;
-  const order = await fetchCustomerOrderById(id);
-  if (!order) notFound();
+  const shipment = await fetchShipmentById(id);
+  if (!shipment) notFound();
 
-  const member = order.members as { id: string; name: string; client_code: string | null } | null;
-  const customerLabel = member
-    ? member.client_code
-      ? `${member.name}（${member.client_code}）`
-      : member.name
-    : '—';
+  const member = shipment.members as { id: string; name: string; client_code: string | null } | null;
+  const customerLabel = member ? (member.client_code ? `${member.name}（${member.client_code}）` : member.name) : '—';
 
-  const statusMap: Record<string, string> = {
-    pending: '待出貨',
-    shipped: '已出貨',
-    cancelled: '已取消',
-  };
-  const statusLabel = statusMap[order.status] ?? order.status;
-
-  const items = (order.items ?? []) as {
+  const items = (shipment.items ?? []) as {
     product_name: string;
     unit_name: string | null;
     qty: number;
@@ -61,49 +46,31 @@ export default async function OrderDetailPage({ params }: PageProps) {
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <Link
-        href="/dashboard/orders"
+        href="/dashboard/shipments"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
-        返回訂單列表
+        返回出貨單列表
       </Link>
 
       <Card className="mb-6">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-xl font-mono">{order.order_code}</CardTitle>
+            <CardTitle className="text-xl font-mono">{shipment.ship_code}</CardTitle>
             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <p>預交日期：{order.advance_date ?? '—'}</p>
+              <p>出貨日期：{shipment.ship_date ?? '—'}</p>
               <p>客戶：{customerLabel}</p>
+              <p>來源訂單：{shipment.source_order_code ?? '—'}</p>
               <p>
                 狀態：{' '}
-                <span
-                  className={
-                    order.status === 'pending'
-                      ? 'text-amber-600 font-medium'
-                      : order.status === 'shipped'
-                        ? 'text-green-600 font-medium'
-                        : 'text-muted-foreground'
-                  }
-                >
-                  {statusLabel}
+                <span className={shipment.status === 'valid' ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                  {shipment.status === 'valid' ? '有效' : '已作廢'}
                 </span>
               </p>
-              <p>銷售方式：{order.sales_channel ?? '—'}</p>
-              {order.note && <p>備註：{order.note}</p>}
+              {shipment.note && <p>備註：{shipment.note}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {order.status === 'pending' && (
-              <Button asChild>
-                <Link href={`/dashboard/shipments/from-order/${order.id}`}>
-                  <Truck className="h-4 w-4 mr-1" />
-                  轉出貨單
-                </Link>
-              </Button>
-            )}
-            <OrderDetailActions orderId={order.id} />
-          </div>
+          <ShipmentDetailActions shipment={shipment} />
         </CardHeader>
         <CardContent className="border-t pt-4">
           <p className="text-sm font-medium text-muted-foreground mb-2">明細</p>
@@ -132,9 +99,11 @@ export default async function OrderDetailPage({ params }: PageProps) {
             </table>
           </div>
           <div className="mt-4 space-y-1 text-sm text-right">
-            <p>小計：{formatNTD(Number(order.subtotal))}</p>
-            <p>稅額：{formatNTD(Number(order.tax_amount))}</p>
-            <p className="font-bold">合計：{formatNTD(Number(order.total))}</p>
+            <p>小計：{formatNTD(Number(shipment.subtotal))}</p>
+            <p>稅額：{formatNTD(Number(shipment.tax_amount))}</p>
+            <p className="font-bold">合計：{formatNTD(Number(shipment.total))}</p>
+            <p>已收：{formatNTD(Number(shipment.amt_recd))}</p>
+            <p>未收：{formatNTD(Number(shipment.amt_outstanding))}</p>
           </div>
         </CardContent>
       </Card>

@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-033",
+  "title": "建立 shipment_items 出貨明細",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/033_shipment_items.sql",
+  "description": "出貨明細 + RLS（via shipment）+ ON DELETE CASCADE",
+  "acceptance_criteria": [
+    "shipment_items 表存在",
+    "shipment_id FK 有 ON DELETE CASCADE"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

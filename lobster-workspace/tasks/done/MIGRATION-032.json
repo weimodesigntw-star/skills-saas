@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-032",
+  "title": "建立 shipments 出貨單主檔",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/032_shipments.sql",
+  "description": "出貨單主檔 + RLS + updated_at trigger + 索引",
+  "acceptance_criteria": [
+    "shipments 表存在",
+    "RLS 已啟用",
+    "amt_recd / amt_outstanding 欄位存在"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

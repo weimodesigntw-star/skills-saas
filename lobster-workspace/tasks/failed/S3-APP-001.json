@@ -1,0 +1,23 @@
+{
+  "id": "S3-APP-001",
+  "title": "S3 應用層：出貨單 CRUD + 從訂單轉出貨 + 收款",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_S3_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "acceptance_criteria": [
+    "app/actions/shipments.ts 存在",
+    "lib/schemas/shipment.ts 存在",
+    "app/dashboard/shipments/page.tsx 存在",
+    "app/dashboard/shipments/from-order/[orderId]/page.tsx 存在",
+    "components/shipments/FromOrderShipmentForm.tsx 存在",
+    "components/shipments/ReceivePaymentDialog.tsx 存在",
+    "訂單詳情頁有「轉出貨單」按鈕",
+    "npm run build 通過"
+  ],
+  "result": {
+    "success": false,
+    "error": "缺少 ANTHROPIC_API_KEY（config.anthropic.api_key 或環境變數）"
+  }
+}

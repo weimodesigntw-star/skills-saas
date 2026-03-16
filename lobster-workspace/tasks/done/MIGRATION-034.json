@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-034",
+  "title": "建立出貨單 RPC（generate_ship_code + create_shipment_from_order）",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/034_shipment_rpcs.sql",
+  "description": "自動產生出貨號 + 從訂單轉出貨原子操作（含扣庫存）",
+  "acceptance_criteria": [
+    "generate_ship_code RPC 存在",
+    "create_shipment_from_order RPC 存在",
+    "出貨後庫存正確扣減"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}
