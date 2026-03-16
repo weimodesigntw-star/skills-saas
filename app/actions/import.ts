@@ -9,8 +9,11 @@ export type ImportProductRow = {
   產品名稱: string;
   規格?: string;
   顏色?: string;
+  單位?: string;
   標準單位?: string;
   產品類別名稱?: string;
+  數量?: number | string;
+  金額?: number | string;
   零售價?: number | string;
   批發價?: number | string;
   採購單價?: number | string;
@@ -49,91 +52,150 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
   let failed = 0;
   const errors: string[] = [];
 
+  // 先整理資料與分類名稱，避免每列都打 DB
+  const cleanedRows: {
+    name: string;
+    productCode: string;
+    categoryName: string;
+    spec: string;
+    color: string;
+    unit: string;
+    price: number;
+    wholePrice: number;
+    purchasePrice: number;
+    qty: number;
+    isActive: boolean;
+  }[] = [];
+
+  const categoryNameSet = new Set<string>();
+
   for (const row of rows) {
     const name = (row.產品名稱 ?? '').toString().trim();
     if (!name) {
       failed++;
-      errors.push('跳過：缺少產品名稱');
+      if (errors.length < 20) errors.push('跳過：缺少產品名稱');
       continue;
     }
 
     const productCode = row.產品代碼 != null ? String(row.產品代碼).trim() : '';
     const categoryName = row.產品類別名稱 != null ? String(row.產品類別名稱).trim() : '';
-    let categoryId: string | null = null;
-
-    if (categoryName) {
-      const { data: cat } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('name', categoryName)
-        .maybeSingle();
-
-      if (cat?.id) {
-        categoryId = cat.id;
-      } else {
-        const { data: newCat } = await supabase
-          .from('categories')
-          .insert({ user_id: user.id, name: categoryName })
-          .select('id')
-          .single();
-        categoryId = newCat?.id ?? null;
-      }
-    }
-
     const spec = (row.規格 ?? '').toString().trim();
     const color = (row.顏色 ?? '').toString().trim();
-    const description = [spec, color].filter(Boolean).join(' ') || null;
+    const unitFromSheet = (row.單位 ?? '').toString().trim();
+    const standardUnit = (row.標準單位 ?? '').toString().trim();
+    const qtyRaw = row.數量 != null ? String(row.數量) : '0';
+    const amountRaw = row.金額 != null ? String(row.金額) : '0';
+    const qty = parseFloat(qtyRaw) || 0;
+    const amount = parseFloat(amountRaw) || 0;
+    const unitPrice = qty > 0 ? Math.round(amount / qty) : 0;
     const disable = row.停用 != null ? String(row.停用) : '';
     const isActive = disable !== '1';
 
+    if (categoryName) categoryNameSet.add(categoryName);
+
+    cleanedRows.push({
+      name,
+      productCode,
+      categoryName,
+      spec,
+      color,
+      unit: unitFromSheet || standardUnit,
+      // 單價以 金額 ÷ 數量 反推，若數量為 0 則退回 Excel 的零售價
+      price: unitPrice || Number(row.零售價) || 0,
+      wholePrice: Number(row.批發價) || 0,
+      purchasePrice: Number(row.採購單價) || 0,
+      qty,
+      isActive,
+    });
+  }
+
+  // 一次查出所有需要的分類
+  const categoryMap = new Map<string, string>(); // name -> id
+  const categoryNames = Array.from(categoryNameSet);
+
+  if (categoryNames.length > 0) {
+    const { data: existingCats } = await supabase
+      .from('categories')
+      .select('id, name')
+      .eq('user_id', user.id)
+      .in('name', categoryNames);
+
+    existingCats?.forEach((c) => {
+      categoryMap.set(c.name as string, c.id as string);
+    });
+
+    const missingNames = categoryNames.filter((n) => !categoryMap.has(n));
+    if (missingNames.length > 0) {
+      const toInsert = missingNames.map((name) => ({ user_id: user.id, name }));
+      const { data: inserted, error: catError } = await supabase
+        .from('categories')
+        .insert(toInsert)
+        .select('id, name');
+      if (catError) {
+        if (errors.length < 20) errors.push(`建立分類失敗：${catError.message}`);
+      } else {
+        inserted?.forEach((c) => {
+          categoryMap.set(c.name as string, c.id as string);
+        });
+      }
+    }
+  }
+
+  // 準備要寫入 products 的 payload，拆成有 product_code 與沒有的兩組
+  const payloadsWithCode: any[] = [];
+  const payloadsWithoutCode: any[] = [];
+
+  for (const row of cleanedRows) {
+    const description = [row.spec, row.color].filter(Boolean).join(' ') || null;
+    const categoryId = row.categoryName ? categoryMap.get(row.categoryName) ?? null : null;
+
     const payload = {
       user_id: user.id,
-      name,
-      product_code: productCode || null,
+      name: row.name,
+      product_code: row.productCode || null,
       description,
-      unit_name: (row.標準單位 ?? '').toString().trim() || null,
-      price: Number(row.零售價) || 0,
-      whole_sell_price: Number(row.批發價) || 0,
-      purchase_price: Number(row.採購單價) || 0,
+      unit_name: row.unit || null,
+      price: row.price,
+      whole_sell_price: row.wholePrice,
+      purchase_price: row.purchasePrice,
       category_id: categoryId,
-      is_active: isActive,
-      stock: 0,
+      is_active: row.isActive,
+      stock: row.qty,
       low_stock_threshold: 5,
     };
 
-    if (productCode) {
-      const { data: existing } = await supabase
-        .from('products')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('product_code', productCode)
-        .maybeSingle();
-      if (existing?.id) {
-        const { error } = await supabase.from('products').update(payload).eq('id', existing.id);
-        if (error) {
-          failed++;
-          errors.push(`${name}: ${error.message}`);
-        } else {
-          success++;
-        }
-      } else {
-        const { error } = await supabase.from('products').insert(payload);
-        if (error) {
-          failed++;
-          errors.push(`${name}: ${error.message}`);
-        } else {
-          success++;
-        }
-      }
+    if (row.productCode) {
+      payloadsWithCode.push(payload);
     } else {
-      const { error } = await supabase.from('products').insert(payload);
-      if (error) {
-        failed++;
-        errors.push(`${name}: ${error.message}`);
-      } else {
-        success++;
-      }
+      payloadsWithoutCode.push(payload);
+    }
+  }
+
+  const BATCH_SIZE = 300;
+
+  // 1) 有 product_code 的，用 upsert（依 user_id + product_code 去重）
+  for (let i = 0; i < payloadsWithCode.length; i += BATCH_SIZE) {
+    const batch = payloadsWithCode.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase
+      .from('products')
+      .upsert(batch, { onConflict: 'user_id,product_code' });
+    if (error) {
+      failed += batch.length;
+      if (errors.length < 20) errors.push(`批次失敗（product_code）：${error.message}`);
+    } else {
+      success += batch.length;
+    }
+  }
+
+  // 2) 沒有 product_code 的，單純 insert（避免重複 key）
+  for (let i = 0; i < payloadsWithoutCode.length; i += BATCH_SIZE) {
+    const batch = payloadsWithoutCode.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase.from('products').insert(batch);
+    if (error) {
+      failed += batch.length;
+      if (errors.length < 20) errors.push(`批次失敗（無 product_code）：${error.message}`);
+    } else {
+      success += batch.length;
     }
   }
 

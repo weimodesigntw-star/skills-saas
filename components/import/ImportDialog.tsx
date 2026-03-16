@@ -110,14 +110,32 @@ export function ImportDialog({ type, trigger }: ImportDialogProps) {
     setResult(null);
     try {
       if (type === 'products') {
-        const res = await importProducts(rows as unknown as ImportProductRow[]);
-        if ('error' in res) {
-          toast.error(res.error);
-          setStep('preview');
-          return;
+        const parsed = rows as unknown as ImportProductRow[];
+        const CHUNK = 200;
+        let totalSuccess = 0;
+        let totalFailed = 0;
+        const allErrors: string[] = [];
+
+        for (let i = 0; i < parsed.length; i += CHUNK) {
+          const chunk = parsed.slice(i, i + CHUNK);
+          const res = await importProducts(chunk);
+          if ('error' in res) {
+            toast.error(res.error);
+            setStep('preview');
+            return;
+          }
+          totalSuccess += res.success;
+          totalFailed += res.failed;
+          allErrors.push(...(res.errors ?? []));
         }
-        setResult(res);
-        toast.success(`產品匯入完成：成功 ${res.success} 筆，失敗 ${res.failed} 筆`);
+
+        const finalResult: ImportResult = {
+          success: totalSuccess,
+          failed: totalFailed,
+          errors: allErrors.slice(0, 20),
+        };
+        setResult(finalResult);
+        toast.success(`產品匯入完成：成功 ${finalResult.success} 筆，失敗 ${finalResult.failed} 筆`);
       } else {
         const res = await importMembers(rows as unknown as ImportMemberRow[]);
         if ('error' in res) {
