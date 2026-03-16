@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { z } from 'zod';
 
 import { createProduct } from '@/app/actions/products';
+import { getDepots } from '@/app/actions/depots';
+import { fetchVendors } from '@/app/actions/vendors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +30,11 @@ const ProductFormSchema = z.object({
   category_id: z.string().optional().default(''),
   tax_type: z.enum(['taxable', 'tax_free', 'zero_rate']).default('taxable'),
   is_active: z.boolean().default(true),
+  product_code: z.string().max(100).optional().default(''),
+  whole_sell_price: z.coerce.number().nonnegative('批發價需大於等於 0').optional().default(0),
+  purchase_price: z.coerce.number().nonnegative('採購單價需大於等於 0').optional().default(0),
+  vendor_id: z.string().optional().default(''),
+  depot_id: z.string().optional().default(''),
 });
 
 type ProductFormData = z.infer<typeof ProductFormSchema>;
@@ -37,12 +44,26 @@ interface Category {
   name: string;
 }
 
+interface Vendor {
+  id: string;
+  vendor_code: string | null;
+  vendor_name: string;
+}
+
+interface Depot {
+  id: string;
+  depot_code: string | null;
+  depot_name: string;
+}
+
 export default function NewProductPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [depots, setDepots] = useState<Depot[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const form = useForm<ProductFormData>({
@@ -59,6 +80,11 @@ export default function NewProductPage() {
       category_id: '',
       tax_type: 'taxable',
       is_active: true,
+      product_code: '',
+      whole_sell_price: 0,
+      purchase_price: 0,
+      vendor_id: '',
+      depot_id: '',
     },
   });
 
@@ -82,6 +108,22 @@ export default function NewProductPage() {
     loadCategories();
   }, []);
 
+  useEffect(() => {
+    const loadErpOptions = async () => {
+      try {
+        const [depotsRes, vendorsRes] = await Promise.all([
+          getDepots(),
+          fetchVendors({ pageSize: 500 }),
+        ]);
+        setDepots(depotsRes);
+        setVendors(vendorsRes.vendors || []);
+      } catch {
+        // optional
+      }
+    };
+    loadErpOptions();
+  }, []);
+
   const onSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
     setError(null);
@@ -99,6 +141,11 @@ export default function NewProductPage() {
       formData.append('category_id', data.category_id || '');
       formData.append('tax_type', data.tax_type);
       formData.append('is_active', data.is_active.toString());
+      formData.append('product_code', data.product_code || '');
+      formData.append('whole_sell_price', String(data.whole_sell_price ?? 0));
+      formData.append('purchase_price', String(data.purchase_price ?? 0));
+      formData.append('vendor_id', data.vendor_id || '');
+      formData.append('depot_id', data.depot_id || '');
 
       if (imageFile) {
         formData.append('image', imageFile);
@@ -302,6 +349,97 @@ export default function NewProductPage() {
                           />
                         </FormControl>
                         <FormDescription>庫存警示門檻</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* ERP: product_code, whole_sell_price, purchase_price, vendor_id, depot_id */}
+                  <FormField
+                    control={form.control}
+                    name="product_code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>商品代碼</FormLabel>
+                        <FormControl>
+                          <Input placeholder="選填" disabled={isLoading} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="whole_sell_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>批發價 (NT$)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" disabled={isLoading} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="purchase_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>採購單價 (NT$)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" disabled={isLoading} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vendor_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>廠商</FormLabel>
+                        <FormControl>
+                          <select
+                            disabled={isLoading}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            {...field}
+                          >
+                            <option value="">請選擇廠商</option>
+                            {vendors.map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {v.vendor_code ? `${v.vendor_code} ${v.vendor_name}` : v.vendor_name}
+                              </option>
+                            ))}
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="depot_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>倉庫</FormLabel>
+                        <FormControl>
+                          <select
+                            disabled={isLoading}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            {...field}
+                          >
+                            <option value="">請選擇倉庫</option>
+                            {depots.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.depot_name}
+                              </option>
+                            ))}
+                          </select>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

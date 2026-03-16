@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { z } from 'zod';
 
 import { getProduct, updateProduct, deleteProduct } from '@/app/actions/products';
+import { getDepots } from '@/app/actions/depots';
+import { fetchVendors } from '@/app/actions/vendors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,6 +40,11 @@ const ProductFormSchema = z.object({
   category_id: z.string().optional().default(''),
   tax_type: z.enum(['taxable', 'tax_free', 'zero_rate']).default('taxable'),
   is_active: z.boolean().default(true),
+  product_code: z.string().max(100).optional().default(''),
+  whole_sell_price: z.coerce.number().nonnegative().optional().default(0),
+  purchase_price: z.coerce.number().nonnegative().optional().default(0),
+  vendor_id: z.string().optional().default(''),
+  depot_id: z.string().optional().default(''),
 });
 
 type ProductFormData = z.infer<typeof ProductFormSchema>;
@@ -45,6 +52,18 @@ type ProductFormData = z.infer<typeof ProductFormSchema>;
 interface Category {
   id: string;
   name: string;
+}
+
+interface Vendor {
+  id: string;
+  vendor_code: string | null;
+  vendor_name: string;
+}
+
+interface Depot {
+  id: string;
+  depot_code: string | null;
+  depot_name: string;
 }
 
 interface Product {
@@ -61,6 +80,11 @@ interface Product {
   category_id: string | null;
   tax_type: 'taxable' | 'tax_free' | 'zero_rate';
   is_active: boolean;
+  product_code?: string | null;
+  whole_sell_price?: number | null;
+  purchase_price?: number | null;
+  vendor_id?: string | null;
+  depot_id?: string | null;
 }
 
 interface EditProductPageProps {
@@ -76,6 +100,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [depots, setDepots] = useState<Depot[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
 
@@ -93,6 +119,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       category_id: '',
       tax_type: 'taxable',
       is_active: true,
+      product_code: '',
+      whole_sell_price: 0,
+      purchase_price: 0,
+      vendor_id: '',
+      depot_id: '',
     },
   });
 
@@ -119,11 +150,22 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           category_id: productData.category_id || '',
           tax_type: productData.tax_type,
           is_active: productData.is_active,
+          product_code: (productData as any).product_code || '',
+          whole_sell_price: (productData as any).whole_sell_price ?? 0,
+          purchase_price: (productData as any).purchase_price ?? 0,
+          vendor_id: (productData as any).vendor_id || '',
+          depot_id: (productData as any).depot_id || '',
         });
 
-        // Load categories
-        const cats = await getCategoriesFlatForSelect();
+        // Load categories and ERP options
+        const [cats, depotsRes, vendorsRes] = await Promise.all([
+          getCategoriesFlatForSelect(),
+          getDepots(),
+          fetchVendors({ pageSize: 500 }),
+        ]);
         setCategories(cats);
+        setDepots(depotsRes);
+        setVendors(vendorsRes.vendors || []);
 
         setIsLoading(false);
       } catch (err) {
@@ -152,6 +194,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       formData.append('category_id', data.category_id || '');
       formData.append('tax_type', data.tax_type);
       formData.append('is_active', data.is_active.toString());
+      formData.append('product_code', data.product_code || '');
+      formData.append('whole_sell_price', String(data.whole_sell_price ?? 0));
+      formData.append('purchase_price', String(data.purchase_price ?? 0));
+      formData.append('vendor_id', data.vendor_id || '');
+      formData.append('depot_id', data.depot_id || '');
       formData.append('removeImage', removeImage.toString());
 
       if (imageFile) {
@@ -381,6 +428,96 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                           />
                         </FormControl>
                         <FormDescription>庫存警示門檻</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="product_code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>商品代碼</FormLabel>
+                        <FormControl>
+                          <Input placeholder="選填" disabled={isSaving} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="whole_sell_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>批發價 (NT$)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" disabled={isSaving} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="purchase_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>採購單價 (NT$)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" disabled={isSaving} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vendor_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>廠商</FormLabel>
+                        <FormControl>
+                          <select
+                            disabled={isSaving}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            {...field}
+                          >
+                            <option value="">請選擇廠商</option>
+                            {vendors.map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {v.vendor_code ? `${v.vendor_code} ${v.vendor_name}` : v.vendor_name}
+                              </option>
+                            ))}
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="depot_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>倉庫</FormLabel>
+                        <FormControl>
+                          <select
+                            disabled={isSaving}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            {...field}
+                          >
+                            <option value="">請選擇倉庫</option>
+                            {depots.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.depot_name}
+                              </option>
+                            ))}
+                          </select>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

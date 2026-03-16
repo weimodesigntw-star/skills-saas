@@ -1,0 +1,10 @@
+{
+  "project_name": "Skills SaaS",
+  "tech_stack": "Next.js 14 + Supabase + Stripe",
+  "agents": ["agent-a", "agent-b", "judge"],
+  "task_types": ["write_code", "review", "test", "deploy", "run_migration"],
+  "supabase": {
+    "project_ref": "ucwcavjnqalnxnisiuha",
+    "service_role_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjd2NhdmpucWFsbnhuaXNpdWhhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDI5MDk0MCwiZXhwIjoyMDg1ODY2OTQwfQ.AgjnBwMI9IBT3Yo2Sim2hUVOwWup6UJkT7U1QLcHaVc"
+  }
+}

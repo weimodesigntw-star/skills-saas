@@ -175,6 +175,11 @@ export async function createProduct(formData: FormData) {
   const category_id = formData.get('category_id') as string;
   const tax_type = (formData.get('tax_type') as string) || 'taxable';
   const is_active = formData.get('is_active') === 'true';
+  const product_code = (formData.get('product_code') as string) || null;
+  const whole_sell_price = formData.get('whole_sell_price') != null ? parseFloat(formData.get('whole_sell_price') as string) : 0;
+  const purchase_price = formData.get('purchase_price') != null ? parseFloat(formData.get('purchase_price') as string) : 0;
+  const vendor_id = (formData.get('vendor_id') as string) || null;
+  const depot_id = (formData.get('depot_id') as string) || null;
   const imageFile = formData.get('image') as File | null;
 
   // Validate input
@@ -257,6 +262,11 @@ export async function createProduct(formData: FormData) {
       tax_type: validated.tax_type,
       is_active: validated.is_active,
       metadata: {},
+      product_code: product_code || null,
+      whole_sell_price: whole_sell_price ?? 0,
+      purchase_price: purchase_price ?? 0,
+      vendor_id: vendor_id || null,
+      depot_id: depot_id || null,
     })
     .select()
     .single();
@@ -304,6 +314,11 @@ export async function updateProduct(id: string, formData: FormData) {
   const category_id = formData.get('category_id') as string;
   const tax_type = (formData.get('tax_type') as string) || 'taxable';
   const is_active = formData.get('is_active') === 'true';
+  const product_code = (formData.get('product_code') as string) || null;
+  const whole_sell_price = formData.get('whole_sell_price') != null ? parseFloat(formData.get('whole_sell_price') as string) : 0;
+  const purchase_price = formData.get('purchase_price') != null ? parseFloat(formData.get('purchase_price') as string) : 0;
+  const vendor_id = (formData.get('vendor_id') as string) || null;
+  const depot_id = (formData.get('depot_id') as string) || null;
   const imageFile = formData.get('image') as File | null;
   const removeImage = formData.get('removeImage') === 'true';
 
@@ -410,6 +425,11 @@ export async function updateProduct(id: string, formData: FormData) {
       image_url: imageUrl,
       tax_type: validated.tax_type,
       is_active: validated.is_active,
+      product_code: product_code || null,
+      whole_sell_price: whole_sell_price ?? 0,
+      purchase_price: purchase_price ?? 0,
+      vendor_id: vendor_id || null,
+      depot_id: depot_id || null,
     })
     .eq('id', id)
     .eq('user_id', user.id)
