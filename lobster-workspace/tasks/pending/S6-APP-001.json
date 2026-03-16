@@ -1,0 +1,17 @@
+{
+  "id": "S6-APP-001",
+  "title": "S6 應用層：出貨明細表 + 毛利報表 + 應收帳款明細表 Excel 匯出",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_S6_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "acceptance_criteria": [
+    "app/actions/reports.ts 存在",
+    "app/dashboard/reports/page.tsx 存在",
+    "app/dashboard/reports/ReportsClient.tsx 存在",
+    "components/reports/ExportExcel.ts 存在",
+    "xlsx 套件已安裝",
+    "npm run build 通過"
+  ]
+}
