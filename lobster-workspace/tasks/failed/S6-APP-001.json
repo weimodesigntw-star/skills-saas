@@ -13,5 +13,9 @@
     "components/reports/ExportExcel.ts 存在",
     "xlsx 套件已安裝",
     "npm run build 通過"
-  ]
+  ],
+  "result": {
+    "success": false,
+    "error": "缺少 ANTHROPIC_API_KEY（config.anthropic.api_key 或環境變數）"
+  }
 }

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ImportDialog } from '@/components/import/ImportDialog';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -82,6 +83,7 @@ export function MembersClient({
           className="max-w-xs"
         />
         <Button onClick={handleSearch}>查詢</Button>
+        <ImportDialog type="members" />
         <Button onClick={() => setOpenCreate(true)}>
           <Plus className="mr-1 h-4 w-4" />
           新增會員

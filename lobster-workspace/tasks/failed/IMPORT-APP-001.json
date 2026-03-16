@@ -1,0 +1,23 @@
+{
+  "id": "IMPORT-APP-001",
+  "title": "Excel 匯入：產品資料 + 客戶資料",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_IMPORT_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "acceptance_criteria": [
+    "app/actions/import.ts 存在",
+    "components/import/ImportDialog.tsx 存在",
+    "商品管理頁有「匯入 Excel」按鈕",
+    "會員管理頁有「匯入 Excel」按鈕",
+    "可上傳 xlsx 並顯示 Preview",
+    "確認後批次 upsert 進 Supabase",
+    "顯示成功/失敗筆數",
+    "npm run build 通過"
+  ],
+  "result": {
+    "success": false,
+    "error": "缺少 ANTHROPIC_API_KEY（config.anthropic.api_key 或環境變數）"
+  }
+}

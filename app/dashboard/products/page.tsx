@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { Plus, Package } from 'lucide-react';
 import { getProducts } from '@/app/actions/products';
 import { Button } from '@/components/ui/button';
+import { ImportDialog } from '@/components/import/ImportDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -92,12 +93,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               建立和管理商品庫存，支援圖片上傳和多種稅務類型
             </p>
           </div>
-          <Link href="/dashboard/products/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              新增商品
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <ImportDialog type="products" />
+            <Link href="/dashboard/products/new">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                新增商品
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
