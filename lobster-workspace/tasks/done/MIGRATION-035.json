@@ -1,0 +1,18 @@
+{
+  "id": "MIGRATION-035",
+  "title": "建立應收沖帳表 + RPC",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/035_receivable_writeoffs.sql",
+  "description": "receivable_writeoffs + receivable_writeoff_items + generate_writeoff_code + execute_receivable_writeoff RPC",
+  "acceptance_criteria": [
+    "receivable_writeoffs 表存在",
+    "receivable_writeoff_items 表存在",
+    "execute_receivable_writeoff RPC 存在",
+    "沖帳後出貨單 amt_outstanding 正確扣減"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

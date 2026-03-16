@@ -21,6 +21,7 @@ import {
   Building2,
   ClipboardList,
   Truck,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const navItems = [
   { href: '/dashboard/vendors', label: '廠商管理', icon: Building2 },
   { href: '/dashboard/orders', label: '客戶訂單', icon: ClipboardList },
   { href: '/dashboard/shipments', label: '出貨管理', icon: Truck },
+  { href: '/dashboard/receivables', label: '應收沖帳', icon: Receipt },
   { href: '/dashboard/specifications', label: '規格', icon: FileText },
   { href: '/dashboard/news', label: '最新消息', icon: Newspaper },
   { href: '/dashboard/videos', label: '影片管理', icon: Video },

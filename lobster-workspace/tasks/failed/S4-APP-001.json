@@ -1,0 +1,21 @@
+{
+  "id": "S4-APP-001",
+  "title": "S4 應用層：應收沖帳 CRUD",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_S4_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "acceptance_criteria": [
+    "app/actions/receivable-writeoffs.ts 存在",
+    "lib/schemas/receivable-writeoff.ts 存在",
+    "app/dashboard/receivables/page.tsx 存在",
+    "app/dashboard/receivables/new/page.tsx 存在",
+    "Sidebar 有應收沖帳連結",
+    "npm run build 通過"
+  ],
+  "result": {
+    "success": false,
+    "error": "缺少 ANTHROPIC_API_KEY（config.anthropic.api_key 或環境變數）"
+  }
+}
