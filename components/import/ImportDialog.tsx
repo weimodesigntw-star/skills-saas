@@ -51,11 +51,28 @@ export function ImportDialog({ type, trigger }: ImportDialogProps) {
             toast.error('Excel 中找不到工作表');
             return;
           }
-          const parsed = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-          if (!parsed.length) {
-            toast.error('沒有資料列，請確認第一列為標題、第二列起為資料');
+
+          // 自動偵測「產品名稱」或「客戶名稱」所在的標題列
+          const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
+          const targetHeader = type === 'products' ? '產品名稱' : '客戶名稱';
+          const headerRowIndex = rawRows.findIndex(
+            (row) => Array.isArray(row) && row.includes(targetHeader)
+          );
+
+          if (headerRowIndex === -1) {
+            toast.error(`找不到「${targetHeader}」欄位，請確認 Excel 格式`);
             return;
           }
+
+          const parsed = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+            range: headerRowIndex,
+          });
+
+          if (!parsed.length) {
+            toast.error('沒有資料列，請確認標題列下方有資料');
+            return;
+          }
+
           setRows(parsed);
           setStep('preview');
         } catch (err) {
