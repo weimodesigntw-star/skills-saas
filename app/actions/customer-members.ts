@@ -16,6 +16,14 @@ export interface CustomerMember {
   visit_count: number;
   created_at: string;
   updated_at: string;
+  // ERP 欄位
+  client_code: string | null;
+  uniform_num: string | null;
+  currency: string | null;
+  tax_type: string | null;
+  taxrate: number | null;
+  prepaid: number | null;
+  client_cat: string | null;
 }
 
 export async function fetchMembers(params: {
@@ -96,6 +104,13 @@ export async function createMember(values: MemberFormValues): Promise<{ success?
     email: values.email?.trim() || null,
     birthday: values.birthday?.trim() || null,
     note: values.note?.trim() || null,
+    client_code: values.client_code?.trim() || null,
+    uniform_num: values.uniform_num?.trim() || null,
+    currency: values.currency?.trim() || '台幣',
+    tax_type: values.tax_type?.trim() || null,
+    taxrate: values.taxrate ?? 0.05,
+    prepaid: values.prepaid ?? 0,
+    client_cat: values.client_cat?.trim() || null,
   });
 
   if (error) return { error: '新增失敗，請稍後再試' };
@@ -116,6 +131,13 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
       email: values.email?.trim() || null,
       birthday: values.birthday?.trim() || null,
       note: values.note?.trim() || null,
+      client_code: values.client_code?.trim() || null,
+      uniform_num: values.uniform_num?.trim() || null,
+      currency: values.currency?.trim() || '台幣',
+      tax_type: values.tax_type?.trim() || null,
+      taxrate: values.taxrate ?? 0.05,
+      prepaid: values.prepaid ?? 0,
+      client_cat: values.client_cat?.trim() || null,
     })
     .eq('id', id)
     .eq('user_id', user.id);
