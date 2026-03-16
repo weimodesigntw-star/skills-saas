@@ -1,0 +1,18 @@
+{
+  "id": "MIGRATION-038",
+  "title": "建立應付沖帳表 + 採購/應付 RPC",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/038_payable_and_purchase_rpcs.sql",
+  "description": "payable_writeoffs + payable_writeoff_items + generate_purchase_code + create_purchase_order + generate_payable_code + execute_payable_writeoff",
+  "acceptance_criteria": [
+    "payable_writeoffs 表存在",
+    "execute_payable_writeoff RPC 存在",
+    "create_purchase_order RPC 存在",
+    "採購進貨後庫存增加、沖帳後採購單 amt_unpaid 扣減"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

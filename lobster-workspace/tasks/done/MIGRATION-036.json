@@ -1,0 +1,17 @@
+{
+  "id": "MIGRATION-036",
+  "title": "建立 purchase_orders 採購單主檔",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/036_purchase_orders.sql",
+  "description": "採購單主檔 + RLS + updated_at trigger + 索引",
+  "acceptance_criteria": [
+    "purchase_orders 表存在",
+    "RLS 已啟用",
+    "amt_paid / amt_unpaid 欄位存在"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}

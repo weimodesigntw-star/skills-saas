@@ -1,0 +1,24 @@
+{
+  "id": "S5-APP-001",
+  "title": "S5 應用層：採購單 CRUD + 應付沖帳",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "spec_file": "../docs/ERP_S5_SPEC.md",
+  "project_dir": "../",
+  "build_check": true,
+  "acceptance_criteria": [
+    "app/actions/purchase-orders.ts 存在",
+    "app/actions/payable-writeoffs.ts 存在",
+    "app/dashboard/purchases/page.tsx 存在",
+    "app/dashboard/purchases/new/page.tsx 存在",
+    "app/dashboard/payables/page.tsx 存在",
+    "app/dashboard/payables/new/page.tsx 存在",
+    "components/purchases/PurchaseForm.tsx 存在",
+    "Sidebar 有採購管理、應付沖帳連結",
+    "npm run build 通過"
+  ],
+  "result": {
+    "success": false,
+    "error": "缺少 ANTHROPIC_API_KEY（config.anthropic.api_key 或環境變數）"
+  }
+}

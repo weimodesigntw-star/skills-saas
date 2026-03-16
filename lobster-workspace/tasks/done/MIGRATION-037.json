@@ -1,0 +1,16 @@
+{
+  "id": "MIGRATION-037",
+  "title": "建立 purchase_order_items 採購明細",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/migrations/037_purchase_order_items.sql",
+  "description": "採購明細 + RLS（via purchase）+ ON DELETE CASCADE",
+  "acceptance_criteria": [
+    "purchase_order_items 表存在",
+    "purchase_id FK 有 ON DELETE CASCADE"
+  ],
+  "result": {
+    "success": true,
+    "status": 204
+  }
+}
