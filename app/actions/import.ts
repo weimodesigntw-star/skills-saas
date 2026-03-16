@@ -3,21 +3,21 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-/** ERP 產品資料列（Excel 標題對應） */
+/** ERP 產品資料列（Excel 標題對應，使用 ASCII key） */
 export type ImportProductRow = {
-  產品代碼?: string;
-  產品名稱: string;
-  規格?: string;
-  顏色?: string;
-  單位?: string;
-  標準單位?: string;
-  產品類別名稱?: string;
-  數量?: number | string;
-  金額?: number | string;
-  零售價?: number | string;
-  批發價?: number | string;
-  採購單價?: number | string;
-  停用?: string | number;
+  product_code?: string;
+  product_name: string;
+  spec?: string;
+  color?: string;
+  unit?: string;
+  standard_unit?: string;
+  category_name?: string;
+  qty?: number | string;
+  amount?: number | string;
+  retail_price?: number | string;
+  wholesale_price?: number | string;
+  purchase_price?: number | string;
+  disabled?: string | number;
 };
 
 /** ERP 客戶資料列（Excel 標題對應） */
@@ -70,25 +70,25 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
   const categoryNameSet = new Set<string>();
 
   for (const row of rows) {
-    const name = (row.產品名稱 ?? '').toString().trim();
+    const name = (row.product_name ?? '').toString().trim();
     if (!name) {
       failed++;
       if (errors.length < 20) errors.push('跳過：缺少產品名稱');
       continue;
     }
 
-    const productCode = row.產品代碼 != null ? String(row.產品代碼).trim() : '';
-    const categoryName = row.產品類別名稱 != null ? String(row.產品類別名稱).trim() : '';
-    const spec = (row.規格 ?? '').toString().trim();
-    const color = (row.顏色 ?? '').toString().trim();
-    const unitFromSheet = (row.單位 ?? '').toString().trim();
-    const standardUnit = (row.標準單位 ?? '').toString().trim();
-    const qtyRaw = row.數量 != null ? String(row.數量) : '0';
-    const amountRaw = row.金額 != null ? String(row.金額) : '0';
+    const productCode = row.product_code != null ? String(row.product_code).trim() : '';
+    const categoryName = row.category_name != null ? String(row.category_name).trim() : '';
+    const spec = (row.spec ?? '').toString().trim();
+    const color = (row.color ?? '').toString().trim();
+    const unitFromSheet = (row.unit ?? '').toString().trim();
+    const standardUnit = (row.standard_unit ?? '').toString().trim();
+    const qtyRaw = row.qty != null ? String(row.qty) : '0';
+    const amountRaw = row.amount != null ? String(row.amount) : '0';
     const qty = parseFloat(qtyRaw) || 0;
     const amount = parseFloat(amountRaw) || 0;
     const unitPrice = qty > 0 ? Math.round(amount / qty) : 0;
-    const disable = row.停用 != null ? String(row.停用) : '';
+    const disable = row.disabled != null ? String(row.disabled) : '';
     const isActive = disable !== '1';
 
     if (categoryName) categoryNameSet.add(categoryName);
@@ -101,9 +101,9 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
       color,
       unit: unitFromSheet || standardUnit,
       // 單價以 金額 ÷ 數量 反推，若數量為 0 則退回 Excel 的零售價
-      price: unitPrice || Number(row.零售價) || 0,
-      wholePrice: Number(row.批發價) || 0,
-      purchasePrice: Number(row.採購單價) || 0,
+      price: unitPrice || Number(row.retail_price) || 0,
+      wholePrice: Number(row.wholesale_price) || 0,
+      purchasePrice: Number(row.purchase_price) || 0,
       qty,
       isActive,
     });

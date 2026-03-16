@@ -118,20 +118,21 @@ export function ImportDialog({ type, trigger }: ImportDialogProps) {
 
         for (let i = 0; i < parsed.length; i += CHUNK) {
           const chunk = parsed.slice(i, i + CHUNK);
+          // 將 Excel 中文欄位 remap 成 ASCII key，避免 Server Action 序列化問題
           const mappedChunk = chunk.map((row) => ({
-            產品代碼: String(row['產品代碼'] ?? ''),
-            產品名稱: String(row['產品名稱'] ?? ''),
-            規格: String(row['規格'] ?? ''),
-            顏色: String(row['顏色'] ?? ''),
-            單位: String(row['單位'] ?? ''),
-            標準單位: String(row['標準單位'] ?? ''),
-            產品類別名稱: String(row['產品類別名稱'] ?? ''),
-            數量: row['數量'],
-            金額: row['金額'],
-            零售價: row['零售價'],
-            批發價: row['批發價'],
-            採購單價: row['採購單價'],
-            停用: row['停用'],
+            product_code: String(row['產品代碼'] ?? ''),
+            product_name: String(row['產品名稱'] ?? ''),
+            spec: String(row['規格'] ?? ''),
+            color: String(row['顏色'] ?? ''),
+            unit: String(row['單位'] ?? ''),
+            standard_unit: String(row['標準單位'] ?? ''),
+            category_name: String(row['產品類別名稱'] ?? ''),
+            qty: row['數量'],
+            amount: row['金額'],
+            retail_price: row['零售價'],
+            wholesale_price: row['批發價'],
+            purchase_price: row['採購單價'],
+            disabled: row['停用'],
           })) as ImportProductRow[];
 
           const res = await importProducts(mappedChunk);
