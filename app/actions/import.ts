@@ -180,6 +180,9 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
       .from('products')
       .upsert(batch, { onConflict: 'user_id,product_code' });
     if (error) {
+      // 方便在 Vercel Logs 看到實際錯誤
+      // eslint-disable-next-line no-console
+      console.error('importProducts upsert error:', error.message, error.code, error.details);
       failed += batch.length;
       if (errors.length < 20) errors.push(`批次失敗（product_code）：${error.message}`);
     } else {
