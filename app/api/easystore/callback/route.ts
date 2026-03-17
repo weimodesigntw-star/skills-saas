@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code');
   const hmac = searchParams.get('hmac');
   const timestamp = searchParams.get('timestamp');
+  const state = searchParams.get('state');
 
   if (!shop || !code || !hmac || !timestamp) {
     return NextResponse.json({ error: 'Missing params' }, { status: 400 });
@@ -74,6 +75,7 @@ export async function GET(req: NextRequest) {
       {
         shop,
         access_token: accessToken,
+        user_id: state || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'shop' }

@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const shop = searchParams.get('shop');
   const hmac = searchParams.get('hmac');
   const timestamp = searchParams.get('timestamp');
+  const state = searchParams.get('state');
 
   if (!shop || !hmac || !timestamp) {
     return NextResponse.json({ error: 'Missing params' }, { status: 400 });
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
 
   const redirectUri = encodeURIComponent(`${appUrl}/api/easystore/callback`);
   const scopes = 'read_orders,read_customers,read_products,write_products';
-  const authUrl = `https://${shop}/oauth/authorize?app_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}`;
+  const statePart = state ? `&state=${encodeURIComponent(state)}` : '';
+  const authUrl = `https://${shop}/oauth/authorize?app_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}${statePart}`;
 
   return NextResponse.redirect(authUrl);
 }

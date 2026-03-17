@@ -21,6 +21,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
 import { Plus, CheckCircle2, AlertCircle, PowerOff } from 'lucide-react';
 import { getUserTracks, addTrack, activateTrack, deactivateTrack } from '@/app/actions/invoice-tracks';
+import { createClient } from '@/lib/supabase/client';
+import { Link2 } from 'lucide-react';
 
 // ============================================
 // Form Schema
@@ -56,6 +58,8 @@ export default function SettingsPage() {
   const [tracks, setTracks] = useState<InvoiceTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [easyStoreUserId, setEasyStoreUserId] = useState<string | null>(null);
+  const [easyStoreConnected, setEasyStoreConnected] = useState(false);
 
   // ECPay Status
   const ecpayConfigured = !!process.env.NEXT_PUBLIC_ECPAY_MERCHANT_ID;
@@ -86,6 +90,31 @@ export default function SettingsPage() {
   useEffect(() => {
     loadTracks();
   }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setEasyStoreUserId(data.user?.id ?? null);
+    });
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('easystore') === 'connected') setEasyStoreConnected(true);
+  }, []);
+
+  const handleEasyStoreConnect = () => {
+    if (!easyStoreUserId) {
+      toast.error('請先登入');
+      return;
+    }
+    const clientId = process.env.NEXT_PUBLIC_EASYSTORE_CLIENT_ID;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    if (!clientId) {
+      toast.error('缺少 NEXT_PUBLIC_EASYSTORE_CLIENT_ID');
+      return;
+    }
+    const redirectUri = encodeURIComponent(`${appUrl}/api/easystore/callback`);
+    const scopes = 'read_orders,read_customers,read_products,write_products';
+    window.location.href = `https://admin.easystore.co/oauth/authorize?app_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${easyStoreUserId}`;
+  };
 
   // Add new track
   const onSubmit = async (data: TrackFormData) => {
@@ -143,6 +172,30 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold">POS 設定</h1>
         <p className="text-muted-foreground mt-2">管理發票字軌和支付設定</p>
       </div>
+
+      {/* EasyStore Connect */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5" />
+            EasyStore 串接
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            {easyStoreConnected ? (
+              <span className="text-green-600 font-medium">✅ 已連結 EasyStore</span>
+            ) : (
+              <Button variant="outline" onClick={handleEasyStoreConnect}>
+                連結 EasyStore 商店
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            授權後會回到本系統並顯示已連結狀態。
+          </p>
+        </CardContent>
+      </Card>
 
       {/* ECPay Status */}
       <Card>
