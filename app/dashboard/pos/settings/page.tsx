@@ -60,6 +60,7 @@ export default function SettingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [easyStoreUserId, setEasyStoreUserId] = useState<string | null>(null);
   const [easyStoreConnected, setEasyStoreConnected] = useState(false);
+  const [easyStoreShop, setEasyStoreShop] = useState<string | null>(null);
 
   // ECPay Status
   const ecpayConfigured = !!process.env.NEXT_PUBLIC_ECPAY_MERCHANT_ID;
@@ -95,6 +96,21 @@ export default function SettingsPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setEasyStoreUserId(data.user?.id ?? null);
+
+      // 查 DB 確認是否已連結 EasyStore
+      if (data.user?.id) {
+        supabase
+          .from('easystore_integrations')
+          .select('shop')
+          .eq('user_id', data.user.id)
+          .maybeSingle()
+          .then(({ data: integration }) => {
+            if (integration?.shop) {
+              setEasyStoreConnected(true);
+              setEasyStoreShop(integration.shop);
+            }
+          });
+      }
     });
     const params = new URLSearchParams(window.location.search);
     if (params.get('easystore') === 'connected') setEasyStoreConnected(true);
@@ -183,18 +199,29 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            {easyStoreConnected ? (
-              <span className="text-green-600 font-medium">✅ 已連結 EasyStore</span>
-            ) : (
+          {easyStoreConnected ? (
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="text-sm font-medium text-green-700">已連結 EasyStore</p>
+                {easyStoreShop && (
+                  <p className="text-xs text-muted-foreground">{easyStoreShop}</p>
+                )}
+              </div>
+              <Button variant="outline" size="sm" onClick={handleEasyStoreConnect}>
+                重新授權
+              </Button>
+            </div>
+          ) : (
+            <div>
               <Button variant="outline" onClick={handleEasyStoreConnect}>
                 連結 EasyStore 商店
               </Button>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            授權後會回到本系統並顯示已連結狀態。
-          </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                授權後會回到本系統並顯示已連結狀態。
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
