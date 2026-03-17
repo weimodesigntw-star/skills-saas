@@ -49,6 +49,16 @@ export async function POST() {
     }
 
     const json = (await res.json().catch(() => ({}))) as any;
+    // debug: 印出 EasyStore response 結構（避免過大，截斷）
+    // eslint-disable-next-line no-console
+    console.log(
+      '[EasyStore] customers page',
+      page,
+      'raw keys:',
+      Object.keys(json),
+      'json(head):',
+      JSON.stringify(json).substring(0, 500)
+    );
     const customers: EasyStoreCustomer[] = json.customers ?? json.data ?? [];
     if (customers.length === 0) break;
 
