@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createServerClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
@@ -67,6 +67,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to get token' }, { status: 500 });
   }
 
+  // 優先使用當前登入 session 的 user_id（避免 state 遺失）
+  let userIdFromSession: string | null = null;
+  try {
+    const supabaseSession = createServerClient();
+    const { data: { user } } = await supabaseSession.auth.getUser();
+    userIdFromSession = user?.id ?? null;
+  } catch {
+    // ignore
+  }
+
   // 儲存到 Supabase（easystore_integrations table）
   const supabase = createAdminClient();
   await supabase
@@ -75,7 +85,7 @@ export async function GET(req: NextRequest) {
       {
         shop,
         access_token: accessToken,
-        user_id: state || null,
+        user_id: userIdFromSession || state || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'shop' }
