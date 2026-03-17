@@ -105,7 +105,8 @@ export default function SettingsPage() {
       toast.error('請先登入');
       return;
     }
-    const clientId = process.env.NEXT_PUBLIC_EASYSTORE_CLIENT_ID;
+    const clientId =
+      process.env.NEXT_PUBLIC_EASYSTORE_CLIENT_ID || process.env.EASYSTORE_CLIENT_ID;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     if (!clientId) {
       toast.error('缺少 NEXT_PUBLIC_EASYSTORE_CLIENT_ID');
