@@ -30,9 +30,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing env' }, { status: 500 });
   }
 
-  // 驗證 HMAC（依規格：code + shop + timestamp）
-  const params = `code=${code}&shop=${shop}&timestamp=${timestamp}`;
-  const digest = crypto.createHmac('sha256', secret).update(params).digest('hex');
+  // 驗證 HMAC：將所有參數（排除 hmac）按字母排序後串接
+  const paramObj: Record<string, string> = {};
+  searchParams.forEach((value, key) => {
+    if (key !== 'hmac') {
+      paramObj[key] = value;
+    }
+  });
+  const paramStr = Object.keys(paramObj)
+    .sort()
+    .map((k) => `${k}=${paramObj[k]}`)
+    .join('&');
+
+  const digest = crypto.createHmac('sha256', secret).update(paramStr).digest('hex');
 
   if (!timingSafeEqualHex(digest, hmac)) {
     return NextResponse.json({ error: 'Invalid HMAC' }, { status: 401 });
