@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ImportDialog } from '@/components/import/ImportDialog';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ export function MembersClient({
   const [editingMember, setEditingMember] = useState<CustomerMember | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
+  const [syncing, setSyncing] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -70,6 +71,26 @@ export function MembersClient({
     refresh();
   }
 
+  const handleEasyStoreSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/easystore/sync-customers', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error ?? '同步失敗');
+      } else {
+        toast.success(
+          `同步完成：${data.synced} 筆成功${data.failed > 0 ? `，${data.failed} 筆失敗` : ''}`
+        );
+        refresh();
+      }
+    } catch {
+      toast.error('網路錯誤，請稍後再試');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-2xl font-bold mb-6">會員管理</h1>
@@ -83,6 +104,10 @@ export function MembersClient({
           className="max-w-xs"
         />
         <Button onClick={handleSearch}>查詢</Button>
+        <Button variant="outline" onClick={handleEasyStoreSync} disabled={syncing}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? '同步中...' : '從 EasyStore 同步'}
+        </Button>
         <ImportDialog type="members" />
         <Button onClick={() => setOpenCreate(true)}>
           <Plus className="mr-1 h-4 w-4" />

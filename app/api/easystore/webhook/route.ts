@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
           email: data.email,
           phone: data.phone || null,
         },
-        { onConflict: 'easystore_customer_id' }
+        { onConflict: 'easystore_customer_id,user_id' }
       );
   }
 
