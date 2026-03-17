@@ -12,6 +12,7 @@ const ProductSchema = z.object({
   description: z.string().max(2000).optional(),
   barcode: z.string().max(255).optional(),
   sku: z.string().max(100).optional(),
+  unit_name: z.string().max(50).optional(),
   price: z.number().positive('Price must be greater than 0'),
   cost: z.number().nonnegative('Cost must be non-negative').optional(),
   stock: z.number().nonnegative('Stock must be non-negative'),
@@ -44,6 +45,7 @@ export interface Product {
   description: string | null;
   barcode: string | null;
   sku: string | null;
+  unit_name?: string | null;
   price: number;
   cost: number | null;
   stock: number;
@@ -168,6 +170,7 @@ export async function createProduct(formData: FormData) {
   const description = formData.get('description') as string;
   const barcode = formData.get('barcode') as string;
   const sku = formData.get('sku') as string;
+  const unit_name = (formData.get('unit_name') as string) || null;
   const price = parseFloat(formData.get('price') as string);
   const cost = formData.get('cost') ? parseFloat(formData.get('cost') as string) : null;
   const stock = parseInt(formData.get('stock') as string);
@@ -253,6 +256,7 @@ export async function createProduct(formData: FormData) {
       description: validated.description || null,
       barcode: validated.barcode || null,
       sku: validated.sku || null,
+    unit_name: validated.unit_name || null,
       price: validated.price,
       cost: validated.cost || null,
       stock: validated.stock,
@@ -307,6 +311,7 @@ export async function updateProduct(id: string, formData: FormData) {
   const description = formData.get('description') as string;
   const barcode = formData.get('barcode') as string;
   const sku = formData.get('sku') as string;
+  const unit_name = (formData.get('unit_name') as string) || null;
   const price = parseFloat(formData.get('price') as string);
   const cost = formData.get('cost') ? parseFloat(formData.get('cost') as string) : null;
   const stock = parseInt(formData.get('stock') as string);
@@ -417,6 +422,7 @@ export async function updateProduct(id: string, formData: FormData) {
       description: validated.description || null,
       barcode: validated.barcode || null,
       sku: validated.sku || null,
+      unit_name: validated.unit_name || null,
       price: validated.price,
       cost: validated.cost || null,
       stock: validated.stock,

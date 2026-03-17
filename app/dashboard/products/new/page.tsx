@@ -35,6 +35,7 @@ const ProductFormSchema = z.object({
   purchase_price: z.coerce.number().nonnegative('採購單價需大於等於 0').optional().default(0),
   vendor_id: z.string().optional().default(''),
   depot_id: z.string().optional().default(''),
+  unit_name: z.string().optional().default(''),
 });
 
 type ProductFormData = z.infer<typeof ProductFormSchema>;
@@ -85,6 +86,7 @@ export default function NewProductPage() {
       purchase_price: 0,
       vendor_id: '',
       depot_id: '',
+      unit_name: '',
     },
   });
 
@@ -146,6 +148,7 @@ export default function NewProductPage() {
       formData.append('purchase_price', String(data.purchase_price ?? 0));
       formData.append('vendor_id', data.vendor_id || '');
       formData.append('depot_id', data.depot_id || '');
+      formData.append('unit_name', data.unit_name || '');
 
       if (imageFile) {
         formData.append('image', imageFile);
@@ -221,6 +224,52 @@ export default function NewProductPage() {
                             disabled={isLoading}
                             {...field}
                           />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Barcode */}
+                  <FormField
+                    control={form.control}
+                    name="barcode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>條碼</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="可選，商品條碼"
+                            disabled={isLoading}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* 單位 */}
+                  <FormField
+                    control={form.control}
+                    name="unit_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>單位</FormLabel>
+                        <FormControl>
+                          <select
+                            disabled={isLoading}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            {...field}
+                          >
+                            <option value="">請選擇單位</option>
+                            <option value="個">個</option>
+                            <option value="件">件</option>
+                            <option value="組">組</option>
+                            <option value="公尺">公尺</option>
+                          </select>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
