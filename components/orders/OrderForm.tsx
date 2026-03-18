@@ -77,6 +77,7 @@ export function OrderForm({
       currency: '台幣',
       tax_type: '稅內含',
       taxrate: 0.05,
+      status: 'pending',
       sales_channel: '零售',
       note: '',
       items: [{ product_name: '', unit_name: '', qty: 1, unit_price: 0, discount_pct: 100, cancelled: false }],
@@ -250,6 +251,28 @@ export function OrderForm({
                         )
                       }
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>出貨狀態</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    >
+                      <option value="pending">待出貨</option>
+                      <option value="partial">部分出貨</option>
+                      <option value="shipped">已出貨</option>
+                      <option value="cancelled">已取消</option>
+                    </select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

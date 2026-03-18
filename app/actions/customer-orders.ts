@@ -241,7 +241,7 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
       total,
       sales_channel: values.sales_channel,
       note: values.note?.trim() || null,
-      status: 'pending',
+      status: values.status ?? 'pending',
     })
     .select('id')
     .single();
@@ -292,6 +292,7 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
       total,
       sales_channel: values.sales_channel,
       note: values.note?.trim() || null,
+      status: values.status ?? 'pending',
     })
     .eq('id', id)
     .eq('user_id', user.id);

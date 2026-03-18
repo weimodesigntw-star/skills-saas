@@ -39,6 +39,7 @@ export default async function EditOrderPage({ params }: PageProps) {
     currency: order.currency ?? '台幣',
     tax_type: order.tax_type ?? '稅內含',
     taxrate: Number(order.taxrate) ?? 0.05,
+    status: (order.status as string) ?? 'pending',
     sales_channel: order.sales_channel ?? '零售',
     note: order.note ?? '',
     items: items.map((row) => ({

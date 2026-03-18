@@ -142,6 +142,23 @@ export function OrdersClient({
     return '—';
   };
 
+  const statusBadge = (status: string) => {
+    const map: Record<string, { label: string; color: string }> = {
+      pending: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
+      partial: { label: '部分出貨', color: 'bg-blue-100 text-blue-800' },
+      shipped: { label: '已出貨', color: 'bg-green-100 text-green-800' },
+      cancelled: { label: '已取消', color: 'bg-muted text-muted-foreground' },
+      paid: { label: '已出貨', color: 'bg-green-100 text-green-800' },
+      unpaid: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
+    };
+    const s = map[status] ?? { label: status, color: 'bg-muted text-muted-foreground' };
+    return (
+      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${s.color}`}>
+        {s.label}
+      </span>
+    );
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex items-center justify-between mb-6">
@@ -221,6 +238,7 @@ export function OrdersClient({
                   <th className="text-left py-3 px-4 font-semibold">客戶名稱</th>
                   <th className="text-left py-3 px-4 font-semibold">銷售方式</th>
                   <th className="text-right py-3 px-4 font-semibold">原幣合計</th>
+                  <th className="text-left py-3 px-4 font-semibold">狀態</th>
                   <th className="text-left py-3 px-4 font-semibold">操作</th>
                 </tr>
               </thead>
@@ -233,6 +251,7 @@ export function OrdersClient({
                       <td className="py-3 px-4">{customerName(row)}</td>
                       <td className="py-3 px-4">{row.sales_channel ?? '—'}</td>
                       <td className="py-3 px-4 text-right">{formatNTD(row.total ?? 0)}</td>
+                      <td className="py-3 px-4">{statusBadge(row.status)}</td>
                       <td className="py-3 px-4 flex items-center gap-1">
                         <Button variant="ghost" size="sm" asChild>
                           <Link href={`/dashboard/orders/${row.id}`}>

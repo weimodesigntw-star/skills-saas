@@ -22,6 +22,7 @@ export const customerOrderSchema = z.object({
   currency: z.string().default('台幣'),
   tax_type: z.string().default('稅內含'),
   taxrate: z.coerce.number().default(0.05),
+  status: z.string().default('pending'),
   sales_channel: z.string().default('零售'),
   note: z.string().optional(),
   items: z.array(orderItemSchema).min(1, '至少需要一筆明細'),

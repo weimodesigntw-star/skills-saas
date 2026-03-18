@@ -1,9 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
-import { toast } from '@/components/ui/toast';
-import { updateCustomerOrderItemShippedQty, updateCustomerOrderStatus } from '@/app/actions/customer-orders';
-import { Input } from '@/components/ui/input';
+import { useMemo } from 'react';
 
 type Item = {
   id: string;
@@ -15,14 +12,10 @@ type Item = {
 };
 
 export function OrderShippingManager(props: {
-  orderId: string;
   initialStatus: string;
   items: Item[];
 }) {
-  const { orderId, items } = props;
-  const [status, setStatus] = useState(props.initialStatus);
-  const [updatingStatus, startStatusTransition] = useTransition();
-  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  const { items } = props;
 
   const computed = useMemo(() => {
     const rows = items.map((it) => {
@@ -36,42 +29,17 @@ export function OrderShippingManager(props: {
     return { rows, shippedRows, unshippedRows };
   }, [items]);
 
-  const normalizedStatus = status === 'paid' ? 'shipped' : status === 'unpaid' ? 'pending' : status;
-
-  function statusLabel(s: string) {
-    return s === 'pending'
-      ? '待出貨'
-      : s === 'partial'
-        ? '部分出貨'
-        : s === 'shipped'
-          ? '已出貨'
-          : s === 'cancelled'
-            ? '已取消'
-            : s;
-  }
-
-  async function onChangeStatus(next: string) {
-    startStatusTransition(async () => {
-      const res = await updateCustomerOrderStatus(orderId, next);
-      if ((res as any)?.error) {
-        toast.error((res as any).error);
-        return;
-      }
-      setStatus(next);
-      toast.success('狀態已更新');
-    });
-  }
-
-  async function onSaveItem(itemId: string, shippedQty: number) {
-    setUpdatingItemId(itemId);
-    const res = await updateCustomerOrderItemShippedQty(itemId, shippedQty);
-    setUpdatingItemId(null);
-    if ((res as any)?.error) {
-      toast.error((res as any).error);
-      return;
-    }
-    toast.success('已出貨數量已更新');
-  }
+  const statusLabel: Record<string, { label: string; color: string }> = {
+    pending: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
+    partial: { label: '部分出貨', color: 'bg-blue-100 text-blue-800' },
+    shipped: { label: '已出貨', color: 'bg-green-100 text-green-800' },
+    cancelled: { label: '已取消', color: 'bg-muted text-muted-foreground' },
+    paid: { label: '已出貨', color: 'bg-green-100 text-green-800' },
+    unpaid: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
+  };
+  const normalizedStatus =
+    props.initialStatus === 'paid' ? 'shipped' : props.initialStatus === 'unpaid' ? 'pending' : props.initialStatus;
+  const s = statusLabel[props.initialStatus] ?? statusLabel[normalizedStatus] ?? { label: props.initialStatus, color: 'bg-muted text-muted-foreground' };
 
   const renderRows = (rows: Array<Item & { remaining?: number }>, mode: 'all' | 'shipped' | 'unshipped') => {
     return (
@@ -84,39 +52,19 @@ export function OrderShippingManager(props: {
               <th className="text-right py-2 font-semibold">訂購</th>
               <th className="text-right py-2 font-semibold">已出</th>
               <th className="text-right py-2 font-semibold">{mode === 'unshipped' ? '待出' : '單價'}</th>
-              <th className="text-right py-2 font-semibold">操作</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => {
               const remaining = 'remaining' in r ? Number((r as any).remaining) || 0 : 0;
-              const disabled = updatingItemId === r.id;
               return (
                 <tr key={r.id} className="border-b">
                   <td className="py-2">{r.product_name}</td>
                   <td className="py-2 text-muted-foreground">{r.unit_name ?? '—'}</td>
                   <td className="py-2 text-right">{Number(r.qty)}</td>
-                  <td className="py-2 text-right">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={Number(r.qty)}
-                      defaultValue={Number(r.shipped_qty)}
-                      disabled={disabled}
-                      data-item-id={r.id}
-                      className="h-8 w-20 ml-auto text-right"
-                      onBlur={(e) => {
-                        const v = Number(e.target.value);
-                        if (!Number.isFinite(v)) return;
-                        onSaveItem(r.id, v);
-                      }}
-                    />
-                  </td>
+                  <td className="py-2 text-right">{Number(r.shipped_qty)}</td>
                   <td className="py-2 text-right">
                     {mode === 'unshipped' ? remaining : Number(r.unit_price).toLocaleString()}
-                  </td>
-                  <td className="py-2 text-right">
-                    <span className="text-xs text-muted-foreground">{disabled ? '更新中…' : ''}</span>
                   </td>
                 </tr>
               );
@@ -129,20 +77,11 @@ export function OrderShippingManager(props: {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-muted-foreground">狀態</span>
-        <select
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          value={normalizedStatus}
-          disabled={updatingStatus}
-          onChange={(e) => onChangeStatus(e.target.value)}
-        >
-          <option value="pending">待出貨</option>
-          <option value="partial">部分出貨</option>
-          <option value="shipped">已出貨</option>
-          <option value="cancelled">已取消</option>
-        </select>
-        <span className="text-sm text-muted-foreground">{statusLabel(normalizedStatus)}</span>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-sm text-muted-foreground">狀態</span>
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${s.color}`}>
+          {s.label}
+        </span>
       </div>
 
       {normalizedStatus === 'partial' ? (
@@ -166,7 +105,7 @@ export function OrderShippingManager(props: {
         </div>
       ) : (
         <div>
-          <div className="text-sm font-medium mb-2">明細（可直接編輯已出貨數量）</div>
+          <div className="text-sm font-medium mb-2">明細</div>
           {renderRows(computed.rows as any, 'all')}
         </div>
       )}
