@@ -149,6 +149,42 @@ export async function updateCustomerOrderStatus(id: string, status: string) {
   return { success: true };
 }
 
+export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQty: number) {
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: '請先登入' };
+
+  // 先抓 item 以驗證歸屬與 qty 上限
+  const { data: item, error: itemErr } = await supabase
+    .from('customer_order_items')
+    .select('id, order_id, qty')
+    .eq('id', itemId)
+    .maybeSingle();
+
+  if (itemErr || !item) return { error: '找不到明細' };
+
+  const { data: order, error: orderErr } = await supabase
+    .from('customer_orders')
+    .select('id')
+    .eq('id', item.order_id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (orderErr || !order) return { error: '無權限' };
+
+  const maxQty = Number(item.qty) || 0;
+  const next = Math.max(0, Math.min(Number(shippedQty) || 0, maxQty));
+
+  const { error: updateErr } = await supabase
+    .from('customer_order_items')
+    .update({ shipped_qty: next })
+    .eq('id', itemId);
+
+  if (updateErr) return { error: '更新失敗' };
+  revalidatePath(`/dashboard/orders/${order.id}`);
+  return { success: true, shipped_qty: next };
+}
+
 function calcItemSubtotal(item: {
   qty: number;
   unit_price: number;

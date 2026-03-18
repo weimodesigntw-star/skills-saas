@@ -11,7 +11,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   fetchCustomerOrders,
   deleteCustomerOrder,
-  updateCustomerOrderStatus,
 } from '@/app/actions/customer-orders';
 import { toast } from '@/components/ui/toast';
 import { ClipboardList } from 'lucide-react';
@@ -35,15 +34,6 @@ interface OrdersClientProps {
   pageSize: number;
 }
 
-const statusMap: Record<string, { label: string; color: string }> = {
-  pending: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
-  shipped: { label: '已出貨', color: 'bg-green-100 text-green-800' },
-  cancelled: { label: '已取消', color: 'bg-muted text-muted-foreground' },
-  // EasyStore 舊資料相容
-  paid: { label: '已出貨', color: 'bg-green-100 text-green-800' },
-  unpaid: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
-};
-
 export function OrdersClient({
   initialOrders,
   total,
@@ -60,7 +50,6 @@ export function OrdersClient({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     setOrders(initialOrders);
@@ -121,17 +110,6 @@ export function OrdersClient({
     }
     toast.success('訂單已刪除');
     router.refresh();
-  }
-
-  async function handleStatusChange(orderId: string, newStatus: string) {
-    setUpdatingId(orderId);
-    const result = await updateCustomerOrderStatus(orderId, newStatus);
-    setUpdatingId(null);
-    if ((result as any)?.error) {
-      toast.error((result as any).error);
-    } else {
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
-    }
   }
 
   const handleEasyStoreSync = async () => {
@@ -243,21 +221,11 @@ export function OrdersClient({
                   <th className="text-left py-3 px-4 font-semibold">客戶名稱</th>
                   <th className="text-left py-3 px-4 font-semibold">銷售方式</th>
                   <th className="text-right py-3 px-4 font-semibold">原幣合計</th>
-                  <th className="text-left py-3 px-4 font-semibold">狀態</th>
                   <th className="text-left py-3 px-4 font-semibold">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map((row) => {
-                  const statusInfo = statusMap[row.status] ?? {
-                    label: row.status,
-                    color: 'bg-muted text-muted-foreground',
-                  };
-                  const normalizedStatus = ['pending', 'shipped', 'cancelled'].includes(row.status)
-                    ? row.status
-                    : row.status === 'paid'
-                      ? 'shipped'
-                      : 'pending';
                   return (
                     <tr key={row.id} className="border-t">
                       <td className="py-3 px-4 font-medium">{row.order_code}</td>
@@ -265,23 +233,6 @@ export function OrdersClient({
                       <td className="py-3 px-4">{customerName(row)}</td>
                       <td className="py-3 px-4">{row.sales_channel ?? '—'}</td>
                       <td className="py-3 px-4 text-right">{formatNTD(row.total ?? 0)}</td>
-                      <td className="py-3 px-4">
-                        <select
-                          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                          value={normalizedStatus}
-                          disabled={updatingId === row.id}
-                          onChange={(e) => handleStatusChange(row.id, e.target.value)}
-                        >
-                          <option value="pending">待出貨</option>
-                          <option value="shipped">已出貨</option>
-                          <option value="cancelled">已取消</option>
-                        </select>
-                        <span
-                          className={`ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusInfo.color}`}
-                        >
-                          {statusInfo.label}
-                        </span>
-                      </td>
                       <td className="py-3 px-4 flex items-center gap-1">
                         <Button variant="ghost" size="sm" asChild>
                           <Link href={`/dashboard/orders/${row.id}`}>
