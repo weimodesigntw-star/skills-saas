@@ -49,8 +49,7 @@ export function OrdersClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState<OrderRow[]>(initialOrders);
-  const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
-  const [customerNameInput, setCustomerNameInput] = useState(searchParams.get('customerName') ?? '');
+  const [q, setQ] = useState(searchParams.get('q') ?? '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '');
   const [dateFrom, setDateFrom] = useState(searchParams.get('dateFrom') ?? '');
   const [dateTo, setDateTo] = useState(searchParams.get('dateTo') ?? '');
@@ -66,20 +65,17 @@ export function OrdersClient({
 
   function buildParams(overrides?: {
     page?: number;
-    search?: string;
-    customerName?: string;
+    q?: string;
     status?: string;
     dateFrom?: string;
     dateTo?: string;
   }) {
     const p = new URLSearchParams();
-    const s = overrides?.search ?? searchInput;
-    const cn = overrides?.customerName ?? customerNameInput;
+    const query = overrides?.q ?? q;
     const st = overrides?.status ?? statusFilter;
     const df = overrides?.dateFrom ?? dateFrom;
     const dt = overrides?.dateTo ?? dateTo;
-    if (s?.trim()) p.set('search', s.trim());
-    if (cn?.trim()) p.set('customerName', cn.trim());
+    if (query?.trim()) p.set('q', query.trim());
     if (st) p.set('status', st);
     if (df) p.set('dateFrom', df);
     if (dt) p.set('dateTo', dt);
@@ -98,8 +94,7 @@ export function OrdersClient({
 
   async function refresh() {
     const res = await fetchCustomerOrders({
-      search: searchParams.get('search') ?? undefined,
-      customerName: searchParams.get('customerName') ?? undefined,
+      q: searchParams.get('q') ?? undefined,
       status: searchParams.get('status') || undefined,
       dateFrom: searchParams.get('dateFrom') || undefined,
       dateTo: searchParams.get('dateTo') || undefined,
@@ -189,17 +184,10 @@ export function OrdersClient({
           placeholder="日期訖"
         />
         <Input
-          placeholder="搜尋訂單號"
-          className="max-w-xs"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-        />
-        <Input
-          placeholder="客戶姓名"
-          className="w-36"
-          value={customerNameInput}
-          onChange={(e) => setCustomerNameInput(e.target.value)}
+          placeholder="搜尋訂單號 / 姓名 / 手機 / 日期（如 2020-03）"
+          className="flex-1 min-w-[240px]"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
         <Button variant="outline" onClick={handleSearch}>

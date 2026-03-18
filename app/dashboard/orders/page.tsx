@@ -7,8 +7,7 @@ import { ClipboardList } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
-  search?: string;
-  customerName?: string;
+  q?: string;
   status?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -38,8 +37,7 @@ export default async function OrdersPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
   const { orders, total, pageSize } = await fetchCustomerOrders({
-    search: params.search,
-    customerName: params.customerName,
+    q: params.q,
     status: params.status,
     dateFrom: params.dateFrom,
     dateTo: params.dateTo,

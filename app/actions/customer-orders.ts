@@ -17,8 +17,7 @@ export async function getOrderCodePreview(): Promise<string | null> {
 }
 
 export async function fetchCustomerOrders(params?: {
-  search?: string;
-  customerName?: string;
+  q?: string;
   status?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -30,7 +29,7 @@ export async function fetchCustomerOrders(params?: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { orders: [], total: 0, page: 1, pageSize: 20 };
 
-  const { search, customerName, status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
+  const { q, status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
 
   let query = supabase
@@ -46,32 +45,64 @@ export async function fetchCustomerOrders(params?: {
     .order('created_at', { ascending: false })
     .range(from, from + pageSize - 1);
 
-  if (search?.trim()) {
-    query = query.ilike('order_code', `%${search.trim()}%`);
-  }
+  if (q?.trim()) {
+    const term = q.trim();
 
-  if (customerName?.trim()) {
-    const term = `%${customerName.trim()}%`;
-    const { data: matchedMembers, error: memberErr } = await supabase
-      .from('members')
-      .select('id')
-      .eq('user_id', user.id)
-      .ilike('name', term)
-      .limit(2000);
+    const isNumeric = /^\d+$/.test(term);
+    const isPhone = /^(\+?886|0)?9\d{1,}$/.test(term) || /^[+]?886\d{1,}$/.test(term);
+    const isDateLike = /^\d{4}[-/]\d{1,2}([-/]\d{1,2})?$/.test(term);
 
-    if (memberErr) return { orders: [], total: 0, page, pageSize };
+    if (isDateLike) {
+      // 日期格式：2020-03 / 2020/03 / 2020-03-15 / 2020/03/15
+      const normalized = term.replace(/\//g, '-');
+      const parts = normalized.split('-').filter(Boolean);
+      const yyyy = Number(parts[0]);
+      const mm = parts.length >= 2 ? Number(parts[1]) : NaN;
+      const dd = parts.length >= 3 ? Number(parts[2]) : NaN;
 
-    const ids = (matchedMembers ?? []).map((m) => m.id);
-    if (ids.length === 0) return { orders: [], total: 0, page, pageSize };
+      if (Number.isFinite(yyyy) && Number.isFinite(mm) && mm >= 1 && mm <= 12) {
+        if (Number.isFinite(dd) && dd >= 1 && dd <= 31) {
+          const d = `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+          query = query.eq('advance_date', d);
+        } else {
+          const start = `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-01`;
+          const end = new Date(yyyy, mm, 0); // mm is 1-based here
+          const endStr = `${String(end.getFullYear()).padStart(4, '0')}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(
+            end.getDate()
+          ).padStart(2, '0')}`;
+          query = query.gte('advance_date', start).lte('advance_date', endStr);
+        }
+      }
+    } else if (isNumeric) {
+      // 純數字 → 訂單號
+      query = query.ilike('order_code', `%${term}%`);
+    } else {
+      // 其他：走 members.name 或 members.phone
+      const memberOr = isPhone
+        ? `phone.ilike.%${term}%`
+        : `name.ilike.%${term}%,phone.ilike.%${term}%`;
 
-    // Supabase/PostgREST 對 in() 參數數量有限制，分批 OR 起來
-    const CHUNK = 200;
-    const parts: string[] = [];
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      const chunk = ids.slice(i, i + CHUNK);
-      parts.push(`member_id.in.(${chunk.join(',')})`);
+      const { data: matchedMembers, error: memberErr } = await supabase
+        .from('members')
+        .select('id')
+        .eq('user_id', user.id)
+        .or(memberOr)
+        .limit(2000);
+
+      if (memberErr) return { orders: [], total: 0, page, pageSize };
+
+      const ids = (matchedMembers ?? []).map((m) => m.id);
+      if (ids.length === 0) return { orders: [], total: 0, page, pageSize };
+
+      // Supabase/PostgREST 對 in() 參數數量有限制，分批 OR 起來
+      const CHUNK = 200;
+      const parts: string[] = [];
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        parts.push(`member_id.in.(${chunk.join(',')})`);
+      }
+      query = query.or(parts.join(','));
     }
-    query = query.or(parts.join(','));
   }
 
   if (status) query = query.eq('status', status);
