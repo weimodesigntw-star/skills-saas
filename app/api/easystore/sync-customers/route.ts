@@ -116,7 +116,17 @@ export async function POST() {
 
     if (error) {
       failed += batch.length;
-      if (errors.length < 10) errors.push(`batch ${i}-${i + batch.length}: ${error.message}`);
+      if (errors.length < 10) {
+        errors.push(`batch ${i}-${i + batch.length}: ${error.message}`);
+      }
+      // eslint-disable-next-line no-console
+      console.error('[EasyStore] members upsert error', {
+        batchRange: `${i}-${i + batch.length}`,
+        message: error.message,
+        code: (error as any).code,
+        details: (error as any).details,
+        hint: (error as any).hint,
+      });
     } else {
       synced += batch.length;
     }
