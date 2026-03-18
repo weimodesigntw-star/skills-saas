@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
@@ -35,6 +35,10 @@ export function MembersClient({
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
   const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
