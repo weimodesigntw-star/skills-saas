@@ -126,7 +126,7 @@ export function OrderForm({
     if (currentStatus !== next) {
       form.setValue('status', next, { shouldDirty: true, shouldTouch: true });
     }
-  }, [items, form]);
+  }, [items, status, form]);
   const currentValues: CustomerOrderFormValues = {
     ...form.getValues(),
     items: items ?? [],
@@ -353,7 +353,7 @@ export function OrderForm({
 
           <OrderItemsTable
             onOpenProductPicker={handleOpenProductPicker}
-            showShippedQty={status === 'partial'}
+            showShippedQty={status !== 'cancelled'}
           />
 
           <div className="border-t pt-4 space-y-1 text-sm">
