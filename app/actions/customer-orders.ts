@@ -133,6 +133,22 @@ export async function fetchCustomerOrderById(id: string) {
   return { ...order, items: items ?? [] };
 }
 
+export async function updateCustomerOrderStatus(id: string, status: string) {
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: '請先登入' };
+
+  const { error } = await supabase
+    .from('customer_orders')
+    .update({ status })
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) return { error: '更新失敗' };
+  revalidatePath('/dashboard/orders');
+  return { success: true };
+}
+
 function calcItemSubtotal(item: {
   qty: number;
   unit_price: number;
