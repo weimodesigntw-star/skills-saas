@@ -49,7 +49,6 @@ export async function fetchCustomerOrders(params?: {
     const term = q.trim();
 
     const isNumeric = /^\d+$/.test(term);
-    const isPhone = /^(\+?886|0)?9\d{1,}$/.test(term) || /^[+]?886\d{1,}$/.test(term);
     const isDateLike = /^\d{4}[-/]\d{1,2}([-/]\d{1,2})?$/.test(term);
 
     if (isDateLike) {
@@ -77,16 +76,12 @@ export async function fetchCustomerOrders(params?: {
       // 純數字 → 訂單號
       query = query.ilike('order_code', `%${term}%`);
     } else {
-      // 其他：走 members.name 或 members.phone
-      const memberOr = isPhone
-        ? `phone.ilike.%${term}%`
-        : `name.ilike.%${term}%,phone.ilike.%${term}%`;
-
+      // 其他：走 members.name
       const { data: matchedMembers, error: memberErr } = await supabase
         .from('members')
         .select('id')
         .eq('user_id', user.id)
-        .or(memberOr)
+        .ilike('name', `%${term}%`)
         .limit(2000);
 
       if (memberErr) return { orders: [], total: 0, page, pageSize };
