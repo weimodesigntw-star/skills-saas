@@ -89,6 +89,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardContent className="border-t pt-4">
           <OrderShippingManager
+            orderId={order.id}
             initialStatus={order.status}
             items={items.map((it) => ({
               id: it.id,
