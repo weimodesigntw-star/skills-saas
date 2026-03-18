@@ -141,7 +141,9 @@ export function OrdersClient({
   const customerName = (row: OrderRow) => {
     if (row.members) {
       const m = row.members;
-      return m.client_code ? `${m.name}（${m.client_code}）` : m.name;
+      const parts = m.name?.trim().split(/\s+/) ?? [];
+      const name = parts.length === 2 ? `${parts[1]} ${parts[0]}` : m.name;
+      return m.client_code ? `${name}（${m.client_code}）` : name;
     }
     return '—';
   };
