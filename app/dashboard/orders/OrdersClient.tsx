@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -55,6 +55,7 @@ export function OrdersClient({
   const [dateTo, setDateTo] = useState(searchParams.get('dateTo') ?? '');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     setOrders(initialOrders);
@@ -111,6 +112,26 @@ export function OrdersClient({
     router.refresh();
   }
 
+  const handleEasyStoreSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/easystore/sync-orders', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error ?? '同步失敗');
+      } else {
+        toast.success(
+          `訂單同步完成：${data.synced} 筆成功${data.failed > 0 ? `，${data.failed} 筆失敗` : ''}`
+        );
+        router.refresh();
+      }
+    } catch {
+      toast.error('網路錯誤，請稍後再試');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const customerName = (row: OrderRow) => {
     if (row.members) {
       const m = row.members;
@@ -166,6 +187,10 @@ export function OrdersClient({
         <Button variant="outline" onClick={handleSearch}>
           <Search className="h-4 w-4 mr-1" />
           查詢
+        </Button>
+        <Button variant="outline" onClick={handleEasyStoreSync} disabled={syncing}>
+          <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? '同步中...' : '從 EasyStore 同步訂單'}
         </Button>
       </div>
 
