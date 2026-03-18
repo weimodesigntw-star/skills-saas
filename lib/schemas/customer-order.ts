@@ -7,6 +7,7 @@ export const orderItemSchema = z.object({
   product_name: z.string().min(1, '請填寫品名'),
   unit_name: z.string().optional(),
   qty: z.coerce.number().min(0.01, '數量需大於 0'),
+  shipped_qty: z.coerce.number().min(0).default(0),
   unit_price: z.coerce.number().min(0, '單價不可為負'),
   discount_pct: z.coerce.number().min(0).max(100).default(100),
   subtotal: z.coerce.number().optional(),

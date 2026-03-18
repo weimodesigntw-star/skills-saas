@@ -12,7 +12,7 @@ export function NewOrderForm({ orderCodePreview }: NewOrderFormProps) {
       mode="new"
       defaultValues={{
         order_code: orderCodePreview,
-        items: [{ product_name: '', unit_name: '', qty: 1, unit_price: 0, discount_pct: 100, cancelled: false }],
+        items: [{ product_name: '', unit_name: '', qty: 1, shipped_qty: 0, unit_price: 0, discount_pct: 100, cancelled: false }],
       }}
     />
   );

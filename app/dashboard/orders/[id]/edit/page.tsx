@@ -26,6 +26,7 @@ export default async function EditOrderPage({ params }: PageProps) {
     product_name: string;
     unit_name?: string;
     qty: number;
+    shipped_qty?: number;
     unit_price: number;
     discount_pct?: number;
     note?: string;
@@ -48,6 +49,7 @@ export default async function EditOrderPage({ params }: PageProps) {
       product_name: row.product_name,
       unit_name: row.unit_name ?? '',
       qty: Number(row.qty),
+      shipped_qty: Number(row.shipped_qty ?? 0),
       unit_price: Number(row.unit_price),
       discount_pct: Number(row.discount_pct) ?? 100,
       note: row.note ?? '',

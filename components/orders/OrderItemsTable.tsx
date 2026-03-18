@@ -11,6 +11,7 @@ type FormValues = CustomerOrderFormValues;
 
 interface OrderItemsTableProps {
   onOpenProductPicker: (rowIndex: number) => void;
+  showShippedQty?: boolean;
 }
 
 function itemSubtotal(item: OrderItemFormValues): number {
@@ -20,7 +21,7 @@ function itemSubtotal(item: OrderItemFormValues): number {
   return +(qty * unit * (disc / 100)).toFixed(2);
 }
 
-export function OrderItemsTable({ onOpenProductPicker }: OrderItemsTableProps) {
+export function OrderItemsTable({ onOpenProductPicker, showShippedQty = false }: OrderItemsTableProps) {
   const form = useFormContext<FormValues>();
   const { control } = form;
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
@@ -29,6 +30,7 @@ export function OrderItemsTable({ onOpenProductPicker }: OrderItemsTableProps) {
     product_name: '',
     unit_name: '',
     qty: 1,
+    shipped_qty: 0,
     unit_price: 0,
     discount_pct: 100,
     note: '',
@@ -57,6 +59,7 @@ export function OrderItemsTable({ onOpenProductPicker }: OrderItemsTableProps) {
               <th className="text-left py-2 px-2">品名</th>
               <th className="text-left py-2 px-2 w-20">單位</th>
               <th className="text-right py-2 px-2 w-20">數量</th>
+              {showShippedQty && <th className="text-right py-2 px-2 w-20">已出</th>}
               <th className="text-right py-2 px-2 w-24">單價</th>
               <th className="text-right py-2 px-2 w-20">折數%</th>
               <th className="text-right py-2 px-2 w-24">小計</th>
@@ -72,6 +75,7 @@ export function OrderItemsTable({ onOpenProductPicker }: OrderItemsTableProps) {
                 watch={form.watch}
                 onRemove={() => remove(index)}
                 onOpenPicker={() => onOpenProductPicker(index)}
+                showShippedQty={showShippedQty}
               />
             ))}
           </tbody>
@@ -87,12 +91,14 @@ function OrderItemRow({
   watch,
   onRemove,
   onOpenPicker,
+  showShippedQty,
 }: {
   index: number;
   control: ReturnType<typeof useFormContext<FormValues>>['control'];
   watch: ReturnType<typeof useFormContext<FormValues>>['watch'];
   onRemove: () => void;
   onOpenPicker: () => void;
+  showShippedQty: boolean;
 }) {
   const items = watch('items');
   const row = items?.[index];
@@ -136,6 +142,17 @@ function OrderItemRow({
           {...control.register(`items.${index}.qty`)}
         />
       </td>
+      {showShippedQty && (
+        <td className="py-1 px-2">
+          <Input
+            type="number"
+            step="1"
+            min="0"
+            className="h-8 w-20 text-right ml-auto"
+            {...control.register(`items.${index}.shipped_qty`)}
+          />
+        </td>
+      )}
       <td className="py-1 px-2">
         <Input
           type="number"

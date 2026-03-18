@@ -1,8 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { updateCustomerOrderItemShippedQty } from '@/app/actions/customer-orders';
-import { toast } from '@/components/ui/toast';
+import { useMemo } from 'react';
 
 type Item = {
   id: string;
@@ -14,42 +12,22 @@ type Item = {
 };
 
 export function OrderShippingManager(props: {
-  orderId: string;
   initialStatus: string;
   items: Item[];
 }) {
-  const { orderId, items } = props;
-
-  // 本地 shipped_qty 狀態，允許即時編輯（僅 partial 狀態會顯示輸入）
-  const [shippedMap, setShippedMap] = useState<Record<string, number>>(
-    Object.fromEntries(items.map((it) => [it.id, Number(it.shipped_qty) || 0]))
-  );
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const { items } = props;
 
   const computed = useMemo(() => {
     const rows = items.map((it) => {
       const qty = Number(it.qty) || 0;
-      const shipped = shippedMap[it.id] ?? Number(it.shipped_qty) ?? 0;
+      const shipped = Number(it.shipped_qty) || 0;
       const remaining = Math.max(0, qty - shipped);
       return { ...it, qty, shipped_qty: shipped, remaining };
     });
     const shippedRows = rows.filter((r) => r.shipped_qty > 0);
     const unshippedRows = rows.filter((r) => r.remaining > 0);
     return { rows, shippedRows, unshippedRows };
-  }, [items, shippedMap]);
-
-  async function handleShippedChange(itemId: string, value: number, maxQty: number) {
-    const next = Math.max(0, Math.min(Number(value) || 0, Number(maxQty) || 0));
-    setSavingId(itemId);
-    const result = await updateCustomerOrderItemShippedQty(itemId, next);
-    setSavingId(null);
-    if ((result as any)?.error) {
-      toast.error((result as any).error);
-    } else {
-      const saved = Number((result as any)?.shipped_qty ?? next);
-      setShippedMap((prev) => ({ ...prev, [itemId]: saved }));
-    }
-  }
+  }, [items]);
 
   const statusLabel: Record<string, { label: string; color: string }> = {
     pending: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
@@ -79,32 +57,12 @@ export function OrderShippingManager(props: {
           <tbody>
             {rows.map((r) => {
               const remaining = 'remaining' in r ? Number((r as any).remaining) || 0 : 0;
-              const disabled = savingId === r.id;
               return (
                 <tr key={r.id} className="border-b">
                   <td className="py-2">{r.product_name}</td>
                   <td className="py-2 text-muted-foreground">{r.unit_name ?? '—'}</td>
                   <td className="py-2 text-right">{Number(r.qty)}</td>
-                  <td className="py-2 text-right">
-                    {normalizedStatus === 'partial' ? (
-                      <input
-                        type="number"
-                        min={0}
-                        max={Number(r.qty)}
-                        className="w-20 rounded border border-input bg-background px-2 py-0.5 text-right text-sm disabled:opacity-50"
-                        defaultValue={Number(r.shipped_qty)}
-                        disabled={disabled}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (!Number.isFinite(v)) return;
-                          const clamped = Math.max(0, Math.min(v, Number(r.qty)));
-                          if (clamped !== Number(r.shipped_qty)) handleShippedChange(r.id, clamped, Number(r.qty));
-                        }}
-                      />
-                    ) : (
-                      Number(r.shipped_qty)
-                    )}
-                  </td>
+                  <td className="py-2 text-right">{Number(r.shipped_qty)}</td>
                   <td className="py-2 text-right">
                     {mode === 'unshipped' ? remaining : Number(r.unit_price).toLocaleString()}
                   </td>
@@ -128,10 +86,6 @@ export function OrderShippingManager(props: {
 
       {normalizedStatus === 'partial' ? (
         <div className="space-y-6">
-          <div>
-            <div className="text-sm font-medium mb-2 text-muted-foreground">填寫各品項的已出貨數量：</div>
-            {renderRows(computed.rows as any, 'all')}
-          </div>
           <div>
             <div className="text-sm font-medium mb-2">✅ 已出貨</div>
             {computed.shippedRows.length === 0 ? (

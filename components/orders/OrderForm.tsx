@@ -89,6 +89,7 @@ export function OrderForm({
   const salesChannel = form.watch('sales_channel');
   const taxType = form.watch('tax_type');
   const taxrate = form.watch('taxrate');
+  const status = form.watch('status');
   const currentValues: CustomerOrderFormValues = {
     ...form.getValues(),
     items: items ?? [],
@@ -313,7 +314,10 @@ export function OrderForm({
             )}
           />
 
-          <OrderItemsTable onOpenProductPicker={handleOpenProductPicker} />
+          <OrderItemsTable
+            onOpenProductPicker={handleOpenProductPicker}
+            showShippedQty={status === 'partial'}
+          />
 
           <div className="border-t pt-4 space-y-1 text-sm">
             <div className="flex justify-end gap-4">
