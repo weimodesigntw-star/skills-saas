@@ -1,0 +1,234 @@
+import { NextResponse } from 'next/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+
+export const runtime = 'nodejs';
+
+type EasyStoreOrder = Record<string, any>;
+
+export async function POST() {
+  const supabase = createServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const admin = createAdminClient();
+  const { data: integration, error: integErr } = await admin
+    .from('easystore_integrations')
+    .select('shop, access_token')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (integErr) {
+    return NextResponse.json({ error: integErr.message }, { status: 500 });
+  }
+
+  if (!integration?.access_token) {
+    return NextResponse.json({ error: '尚未連結 EasyStore' }, { status: 400 });
+  }
+
+  const { shop, access_token } = integration as { shop: string; access_token: string };
+
+  let allOrders: EasyStoreOrder[] = [];
+  let page = 1;
+  const limit = 50;
+
+  while (true) {
+    const url = `https://${shop}/api/3.0/orders.json?page=${page}&limit=${limit}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'Easystore-Access-Token': access_token,
+      },
+    });
+
+    if (!res.ok) {
+      const bodyHead = (await res.text().catch(() => '')).slice(0, 300);
+      return NextResponse.json(
+        {
+          error: 'EasyStore orders API 呼叫失敗',
+          status: res.status,
+          bodyHead,
+          url,
+        },
+        { status: 502 }
+      );
+    }
+
+    const json: any = await res.json();
+
+    // eslint-disable-next-line no-console
+    console.log(
+      '[EasyStore] orders page',
+      page,
+      'raw keys:',
+      Object.keys(json),
+      'json(head):',
+      JSON.stringify(json).substring(0, 500)
+    );
+
+    const orders: EasyStoreOrder[] = json.orders ?? [];
+    if (orders.length === 0) break;
+
+    allOrders = allOrders.concat(orders);
+
+    const totalCount = json.total_count ?? json.total ?? null;
+    const pageCount = json.page_count ?? null;
+
+    if (totalCount !== null && allOrders.length >= totalCount) break;
+    if (pageCount !== null && page >= pageCount) break;
+    if (orders.length < limit) break;
+
+    page++;
+  }
+
+  let synced = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  const BATCH = 50;
+
+  for (let i = 0; i < allOrders.length; i += BATCH) {
+    const batch = allOrders.slice(i, i + BATCH);
+
+    // 先準備要 upsert 的 customer_orders 以及 items
+    const orderRows: any[] = [];
+    const itemRows: any[] = [];
+
+    for (const o of batch) {
+      const easystoreOrderId = String(o.id);
+      const orderTotal = Number(o.total_amount ?? o.total_price ?? 0);
+      const subtotal = Number(o.subtotal_price ?? orderTotal);
+
+      const financialStatus = o.financial_status ?? o.payment_status ?? 'pending';
+
+      let memberId: string | null = null;
+      const customerId = o.customer?.id;
+      if (customerId) {
+        const { data: member } = await admin
+          .from('members')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('easystore_customer_id', String(customerId))
+          .maybeSingle();
+        memberId = member?.id ?? null;
+      }
+
+      orderRows.push({
+        user_id: user.id,
+        easystore_order_id: easystoreOrderId,
+        order_code: o.number ?? String(o.id),
+        advance_date: o.created_at ?? o.processed_at ?? null,
+        member_id: memberId,
+        currency: o.currency ?? '台幣',
+        tax_type: '稅內含',
+        taxrate: 0.05,
+        subtotal,
+        tax_amount: Number((orderTotal - subtotal).toFixed(2)),
+        total: orderTotal,
+        sales_channel: o.sales_channel ?? 'EasyStore',
+        note: o.note ?? null,
+        status: financialStatus,
+      });
+
+      const lineItems: any[] = o.line_items ?? [];
+      for (const li of lineItems) {
+        const qty = Number(li.quantity ?? li.qty ?? 0);
+        const unitPrice = Number(li.price ?? li.unit_price ?? 0);
+        const subtotalItem = qty * unitPrice;
+
+        itemRows.push({
+          easystore_line_item_id: String(li.id ?? ''),
+          product_id: null,
+          product_code: li.sku ?? null,
+          product_name: li.name ?? '(未命名商品)',
+          unit_name: li.unit ?? null,
+          qty,
+          unit_price: unitPrice,
+          discount_pct: 100,
+          subtotal: subtotalItem,
+          note: li.note ?? null,
+        });
+      }
+    }
+
+    // 先 upsert 訂單主檔
+    const { data: upsertedOrders, error: ordersError } = await admin
+      .from('customer_orders')
+      .upsert(orderRows, {
+        onConflict: 'user_id,easystore_order_id',
+      })
+      .select('id, easystore_order_id');
+
+    if (ordersError) {
+      failed += batch.length;
+      errors.push(`orders batch ${i}-${i + batch.length}: ${ordersError.message}`);
+      // eslint-disable-next-line no-console
+      console.error('[EasyStore] customer_orders upsert error', {
+        batchRange: `${i}-${i + batch.length}`,
+        message: ordersError.message,
+        code: (ordersError as any).code,
+        details: (ordersError as any).details,
+        hint: (ordersError as any).hint,
+      });
+      continue;
+    }
+
+    const idByEasystore: Record<string, string> = {};
+    for (const row of upsertedOrders ?? []) {
+      idByEasystore[row.easystore_order_id] = row.id;
+    }
+
+    // 重新掛上 order_id
+    const itemsToInsert = itemRows
+      .map((item) => {
+        const orderId = idByEasystore[item.easystore_order_id as string];
+        if (!orderId) return null;
+        return {
+          ...item,
+          order_id: orderId,
+        };
+      })
+      .filter(Boolean) as any[];
+
+    // 先刪除這一批 Easystore 訂單對應的舊明細，再重新插入
+    const easystoreIdsInBatch = batch.map((o) => String(o.id));
+
+    const { data: existingOrders } = await admin
+      .from('customer_orders')
+      .select('id')
+      .eq('user_id', user.id)
+      .in('easystore_order_id', easystoreIdsInBatch);
+
+    const orderIdsToClear = (existingOrders ?? []).map((o) => o.id);
+    if (orderIdsToClear.length > 0) {
+      await admin.from('customer_order_items').delete().in('order_id', orderIdsToClear);
+    }
+
+    if (itemsToInsert.length > 0) {
+      const { error: itemsError } = await admin.from('customer_order_items').insert(itemsToInsert);
+      if (itemsError) {
+        errors.push(`items batch ${i}-${i + batch.length}: ${itemsError.message}`);
+        // eslint-disable-next-line no-console
+        console.error('[EasyStore] customer_order_items insert error', {
+          batchRange: `${i}-${i + batch.length}`,
+          message: itemsError.message,
+          code: (itemsError as any).code,
+          details: (itemsError as any).details,
+          hint: (itemsError as any).hint,
+        });
+      }
+    }
+
+    synced += batch.length;
+  }
+
+  return NextResponse.json({
+    total: allOrders.length,
+    synced,
+    failed,
+    errors,
+  });
+}
+
