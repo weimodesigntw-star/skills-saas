@@ -18,6 +18,7 @@ export async function getOrderCodePreview(): Promise<string | null> {
 
 export async function fetchCustomerOrders(params?: {
   search?: string;
+  customerName?: string;
   status?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -29,7 +30,7 @@ export async function fetchCustomerOrders(params?: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { orders: [], total: 0, page: 1, pageSize: 20 };
 
-  const { search, status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
+  const { search, customerName, status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
 
   let query = supabase
@@ -48,6 +49,31 @@ export async function fetchCustomerOrders(params?: {
   if (search?.trim()) {
     query = query.ilike('order_code', `%${search.trim()}%`);
   }
+
+  if (customerName?.trim()) {
+    const term = `%${customerName.trim()}%`;
+    const { data: matchedMembers, error: memberErr } = await supabase
+      .from('members')
+      .select('id')
+      .eq('user_id', user.id)
+      .ilike('name', term)
+      .limit(2000);
+
+    if (memberErr) return { orders: [], total: 0, page, pageSize };
+
+    const ids = (matchedMembers ?? []).map((m) => m.id);
+    if (ids.length === 0) return { orders: [], total: 0, page, pageSize };
+
+    // Supabase/PostgREST 對 in() 參數數量有限制，分批 OR 起來
+    const CHUNK = 200;
+    const parts: string[] = [];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      parts.push(`member_id.in.(${chunk.join(',')})`);
+    }
+    query = query.or(parts.join(','));
+  }
+
   if (status) query = query.eq('status', status);
   if (dateFrom) query = query.gte('advance_date', dateFrom);
   if (dateTo) query = query.lte('advance_date', dateTo);

@@ -50,6 +50,7 @@ export function OrdersClient({
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState<OrderRow[]>(initialOrders);
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
+  const [customerNameInput, setCustomerNameInput] = useState(searchParams.get('customerName') ?? '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '');
   const [dateFrom, setDateFrom] = useState(searchParams.get('dateFrom') ?? '');
   const [dateTo, setDateTo] = useState(searchParams.get('dateTo') ?? '');
@@ -63,13 +64,22 @@ export function OrdersClient({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  function buildParams(overrides?: { page?: number; search?: string; status?: string; dateFrom?: string; dateTo?: string }) {
+  function buildParams(overrides?: {
+    page?: number;
+    search?: string;
+    customerName?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
     const p = new URLSearchParams();
     const s = overrides?.search ?? searchInput;
+    const cn = overrides?.customerName ?? customerNameInput;
     const st = overrides?.status ?? statusFilter;
     const df = overrides?.dateFrom ?? dateFrom;
     const dt = overrides?.dateTo ?? dateTo;
     if (s?.trim()) p.set('search', s.trim());
+    if (cn?.trim()) p.set('customerName', cn.trim());
     if (st) p.set('status', st);
     if (df) p.set('dateFrom', df);
     if (dt) p.set('dateTo', dt);
@@ -89,6 +99,7 @@ export function OrdersClient({
   async function refresh() {
     const res = await fetchCustomerOrders({
       search: searchParams.get('search') ?? undefined,
+      customerName: searchParams.get('customerName') ?? undefined,
       status: searchParams.get('status') || undefined,
       dateFrom: searchParams.get('dateFrom') || undefined,
       dateTo: searchParams.get('dateTo') || undefined,
@@ -182,6 +193,13 @@ export function OrdersClient({
           className="max-w-xs"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+        />
+        <Input
+          placeholder="客戶姓名"
+          className="w-36"
+          value={customerNameInput}
+          onChange={(e) => setCustomerNameInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
         <Button variant="outline" onClick={handleSearch}>
