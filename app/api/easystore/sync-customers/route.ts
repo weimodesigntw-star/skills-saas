@@ -5,34 +5,6 @@ export const runtime = 'nodejs';
 
 type EasyStoreCustomer = Record<string, any>;
 
-async function fetchJson(url: string, accessToken: string) {
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const contentType = res.headers.get('content-type') || '';
-  const text = await res.text().catch(() => '');
-
-  let json: any = null;
-  if (contentType.includes('application/json')) {
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = null;
-    }
-  } else {
-    const trimmed = text.trimStart();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        json = JSON.parse(text);
-      } catch {
-        json = null;
-      }
-    }
-  }
-
-  return { res, contentType, text, json };
-}
-
 export async function POST() {
   const supabase = createServerClient();
 
@@ -64,45 +36,29 @@ export async function POST() {
   const limit = 50;
 
   while (true) {
-    const paths = [`/api/v2/customers?limit=${limit}&page=${page}`];
-    const candidates = [
-      `https://${shop}${paths[0]}`,
-      `https://admin.easystore.co${paths[0]}`,
-      `https://api.easystore.co${paths[0]}`,
-    ];
+    const url = `https://${shop}/api/3.0/customers.json?page=${page}&limit=${limit}`;
 
-    let json: any = null;
-    let lastStatus = 0;
-    let lastContentType = '';
-    let lastTextHead = '';
+    const res = await fetch(url, {
+      headers: {
+        'Easystore-Access-Token': access_token,
+      },
+    });
 
-    for (const url of candidates) {
-      const r = await fetchJson(url, access_token);
-      lastStatus = r.res.status;
-      lastContentType = r.contentType;
-      lastTextHead = r.text.slice(0, 300);
-
-      if (!r.res.ok) continue;
-      if (r.json && typeof r.json === 'object') {
-        json = r.json;
-        break;
-      }
-    }
-
-    if (!json) {
+    if (!res.ok) {
+      const bodyHead = (await res.text().catch(() => '')).slice(0, 300);
       return NextResponse.json(
         {
-          error: 'EasyStore customers API 回應非 JSON（可能打錯 API host 或授權）',
-          status: lastStatus,
-          contentType: lastContentType,
-          bodyHead: lastTextHead,
-          tried: candidates,
+          error: 'EasyStore customers API 呼叫失敗',
+          status: res.status,
+          bodyHead,
+          url,
         },
         { status: 502 }
       );
     }
 
-    // debug: 印出 EasyStore response 結構（避免過大，截斷）
+    const json: any = await res.json();
+
     // eslint-disable-next-line no-console
     console.log(
       '[EasyStore] customers page',
@@ -113,15 +69,18 @@ export async function POST() {
       JSON.stringify(json).substring(0, 500)
     );
 
-    const customers: EasyStoreCustomer[] =
-      json.customers ?? json.data ?? json.items ?? json.results ?? json.members ?? [];
+    const customers: EasyStoreCustomer[] = json.customers ?? [];
     if (customers.length === 0) break;
 
     allCustomers = allCustomers.concat(customers);
 
-    const total = json.pagination?.total ?? json.total ?? null;
-    if (total !== null && allCustomers.length >= total) break;
+    const totalCount = json.total_count ?? json.total ?? null;
+    const pageCount = json.page_count ?? null;
+
+    if (totalCount !== null && allCustomers.length >= totalCount) break;
+    if (pageCount !== null && page >= pageCount) break;
     if (customers.length < limit) break;
+
     page++;
   }
 
