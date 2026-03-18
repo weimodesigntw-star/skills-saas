@@ -103,6 +103,8 @@ function OrderItemRow({
   const items = watch('items');
   const row = items?.[index];
   const qty = row?.qty ?? 0;
+  const shippedQtyValue = Number((row as any)?.shipped_qty) || 0;
+  const isOverShipped = shippedQtyValue > Number(qty);
   const unit_price = row?.unit_price ?? 0;
   const discount_pct = row?.discount_pct ?? 100;
   const subtotal = itemSubtotal({
@@ -148,7 +150,8 @@ function OrderItemRow({
             type="number"
             step="1"
             min="0"
-            className="h-8 w-20 text-right ml-auto"
+            max={Number(qty) || 0}
+            className={`h-8 w-20 text-right ml-auto ${isOverShipped ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
             {...control.register(`items.${index}.shipped_qty`)}
           />
         </td>

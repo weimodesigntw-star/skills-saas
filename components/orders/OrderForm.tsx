@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { customerOrderSchema, type CustomerOrderFormValues } from '@/lib/schemas/customer-order';
@@ -90,6 +90,43 @@ export function OrderForm({
   const taxType = form.watch('tax_type');
   const taxrate = form.watch('taxrate');
   const status = form.watch('status');
+
+  // 即時連動：items 的 shipped_qty 變化 → 自動更新 status
+  useEffect(() => {
+    const rows = items ?? [];
+    const validRows = rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => !r?.cancelled);
+
+    if (validRows.length === 0) return;
+
+    let totalQty = 0;
+    let totalShipped = 0;
+
+    // 防呆：如果任一 shipped_qty 超過 qty，clamp 回 qty
+    for (const { r, idx } of validRows) {
+      const q = Number(r?.qty) || 0;
+      const s = Number((r as any)?.shipped_qty) || 0;
+      const clamped = Math.max(0, Math.min(s, q));
+
+      totalQty += q;
+      totalShipped += clamped;
+
+      if (s !== clamped) {
+        form.setValue(`items.${idx}.shipped_qty`, clamped, { shouldDirty: true, shouldTouch: true });
+      }
+    }
+
+    const currentStatus = form.getValues('status');
+    if (currentStatus === 'cancelled') return;
+
+    const next =
+      totalShipped === 0 ? 'pending' : totalShipped >= totalQty ? 'shipped' : 'partial';
+
+    if (currentStatus !== next) {
+      form.setValue('status', next, { shouldDirty: true, shouldTouch: true });
+    }
+  }, [items, form]);
   const currentValues: CustomerOrderFormValues = {
     ...form.getValues(),
     items: items ?? [],
