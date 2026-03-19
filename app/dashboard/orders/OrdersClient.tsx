@@ -125,7 +125,7 @@ export function OrdersClient({
         toast.error(data?.error ?? '同步失敗');
       } else {
         toast.success(
-          `${mode === 'full' ? '全量' : '增量'}同步完成：${data.synced} 筆成功` +
+          `${mode === 'full' ? '全量' : data.since ? '增量' : '首次增量（等同全量）'}同步完成：${data.synced} 筆成功` +
           `${data.failed > 0 ? `，${data.failed} 筆失敗` : ''}` +
           `${data.since ? `（自 ${String(data.since).slice(0, 10)} 起）` : ''}`
         );
