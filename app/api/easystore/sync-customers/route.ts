@@ -1,11 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
 type EasyStoreCustomer = Record<string, any>;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  let mode: 'incremental' | 'full' = 'incremental';
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body?.mode === 'full') mode = 'full';
+  } catch {
+    // ignore
+  }
+
   const supabase = createServerClient();
 
   // 取得當前登入 user
@@ -30,13 +38,28 @@ export async function POST() {
 
   const { shop, access_token } = integration as { shop: string; access_token: string };
 
+  let sinceDate: string | null = null;
+  if (mode === 'incremental') {
+    const { data: syncState } = await admin
+      .from('easystore_sync_state')
+      .select('last_synced_at')
+      .eq('user_id', user.id)
+      .eq('resource', 'customers')
+      .maybeSingle();
+    sinceDate = (syncState?.last_synced_at as string | null) ?? null;
+  }
+  const syncStartedAt = new Date().toISOString();
+
   // 拉所有 customers（含分頁）
   let allCustomers: EasyStoreCustomer[] = [];
   let page = 1;
   const limit = 50;
 
   while (true) {
-    const url = `https://${shop}/api/3.0/customers.json?page=${page}&limit=${limit}`;
+    let url = `https://${shop}/api/3.0/customers.json?page=${page}&limit=${limit}`;
+    if (sinceDate) {
+      url += `&updated_at_min=${encodeURIComponent(sinceDate)}`;
+    }
 
     const res = await fetch(url, {
       headers: {
@@ -132,7 +155,22 @@ export async function POST() {
     }
   }
 
+  await admin
+    .from('easystore_sync_state')
+    .upsert(
+      {
+        user_id: user.id,
+        resource: 'customers',
+        last_synced_at: syncStartedAt,
+        synced_count: synced,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,resource' }
+    );
+
   return NextResponse.json({
+    mode,
+    since: sinceDate,
     total: allCustomers.length,
     synced,
     failed,
