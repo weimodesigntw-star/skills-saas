@@ -11,6 +11,64 @@ function timingSafeEqualHex(a: string, b: string) {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
+async function tryRegisterWebhook(params: {
+  shop: string;
+  accessToken: string;
+  topic: string;
+  address: string;
+}) {
+  const { shop, accessToken, topic, address } = params;
+
+  const candidates: Array<{ url: string; body: any }> = [
+    {
+      url: `https://${shop}/api/3.0/webhooks.json`,
+      body: { webhook: { topic, address, format: 'json' } },
+    },
+    {
+      url: `https://${shop}/api/3.0/webhooks.json`,
+      body: { webhook: { event: topic, callback_url: address, format: 'json' } },
+    },
+    {
+      url: `https://${shop}/api/3.0/webhooks.json`,
+      body: { topic, address },
+    },
+    {
+      url: `https://${shop}/api/3.0/webhooks.json`,
+      body: { event: topic, callback_url: address },
+    },
+    {
+      url: `https://${shop}/api/3.0/webhooks`,
+      body: { webhook: { topic, address, format: 'json' } },
+    },
+  ];
+
+  for (const c of candidates) {
+    try {
+      const res = await fetch(c.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Easystore-Access-Token': accessToken,
+        },
+        body: JSON.stringify(c.body),
+      });
+      if (res.ok) {
+        // eslint-disable-next-line no-console
+        console.log('[EasyStore] webhook registered', { topic, url: c.url });
+        return { ok: true as const };
+      }
+      const head = (await res.text().catch(() => '')).slice(0, 300);
+      // eslint-disable-next-line no-console
+      console.warn('[EasyStore] webhook register failed', { topic, url: c.url, status: res.status, head });
+    } catch (e: any) {
+      // eslint-disable-next-line no-console
+      console.warn('[EasyStore] webhook register exception', { topic, url: c.url, message: e?.message ?? String(e) });
+    }
+  }
+
+  return { ok: false as const };
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const shop = searchParams.get('shop');
@@ -79,6 +137,7 @@ export async function GET(req: NextRequest) {
 
   // 儲存到 Supabase（easystore_integrations table）
   const supabase = createAdminClient();
+  const webhookAddress = `${appUrl}/api/easystore/webhook`;
   await supabase
     .from('easystore_integrations')
     .upsert(
@@ -90,6 +149,18 @@ export async function GET(req: NextRequest) {
       },
       { onConflict: 'shop' }
     );
+
+  // OAuth 成功後自動註冊 webhooks（失敗不阻擋導頁，只記錄 log）
+  const topics = [
+    'orders/create',
+    'orders/update',
+    'orders/cancel',
+    'customers/create',
+    'customers/update',
+  ];
+  await Promise.all(
+    topics.map((t) => tryRegisterWebhook({ shop, accessToken, topic: t, address: webhookAddress }))
+  );
 
   // 跳回 Skills SaaS dashboard
   return NextResponse.redirect(`${appUrl}/dashboard?easystore=connected`);

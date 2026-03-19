@@ -58,6 +58,24 @@ export async function POST(req: NextRequest) {
 
   const userId = integration.user_id as string;
 
+  function mapOrderStatus(financialStatus: string | null | undefined, fulfillmentStatus: string | null | undefined) {
+    const f = String(financialStatus ?? '').toLowerCase();
+    const ff = String(fulfillmentStatus ?? '').toLowerCase();
+
+    if (f.includes('cancel')) return 'cancelled';
+    if (ff.includes('cancel')) return 'cancelled';
+
+    // 優先以 fulfillment 判斷出貨狀態
+    if (ff.includes('partial')) return 'partial';
+    if (ff.includes('ship') || ff.includes('fulfill') || ff === 'fulfilled') return 'shipped';
+
+    // fallback：以 financial status 推測
+    if (f === 'paid') return 'shipped';
+    if (f === 'unpaid' || f === 'pending' || f === 'authorized') return 'pending';
+
+    return 'pending';
+  }
+
   if (topic === 'orders/create' || topic === 'orders/update') {
     const orderTotal = Number(data.total_price ?? data.total_amount ?? 0) || 0;
     const subtotal = Number(data.subtotal_price ?? orderTotal) || orderTotal;
@@ -91,7 +109,7 @@ export async function POST(req: NextRequest) {
           total: orderTotal,
           sales_channel: 'EasyStore',
           note: data.note ?? null,
-          status: data.financial_status ?? 'pending',
+          status: mapOrderStatus(data.financial_status, data.fulfillment_status),
         },
         { onConflict: 'user_id,easystore_order_id' }
       );
