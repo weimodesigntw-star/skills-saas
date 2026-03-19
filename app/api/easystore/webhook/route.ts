@@ -58,21 +58,51 @@ export async function POST(req: NextRequest) {
 
   const userId = integration.user_id as string;
 
-  if (topic === 'orders/create') {
+  if (topic === 'orders/create' || topic === 'orders/update') {
+    const orderTotal = Number(data.total_price ?? data.total_amount ?? 0) || 0;
+    const subtotal = Number(data.subtotal_price ?? orderTotal) || orderTotal;
+
+    // 查 member_id
+    let memberId: string | null = null;
+    if (data.customer?.id) {
+      const { data: member } = await supabase
+        .from('members')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('easystore_customer_id', String(data.customer.id))
+        .maybeSingle();
+      memberId = member?.id ?? null;
+    }
+
     await supabase
-      .from('orders')
+      .from('customer_orders')
       .upsert(
         {
           user_id: userId,
           easystore_order_id: String(data.id),
-          order_number: data.order_number,
-          status: data.financial_status,
-          total_amount: parseFloat(data.total_price),
-          note: data.note || null,
-          created_at: data.created_at,
+          order_code: String(data.number ?? data.id),
+          advance_date: data.created_at ?? null,
+          member_id: memberId,
+          currency: data.currency ?? data.currency_code ?? '台幣',
+          tax_type: '稅內含',
+          taxrate: 0.05,
+          subtotal,
+          tax_amount: +Number(orderTotal - subtotal).toFixed(2),
+          total: orderTotal,
+          sales_channel: 'EasyStore',
+          note: data.note ?? null,
+          status: data.financial_status ?? 'pending',
         },
-        { onConflict: 'easystore_order_id' }
+        { onConflict: 'user_id,easystore_order_id' }
       );
+  }
+
+  if (topic === 'orders/cancel') {
+    await supabase
+      .from('customer_orders')
+      .update({ status: 'cancelled' })
+      .eq('user_id', userId)
+      .eq('easystore_order_id', String(data.id));
   }
 
   if (topic === 'customers/create' || topic === 'customers/update') {

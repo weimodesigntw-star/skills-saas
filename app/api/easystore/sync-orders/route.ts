@@ -139,6 +139,7 @@ export async function POST() {
         const subtotalItem = qty * unitPrice;
 
         itemRows.push({
+          _easystore_order_id: easystoreOrderId,
           easystore_line_item_id: String(li.id ?? ''),
           product_id: null,
           product_code: li.sku ?? null,
@@ -183,12 +184,10 @@ export async function POST() {
     // 重新掛上 order_id
     const itemsToInsert = itemRows
       .map((item) => {
-        const orderId = idByEasystore[item.easystore_order_id as string];
+        const orderId = idByEasystore[item._easystore_order_id as string];
         if (!orderId) return null;
-        return {
-          ...item,
-          order_id: orderId,
-        };
+        const { _easystore_order_id, ...cleanItem } = item;
+        return { ...cleanItem, order_id: orderId };
       })
       .filter(Boolean) as any[];
 
