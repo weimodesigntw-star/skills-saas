@@ -45,12 +45,22 @@ export default async function OrdersPage({
     pageSize: 20,
   });
 
+  // 讀上次增量同步時間
+  const { data: syncState } = await supabase
+    .from('easystore_sync_state')
+    .select('last_synced_at, synced_count')
+    .eq('user_id', user.id)
+    .eq('resource', 'orders')
+    .maybeSingle();
+
   return (
     <OrdersClient
       initialOrders={orders}
       total={total}
       page={page}
       pageSize={pageSize}
+      lastSyncedAt={(syncState?.last_synced_at as string | null) ?? null}
+      lastSyncedCount={(syncState?.synced_count as number | null) ?? null}
     />
   );
 }

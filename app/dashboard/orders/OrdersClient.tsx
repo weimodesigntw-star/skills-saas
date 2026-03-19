@@ -32,6 +32,8 @@ interface OrdersClientProps {
   total: number;
   page: number;
   pageSize: number;
+  lastSyncedAt?: string | null;
+  lastSyncedCount?: number | null;
 }
 
 export function OrdersClient({
@@ -39,6 +41,8 @@ export function OrdersClient({
   total,
   page,
   pageSize,
+  lastSyncedAt,
+  lastSyncedCount,
 }: OrdersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -220,6 +224,18 @@ export function OrdersClient({
         <Button variant="ghost" size="sm" onClick={() => handleEasyStoreSync('full')} disabled={syncing}>
           全量同步
         </Button>
+        {lastSyncedAt && (
+          <span className="text-xs text-muted-foreground">
+            上次同步：
+            {new Date(lastSyncedAt).toLocaleString('zh-TW', {
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            {lastSyncedCount != null ? `（${lastSyncedCount} 筆）` : ''}
+          </span>
+        )}
       </div>
 
       {orders.length === 0 ? (
