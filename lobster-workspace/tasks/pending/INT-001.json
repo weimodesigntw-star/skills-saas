@@ -1,0 +1,15 @@
+{
+  "id": "INT-001",
+  "title": "報表模組接入 customer_orders（出貨明細表 + 毛利報表）",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "報表只讀 shipments 未涵蓋 customer_orders。修改出貨明細查詢，合併 shipments 和 customer_orders（以 advance_date 為日期欄位）。毛利報表同樣補入。查詢結果加「來源」欄位（POS / EasyStore）。",
+  "acceptance_criteria": [
+    "出貨明細表包含 customer_orders 資料",
+    "有「來源」欄位區分 POS 和 EasyStore",
+    "日期篩選對 customer_orders 用 advance_date",
+    "npm run build 通過"
+  ]
+}

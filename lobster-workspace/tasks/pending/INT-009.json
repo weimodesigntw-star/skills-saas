@@ -1,0 +1,15 @@
+{
+  "id": "INT-009",
+  "title": "商品頁顯示銷售歷史與庫存異動",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "商品編輯頁底部加入 tab：1) 「銷售紀錄」：列出包含此商品的 customer_order_items（訂單號/日期/數量/單價/客戶）2) 「庫存異動」：整合現有 inventory_adjustments。各顯示近 30 筆。",
+  "acceptance_criteria": [
+    "商品編輯頁有「銷售紀錄」tab",
+    "銷售紀錄列出 customer_order_items",
+    "有「庫存異動」tab",
+    "npm run build 通過"
+  ]
+}

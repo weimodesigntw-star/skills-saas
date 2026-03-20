@@ -1,0 +1,14 @@
+{
+  "id": "ES-004",
+  "title": "Webhook customers/update 補 tags 同步 + 會員頁顯示上次同步時間",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "1) webhook/route.ts 的 customers/update handler 補上 client_cat 更新（tags）。2) app/dashboard/members/page.tsx 讀取 easystore_sync_state（resource='customers'），傳給 MembersClient 顯示「上次同步：MM/DD HH:mm（N 筆）」，仿照訂單頁做法。",
+  "acceptance_criteria": [
+    "webhook customers/update 更新 members.client_cat",
+    "會員頁按鈕旁顯示上次同步時間與筆數",
+    "npm run build 通過"
+  ]
+}

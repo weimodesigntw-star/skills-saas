@@ -1,0 +1,16 @@
+{
+  "id": "ES-002",
+  "title": "Webhook 補 products/create + products/update + orders/fulfillment_create",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "app/api/easystore/webhook/route.ts 補充：1) products/create + products/update：upsert 到 products 表 2) orders/fulfillment_create：把對應 customer_orders.status 更新為 shipped。app/api/easystore/callback/route.ts 的 topics 陣列補上這三個 topic。",
+  "acceptance_criteria": [
+    "webhook 處理 products/create 時 upsert products 表",
+    "webhook 處理 products/update 時 upsert products 表",
+    "webhook 處理 orders/fulfillment_create 時更新 customer_orders.status = 'shipped'",
+    "callback 的 topics 包含三個新 topic",
+    "npm run build 通過"
+  ]
+}

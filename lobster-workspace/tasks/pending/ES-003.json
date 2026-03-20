@@ -1,0 +1,15 @@
+{
+  "id": "ES-003",
+  "title": "sync-orders 訂單明細補 product_id 對應",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "app/api/easystore/sync-orders/route.ts 的 itemRows 目前 product_id = null。在 push itemRow 時，用 li.sku 去查 products 表（.eq('user_id', user.id).eq('product_code', li.sku)），找到則帶入 product_id。webhook route.ts 的 orders/create 明細處理也補上相同邏輯。",
+  "acceptance_criteria": [
+    "sync-orders 後 customer_order_items.product_id 有對應（sku 相符者）",
+    "webhook orders/create 的明細也有 product_id",
+    "sku 找不到時 product_id 仍為 null 不報錯",
+    "npm run build 通過"
+  ]
+}

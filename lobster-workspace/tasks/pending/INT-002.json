@@ -1,0 +1,15 @@
+{
+  "id": "INT-002",
+  "title": "應收沖帳模組接入 customer_orders",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "新增沖帳單時來源可選「客戶訂單」（customer_orders），自動帶入訂單金額。應收列表加「來源訂單」欄顯示 order_code。app/actions/receivables.ts 的 createReceivable 支援 source_order_id 參數。",
+  "acceptance_criteria": [
+    "新增沖帳單可選來源為 customer_orders",
+    "選取後自動帶入訂單金額",
+    "應收列表顯示來源訂單號",
+    "npm run build 通過"
+  ]
+}

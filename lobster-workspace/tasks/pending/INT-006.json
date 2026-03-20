@@ -1,0 +1,15 @@
+{
+  "id": "INT-006",
+  "title": "訂單新增/更新時即時回寫會員累計消費",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "app/actions/customer-orders.ts：createCustomerOrder / updateCustomerOrder / deleteCustomerOrder 成功後，呼叫 refreshMemberStats(memberId) helper，重新計算該會員 SUM(total) 和 COUNT(*) 並 update members。member_id 為 null 時跳過。",
+  "acceptance_criteria": [
+    "新增訂單後會員 total_spent 和 order_count 即時更新",
+    "更新/刪除訂單後統計正確",
+    "member_id 為 null 時不報錯",
+    "npm run build 通過"
+  ]
+}

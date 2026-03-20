@@ -1,0 +1,15 @@
+{
+  "id": "ES-005",
+  "title": "EasyStore Token 有效性檢查 endpoint + 設定頁連線狀態",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "新增 GET /api/easystore/verify-token/route.ts：用 access_token 呼叫 GET /api/3.0/shop.json，成功回 { ok: true, shop }，失敗回 { ok: false, error }。設定頁 EasyStore 連線區塊加「驗證連線」按鈕，結果顯示 Connected（綠色）或 Token 無效請重新授權（紅色）。",
+  "acceptance_criteria": [
+    "GET /api/easystore/verify-token 存在",
+    "Token 有效回 { ok: true }，無效回 { ok: false, error }",
+    "設定頁有「驗證連線」按鈕及狀態顯示",
+    "npm run build 通過"
+  ]
+}

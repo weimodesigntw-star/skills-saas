@@ -1,0 +1,15 @@
+{
+  "id": "INT-003",
+  "title": "庫存管理反映客戶訂單出貨扣量",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "updateCustomerOrderItemShippedQty 更新 shipped_qty 時同步扣減 products.stock（差值扣減）。防呆：stock 最低為 0。庫存調整歷史加入出貨記錄（type='出貨'）。",
+  "acceptance_criteria": [
+    "updateCustomerOrderItemShippedQty 後 products.stock 正確扣減",
+    "stock 最低為 0",
+    "庫存調整歷史有出貨記錄",
+    "npm run build 通過"
+  ]
+}

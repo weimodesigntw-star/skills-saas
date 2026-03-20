@@ -1,0 +1,17 @@
+{
+  "id": "ES-001",
+  "title": "EasyStore 商品同步 sync-products",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "新增 POST /api/easystore/sync-products/route.ts，從 EasyStore GET /api/3.0/products.json 拉取商品目錄（分頁，每頁50筆），upsert 到本地 products 表（name/sku/price/stock/is_active）。支援 mode: incremental|full，讀寫 easystore_sync_state（resource='products'）。商品頁設定區加「同步商品」按鈕。upsert onConflict: 'user_id,easystore_product_id'。",
+  "acceptance_criteria": [
+    "POST /api/easystore/sync-products 存在並可呼叫",
+    "支援 mode: incremental|full",
+    "EasyStore 商品 upsert 到 products 表",
+    "完成後回寫 easystore_sync_state resource='products'",
+    "商品頁有「同步商品」按鈕",
+    "npm run build 通過"
+  ]
+}

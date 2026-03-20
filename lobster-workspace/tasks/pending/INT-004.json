@@ -1,0 +1,15 @@
+{
+  "id": "INT-004",
+  "title": "採購管理與庫存低閾值預警聯動",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "庫存管理低庫存列加「建立採購單」按鈕，跳到新增採購單並預填商品。新增採購單加「從低庫存匯入」批次功能。採購單儲存後自動更新 products.stock。",
+  "acceptance_criteria": [
+    "低庫存列有「建立採購單」按鈕並預填商品",
+    "新增採購單有「從低庫存匯入」功能",
+    "採購單儲存後 products.stock 增加",
+    "npm run build 通過"
+  ]
+}

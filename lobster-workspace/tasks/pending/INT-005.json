@@ -1,0 +1,14 @@
+{
+  "id": "INT-005",
+  "title": "總覽近7日趨勢圖接入 customer_orders",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "app/actions/dashboard.ts 的 dailyRevenue 目前只含 POS。補充查詢近7日 customer_orders 依 created_at 分組的 SUM(total)，合併到 dailyRevenue（同一天相加）。",
+  "acceptance_criteria": [
+    "近7日趨勢圖包含 customer_orders 金額",
+    "同一天 POS + customer_orders 正確加總",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "INT-008",
+  "title": "新增/編輯訂單「客戶」欄位改為可搜尋的會員 combobox",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "components/orders/OrderForm.tsx 的「客戶」欄位改為 MemberCombobox（搜尋 members 表），選取後填入 member_id，顯示姓名而非 UUID，可清空。",
+  "acceptance_criteria": [
+    "客戶欄位可搜尋姓名",
+    "選取後 form 的 member_id 正確填入",
+    "顯示姓名而非 UUID",
+    "可清空為無會員",
+    "npm run build 通過"
+  ]
+}

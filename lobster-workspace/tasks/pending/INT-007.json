@@ -1,0 +1,16 @@
+{
+  "id": "INT-007",
+  "title": "會員詳細頁顯示訂單歷史",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "新增 app/dashboard/members/[id]/page.tsx：顯示會員基本資料 + customer_orders 歷史列表（訂單號/日期/金額/狀態，可點擊跳到訂單詳細頁）。會員列表加「查看」按鈕。",
+  "acceptance_criteria": [
+    "app/dashboard/members/[id] 頁面存在",
+    "顯示會員資料和訂單歷史",
+    "訂單可點擊跳到訂單詳細頁",
+    "會員列表有「查看」按鈕",
+    "npm run build 通過"
+  ]
+}
