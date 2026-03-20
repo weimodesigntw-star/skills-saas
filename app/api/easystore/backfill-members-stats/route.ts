@@ -42,7 +42,7 @@ export async function POST() {
     .from('customer_orders')
     .select('member_id,total')
     .eq('user_id', user.id)
-    .in('member_id', memberIds);
+    .not('member_id', 'is', null);
 
   if (orderErr) {
     return NextResponse.json({ error: orderErr.message }, { status: 500 });
