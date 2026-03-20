@@ -13,7 +13,7 @@ export async function fetchDashboardStats() {
 
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
-  // 今日訂單與營收
+  // POS 今日訂單與營收
   const { data: todayOrders } = await supabase
     .from('orders')
     .select('total_amount')
@@ -21,12 +21,26 @@ export async function fetchDashboardStats() {
     .eq('status', 'paid')
     .gte('created_at', todayISO);
 
-  // 本月營收
+  // POS 本月營收
   const { data: monthOrders } = await supabase
     .from('orders')
     .select('total_amount')
     .eq('user_id', user.id)
     .eq('status', 'paid')
+    .gte('created_at', monthStart);
+
+  // 客戶訂單（customer_orders）今日統計
+  const { data: todayCustomerOrders } = await supabase
+    .from('customer_orders')
+    .select('total')
+    .eq('user_id', user.id)
+    .gte('created_at', todayISO);
+
+  // 客戶訂單（customer_orders）本月統計
+  const { data: monthCustomerOrders } = await supabase
+    .from('customer_orders')
+    .select('total')
+    .eq('user_id', user.id)
     .gte('created_at', monthStart);
 
   // 低庫存商品數（stock <= 5）
@@ -49,10 +63,15 @@ export async function fetchDashboardStats() {
     p_limit: 5,
   });
 
+  const posTodayRevenue = todayOrders?.reduce((s, o) => s + Number(o.total_amount ?? 0), 0) ?? 0;
+  const customerTodayRevenue = todayCustomerOrders?.reduce((s, o) => s + Number(o.total ?? 0), 0) ?? 0;
+  const posMonthRevenue = monthOrders?.reduce((s, o) => s + Number(o.total_amount ?? 0), 0) ?? 0;
+  const customerMonthRevenue = monthCustomerOrders?.reduce((s, o) => s + Number(o.total ?? 0), 0) ?? 0;
+
   return {
-    todayRevenue: todayOrders?.reduce((s, o) => s + Number(o.total_amount ?? 0), 0) ?? 0,
-    todayOrderCount: todayOrders?.length ?? 0,
-    monthRevenue: monthOrders?.reduce((s, o) => s + Number(o.total_amount ?? 0), 0) ?? 0,
+    todayRevenue: posTodayRevenue + customerTodayRevenue,
+    todayOrderCount: (todayOrders?.length ?? 0) + (todayCustomerOrders?.length ?? 0),
+    monthRevenue: posMonthRevenue + customerMonthRevenue,
     lowStockCount: lowStockCount ?? 0,
     dailyRevenue: (dailyRevenue ?? []).map((d: { date: string; revenue: unknown }) => ({
       date: d.date,

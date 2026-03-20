@@ -43,6 +43,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
       ? `${member.name}（${member.client_code}）`
       : member.name
     : '—';
+  const memberSearchHref = member ? `/dashboard/members?search=${encodeURIComponent(member.name)}` : null;
 
   const items = (order.items ?? []) as {
     id: string;
@@ -70,7 +71,16 @@ export default async function OrderDetailPage({ params }: PageProps) {
             <CardTitle className="text-xl font-mono">{order.order_code}</CardTitle>
             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
               <p>預交日期：{order.advance_date ?? '—'}</p>
-              <p>客戶：{customerLabel}</p>
+              <p>
+                客戶：
+                {memberSearchHref ? (
+                  <Link href={memberSearchHref} className="underline underline-offset-2 hover:text-foreground">
+                    {customerLabel}
+                  </Link>
+                ) : (
+                  customerLabel
+                )}
+              </p>
               <p>銷售方式：{order.sales_channel ?? '—'}</p>
               {order.note && <p>備註：{order.note}</p>}
             </div>
