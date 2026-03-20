@@ -59,45 +59,36 @@ export async function POST() {
   }
 
   let updated = 0;
-  for (const id of memberIds) {
-    const s = stats[id] ?? { total: 0, count: 0 };
-    const payload = {
-      total_spent: Number(s.total.toFixed(2)),
-      order_count: s.count,
-      visit_count: s.count,
-    };
+  const CHUNK = 300;
+  for (let i = 0; i < memberIds.length; i += CHUNK) {
+    const ids = memberIds.slice(i, i + CHUNK);
+    const rows = ids.map((id) => {
+      const s = stats[id] ?? { total: 0, count: 0 };
+      return {
+        id,
+        user_id: user.id,
+        total_spent: Number(s.total.toFixed(2)),
+        order_count: s.count,
+        visit_count: s.count,
+      };
+    });
 
-    let { error } = await admin
-      .from('members')
-      .update(payload)
-      .eq('user_id', user.id)
-      .eq('id', id);
+    let { error } = await admin.from('members').upsert(rows, { onConflict: 'id' });
 
     // Fallback 1: no order_count
     if (error && isMissingColumn(error)) {
-      ({ error } = await admin
-        .from('members')
-        .update({
-          total_spent: Number(s.total.toFixed(2)),
-          visit_count: s.count,
-        })
-        .eq('user_id', user.id)
-        .eq('id', id));
+      const rowsNoOrderCount = rows.map(({ order_count: _oc, ...rest }) => rest);
+      ({ error } = await admin.from('members').upsert(rowsNoOrderCount, { onConflict: 'id' }));
     }
 
     // Fallback 2: no visit_count/order_count
     if (error && isMissingColumn(error)) {
-      ({ error } = await admin
-        .from('members')
-        .update({
-          total_spent: Number(s.total.toFixed(2)),
-        })
-        .eq('user_id', user.id)
-        .eq('id', id));
+      const rowsTotalOnly = rows.map(({ order_count: _oc, visit_count: _vc, ...rest }) => rest);
+      ({ error } = await admin.from('members').upsert(rowsTotalOnly, { onConflict: 'id' }));
     }
 
-    // Fallback 3: still failing due to missing columns -> skip this member.
-    if (!error) updated += 1;
+    // Fallback 3: still failing -> skip this chunk and continue.
+    if (!error) updated += ids.length;
   }
 
   return NextResponse.json({ updated });
