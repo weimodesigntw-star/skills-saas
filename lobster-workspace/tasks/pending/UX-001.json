@@ -1,0 +1,14 @@
+{
+  "id": "UX-001",
+  "title": "移除側邊欄「出貨管理」入口",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "出貨功能已整合進「客戶訂單」詳細頁，側邊欄「出貨管理」入口造成使用者混淆。從 Sidebar 移除該連結。檔案位置：components/layout/Sidebar.tsx（或對應 layout 檔）。",
+  "acceptance_criteria": [
+    "側邊欄不再顯示「出貨管理」連結",
+    "/dashboard/shipments 路由本身保留（只拿掉導覽入口）",
+    "npm run build 通過"
+  ]
+}

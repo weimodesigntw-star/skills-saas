@@ -1,0 +1,14 @@
+{
+  "id": "UX-002",
+  "title": "訂單狀態篩選補「部分出貨」選項",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "app/dashboard/orders/OrdersClient.tsx 的狀態下拉目前只有「全部/待出貨/已出貨/已取消」，缺少 partial（部分出貨）。需補上選項，並確保傳給 fetchCustomerOrders 的 status filter 也包含此值。",
+  "acceptance_criteria": [
+    "訂單列表狀態下拉有「部分出貨」選項（value='partial'）",
+    "選擇「部分出貨」後列表正確篩選出 status='partial' 的訂單",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "UX-003",
+  "title": "總覽頁接入 customer_orders 營收統計",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "app/dashboard/page.tsx 的「今日營收」「今日訂單」「本月營收」目前只讀 POS shipments，未涵蓋 customer_orders。需修改 dashboard 統計查詢，加入 customer_orders 的 total 欄位彙總（依 created_at 篩選今日/本月）。今日訂單數也需加入 customer_orders 筆數。",
+  "acceptance_criteria": [
+    "「今日營收」= POS 銷售 + customer_orders 當日 total 之和",
+    "「今日訂單」= POS 筆數 + customer_orders 當日筆數",
+    "「本月營收」= POS + customer_orders 當月 total 之和",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "UX-006",
+  "title": "報表與應收沖帳客戶篩選改為可搜尋 combobox",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "reports 頁與 receivables 頁的客戶下拉（<select>）塞入 971 筆會員，無法搜尋。改用 shadcn/ui 的 Combobox（Command + Popover 組合），讓使用者可輸入姓名搜尋後選取。兩個頁面都需要改。",
+  "acceptance_criteria": [
+    "報表頁客戶欄位改為可搜尋 combobox",
+    "應收沖帳頁客戶欄位改為可搜尋 combobox",
+    "輸入關鍵字後即時篩選會員列表",
+    "選取後正確傳入查詢參數",
+    "npm run build 通過"
+  ]
+}

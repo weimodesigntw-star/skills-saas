@@ -1,0 +1,14 @@
+{
+  "id": "UX-005",
+  "title": "POS 頁面預設篩掉缺貨與 $0 商品",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "app/dashboard/pos 目前顯示所有 1459 筆商品，其中大量「缺貨」項目造成視覺噪音。修改：預設只顯示 stock > 0 的商品。加一個 toggle「顯示缺貨商品」（預設 OFF），開啟後才顯示全部。",
+  "acceptance_criteria": [
+    "POS 頁面預設只顯示有庫存（stock > 0）的商品",
+    "有「顯示缺貨商品」toggle，開啟後顯示全部",
+    "npm run build 通過"
+  ]
+}

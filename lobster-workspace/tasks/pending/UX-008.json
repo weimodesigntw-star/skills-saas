@@ -1,0 +1,16 @@
+{
+  "id": "UX-008",
+  "title": "側邊欄導覽列加分群標籤",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "側邊欄 17 個項目扁平排列。依以下分群加入灰色小標題：【銷售】POS / 客戶訂單｜【庫存】商品 / 庫存管理 / 採購管理｜【財務】應收沖帳 / 應付沖帳 / 報表｜【客戶】會員管理｜【內容】最新消息 / 影片管理 / 照片集｜【設定】分類管理 / 字軌設定 / 規格。標籤樣式：text-xs text-muted-foreground uppercase tracking-wider px-3 pt-4 pb-1。收合時隱藏標籤。",
+  "acceptance_criteria": [
+    "側邊欄顯示 6 個分群標籤",
+    "每個分群標籤下方是對應的導覽項目",
+    "所有原有連結功能正常",
+    "收合時分群標籤隱藏",
+    "npm run build 通過"
+  ]
+}

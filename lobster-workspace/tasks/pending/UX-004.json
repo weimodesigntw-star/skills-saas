@@ -1,0 +1,15 @@
+{
+  "id": "UX-004",
+  "title": "訂單詳細頁客戶名稱加跳轉連結",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "app/dashboard/orders/[id]/page.tsx 的「客戶：妙姈 蔡」目前是純文字。改成可點擊的連結，點擊後跳轉到 /dashboard/members?search={member_name}。若 member 為 null（無對應會員），則不顯示連結，維持純文字「—」。",
+  "acceptance_criteria": [
+    "訂單詳細頁客戶名稱為帶底線的可點擊連結",
+    "點擊後跳到 /dashboard/members?search=姓名",
+    "member 為 null 時顯示「—」純文字",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "UX-007",
+  "title": "會員累計消費與消費次數回填",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "../",
+  "build_check": true,
+  "description": "members 表的 total_spent / order_count 全為 0。需要：1) 確認欄位存在，若無則新增 migration。2) 新增 POST /api/easystore/backfill-members-stats，依 member_id group by 計算 SUM(total) 和 COUNT(*) 後回寫。3) sync-orders 完成後也即時更新對應 member 統計。",
+  "acceptance_criteria": [
+    "members 表有 total_spent 和 order_count 欄位",
+    "POST /api/easystore/backfill-members-stats 執行後正確回填",
+    "會員管理頁顯示正確累計消費與消費次數",
+    "新訂單同步時即時更新會員統計",
+    "npm run build 通過"
+  ]
+}
