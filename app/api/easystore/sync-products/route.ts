@@ -12,14 +12,12 @@ function toProductRow(p: EasyStoreProduct, userId: string) {
     p.inventory_quantity ?? firstVariant.inventory_quantity ?? firstVariant.inventory ?? p.inventory ?? 0
   );
   const price = Number(p.price ?? firstVariant.price ?? 0);
-  const sku = p.sku ?? firstVariant.sku ?? null;
   const statusRaw = String(p.status ?? p.state ?? 'active').toLowerCase();
   const isActive = !['archived', 'disabled', 'inactive', 'draft'].includes(statusRaw);
   return {
     user_id: userId,
     easystore_product_id: String(p.id),
     name: p.name ?? p.title ?? '(未命名商品)',
-    product_code: sku,
     price,
     stock,
     is_active: isActive,
