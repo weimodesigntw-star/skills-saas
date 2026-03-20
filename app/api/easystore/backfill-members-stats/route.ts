@@ -3,9 +3,15 @@ import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-function isMissingOrderCountColumn(error: unknown) {
+function isMissingColumn(error: unknown) {
   const message = String((error as { message?: string })?.message ?? '').toLowerCase();
-  return message.includes('order_count') && message.includes('column');
+  const code = String((error as { code?: string })?.code ?? '');
+  return (
+    message.includes('column') ||
+    message.includes('bad request') ||
+    code === '42703' ||
+    code === 'PGRST204'
+  );
 }
 
 export async function POST() {
@@ -67,8 +73,8 @@ export async function POST() {
       .eq('user_id', user.id)
       .eq('id', id);
 
-    // Backward compatibility: production may not have `order_count` column yet.
-    if (error && isMissingOrderCountColumn(error)) {
+    // Fallback 1: no order_count
+    if (error && isMissingColumn(error)) {
       ({ error } = await admin
         .from('members')
         .update({
@@ -78,6 +84,19 @@ export async function POST() {
         .eq('user_id', user.id)
         .eq('id', id));
     }
+
+    // Fallback 2: no visit_count/order_count
+    if (error && isMissingColumn(error)) {
+      ({ error } = await admin
+        .from('members')
+        .update({
+          total_spent: Number(s.total.toFixed(2)),
+        })
+        .eq('user_id', user.id)
+        .eq('id', id));
+    }
+
+    // Fallback 3: still failing due to missing columns -> skip this member.
     if (!error) updated += 1;
   }
 
