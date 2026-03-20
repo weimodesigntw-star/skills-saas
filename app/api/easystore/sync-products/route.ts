@@ -5,6 +5,30 @@ export const runtime = 'nodejs';
 
 type EasyStoreProduct = Record<string, any>;
 
+function toProductRow(p: EasyStoreProduct, userId: string) {
+  const variants: any[] = p.variants ?? [];
+  const firstVariant = variants[0] ?? {};
+  const stock = Number(
+    p.inventory_quantity ?? firstVariant.inventory_quantity ?? firstVariant.inventory ?? p.inventory ?? 0
+  );
+  const price = Number(p.price ?? firstVariant.price ?? 0);
+  const sku = p.sku ?? firstVariant.sku ?? null;
+  const barcode = p.barcode ?? firstVariant.barcode ?? null;
+  const statusRaw = String(p.status ?? p.state ?? 'active').toLowerCase();
+  const isActive = !['archived', 'disabled', 'inactive', 'draft'].includes(statusRaw);
+  return {
+    user_id: userId,
+    easystore_product_id: String(p.id),
+    name: p.name ?? p.title ?? '(未命名商品)',
+    product_code: sku,
+    barcode,
+    price,
+    stock,
+    is_active: isActive,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function POST(req: NextRequest) {
   let mode: 'incremental' | 'full' = 'incremental';
   try {
@@ -45,12 +69,23 @@ export async function POST(req: NextRequest) {
     sinceDate = (syncState?.last_synced_at as string | null) ?? null;
   }
   const syncStartedAt = new Date().toISOString();
+  const startMs = Date.now();
+  const TIME_LIMIT_MS = 8500;
 
-  let allProducts: EasyStoreProduct[] = [];
   let page = 1;
   const limit = 50;
+  let totalFetched = 0;
+  let synced = 0;
+  let failed = 0;
+  let partial = false;
+  const errors: string[] = [];
 
   while (true) {
+    if (Date.now() - startMs > TIME_LIMIT_MS) {
+      partial = true;
+      break;
+    }
+
     let url = `https://${shop}/api/3.0/products.json?page=${page}&limit=${limit}`;
     if (sinceDate) url += `&updated_at_min=${encodeURIComponent(sinceDate)}`;
 
@@ -69,74 +104,47 @@ export async function POST(req: NextRequest) {
     const json: any = await res.json();
     const products: EasyStoreProduct[] = json.products ?? [];
     if (products.length === 0) break;
+    totalFetched += products.length;
 
-    allProducts = allProducts.concat(products);
+    const rows = products.map((p) => toProductRow(p, user.id));
+    const { error: upsertErr } = await admin
+      .from('products')
+      .upsert(rows, { onConflict: 'user_id,easystore_product_id' });
+    if (upsertErr) {
+      failed += products.length;
+      if (errors.length < 10) errors.push(`page ${page}: ${upsertErr.message}`);
+    } else {
+      synced += products.length;
+    }
 
     const totalCount = json.total_count ?? json.total ?? null;
     const pageCount = json.page_count ?? null;
-    if (totalCount !== null && allProducts.length >= totalCount) break;
+    if (totalCount !== null && totalFetched >= totalCount) break;
     if (pageCount !== null && page >= pageCount) break;
     if (products.length < limit) break;
     page++;
   }
 
-  const rows = allProducts.map((p) => {
-    const variants: any[] = p.variants ?? [];
-    const firstVariant = variants[0] ?? {};
-    const stock = Number(
-      p.inventory_quantity ?? firstVariant.inventory_quantity ?? firstVariant.inventory ?? p.inventory ?? 0
+  if (!partial || synced > 0) {
+    await admin.from('easystore_sync_state').upsert(
+      {
+        user_id: user.id,
+        resource: 'products',
+        last_synced_at: syncStartedAt,
+        synced_count: synced,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,resource' }
     );
-    const price = Number(p.price ?? firstVariant.price ?? 0);
-    const sku = p.sku ?? firstVariant.sku ?? null;
-    const barcode = p.barcode ?? firstVariant.barcode ?? null;
-    const statusRaw = String(p.status ?? p.state ?? 'active').toLowerCase();
-    const isActive = !['archived', 'disabled', 'inactive', 'draft'].includes(statusRaw);
-
-    return {
-      user_id: user.id,
-      easystore_product_id: String(p.id),
-      name: p.name ?? p.title ?? '(未命名商品)',
-      product_code: sku,
-      barcode,
-      price,
-      stock,
-      is_active: isActive,
-      updated_at: new Date().toISOString(),
-    };
-  });
-
-  let synced = 0;
-  let failed = 0;
-  const errors: string[] = [];
-  const BATCH = 200;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
-    const { error } = await admin.from('products').upsert(batch, { onConflict: 'user_id,easystore_product_id' });
-    if (error) {
-      failed += batch.length;
-      if (errors.length < 10) errors.push(`batch ${i}-${i + batch.length}: ${error.message}`);
-    } else {
-      synced += batch.length;
-    }
   }
-
-  await admin.from('easystore_sync_state').upsert(
-    {
-      user_id: user.id,
-      resource: 'products',
-      last_synced_at: syncStartedAt,
-      synced_count: synced,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,resource' }
-  );
 
   return NextResponse.json({
     mode,
     since: sinceDate,
-    total: allProducts.length,
+    total: totalFetched,
     synced,
     failed,
+    partial,
     errors,
   });
 }
