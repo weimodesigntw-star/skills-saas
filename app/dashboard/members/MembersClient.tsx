@@ -35,6 +35,7 @@ export function MembersClient({
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
 
   useEffect(() => {
     setMembers(initialMembers);
@@ -95,6 +96,24 @@ export function MembersClient({
     }
   };
 
+  const handleBackfillStats = async () => {
+    setBackfilling(true);
+    try {
+      const res = await fetch('/api/easystore/backfill-members-stats', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error ?? '回填失敗');
+      } else {
+        toast.success(`會員統計已回填：${data.updated ?? 0} 筆`);
+        refresh();
+      }
+    } catch {
+      toast.error('網路錯誤，請稍後再試');
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-2xl font-bold mb-6">會員管理</h1>
@@ -111,6 +130,9 @@ export function MembersClient({
         <Button variant="outline" onClick={handleEasyStoreSync} disabled={syncing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? '同步中...' : '從 EasyStore 同步'}
+        </Button>
+        <Button variant="outline" onClick={handleBackfillStats} disabled={backfilling}>
+          {backfilling ? '回填中...' : '回填會員統計'}
         </Button>
         <ImportDialog type="members" />
         <Button onClick={() => setOpenCreate(true)}>
@@ -164,7 +186,7 @@ export function MembersClient({
                   <td className="py-3 px-4 text-right font-medium">
                     NT$ {Number(member.total_spent).toLocaleString()}
                   </td>
-                  <td className="py-3 px-4 text-right">{member.visit_count} 次</td>
+                  <td className="py-3 px-4 text-right">{member.order_count ?? member.visit_count} 次</td>
                   <td className="py-3 px-4">
                     <Button
                       size="sm"

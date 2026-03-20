@@ -12,6 +12,7 @@ import { fetchMembers } from '@/app/actions/customer-members';
 import { toast } from '@/components/ui/toast';
 import { Receipt } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
+import { MemberCombobox } from '@/components/ui/member-combobox';
 
 type WriteoffRow = {
   id: string;
@@ -93,18 +94,13 @@ export function ReceivablesClient({
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <select
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
+        <MemberCombobox
+          members={members}
           value={memberId}
-          onChange={(e) => setMemberId(e.target.value)}
-        >
-          <option value="">全部客戶</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.client_code ? `${m.name}（${m.client_code}）` : m.name}
-            </option>
-          ))}
-        </select>
+          onChange={setMemberId}
+          placeholder="搜尋沖帳客戶"
+          allLabel="全部客戶"
+        />
         <Input type="date" className="w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         <Button variant="outline" onClick={handleSearch}>

@@ -19,6 +19,7 @@ import {
 } from '@/components/reports/ExportExcel';
 import { formatNTD } from '@/lib/constants';
 import { Search, FileDown } from 'lucide-react';
+import { MemberCombobox } from '@/components/ui/member-combobox';
 
 type TabId = 'shipment' | 'profit' | 'receivable';
 
@@ -113,18 +114,13 @@ export function ReportsClient() {
         <span className="text-sm text-muted-foreground">出貨日期迄</span>
         <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         <span className="text-sm text-muted-foreground">客戶</span>
-        <select
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[200px]"
+        <MemberCombobox
+          members={members}
           value={memberId}
-          onChange={(e) => setMemberId(e.target.value)}
-        >
-          <option value="">全部</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.client_code ? `${m.name}（${m.client_code}）` : m.name}
-            </option>
-          ))}
-        </select>
+          onChange={setMemberId}
+          placeholder="搜尋報表客戶"
+          allLabel="全部客戶"
+        />
         <Button variant="outline" onClick={handleQuery} disabled={loading}>
           <Search className="h-4 w-4 mr-1" />
           查詢

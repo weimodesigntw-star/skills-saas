@@ -36,6 +36,7 @@ import { fetchProductByBarcode } from '@/app/actions/pos';
 export default function PosPage() {
   const { cart, isScannerOpen, isCheckoutOpen, addToCart, setScannerOpen, setCheckoutOpen } = usePosStore();
   const [isScanning, setIsScanning] = useState(false);
+  const [showOutOfStock, setShowOutOfStock] = useState(false);
 
   // Setup barcode scanner gun listener
   const { lastScannedCode } = useBarcodeScanner(async (code) => {
@@ -95,11 +96,20 @@ export default function PosPage() {
               </Button>
             </div>
             <SearchBar />
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={showOutOfStock}
+                onChange={(e) => setShowOutOfStock(e.target.checked)}
+              />
+              顯示缺貨/$0 商品
+            </label>
           </div>
 
         {/* 商品網格 */}
         <div className="flex-1 overflow-auto px-4 py-4">
-          <ProductGrid />
+          <ProductGrid showOutOfStock={showOutOfStock} />
         </div>
       </div>
 

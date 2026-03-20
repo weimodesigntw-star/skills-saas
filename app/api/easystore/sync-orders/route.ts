@@ -5,6 +5,48 @@ export const runtime = 'nodejs';
 
 type EasyStoreOrder = Record<string, any>;
 
+async function recalcMemberStatsForMemberIds(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  memberIds: string[]
+) {
+  if (memberIds.length === 0) return;
+
+  const uniqueIds = [...new Set(memberIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return;
+
+  const { data: orders, error } = await admin
+    .from('customer_orders')
+    .select('member_id, total')
+    .eq('user_id', userId)
+    .in('member_id', uniqueIds);
+
+  if (error) return;
+
+  const stats: Record<string, { total: number; count: number }> = {};
+  for (const id of uniqueIds) stats[id] = { total: 0, count: 0 };
+
+  for (const row of orders ?? []) {
+    const mid = row.member_id as string | null;
+    if (!mid || !stats[mid]) continue;
+    stats[mid].total += Number(row.total ?? 0);
+    stats[mid].count += 1;
+  }
+
+  for (const id of uniqueIds) {
+    const s = stats[id] ?? { total: 0, count: 0 };
+    await admin
+      .from('members')
+      .update({
+        total_spent: Number(s.total.toFixed(2)),
+        order_count: s.count,
+        visit_count: s.count,
+      })
+      .eq('user_id', userId)
+      .eq('id', id);
+  }
+}
+
 export async function POST(req: NextRequest) {
   let mode: 'incremental' | 'full' = 'incremental';
   try {
@@ -111,6 +153,7 @@ export async function POST(req: NextRequest) {
   const errors: string[] = [];
 
   const BATCH = 50;
+  const touchedMemberIds = new Set<string>();
 
   for (let i = 0; i < allOrders.length; i += BATCH) {
     const batch = allOrders.slice(i, i + BATCH);
@@ -136,6 +179,7 @@ export async function POST(req: NextRequest) {
           .eq('easystore_customer_id', String(customerId))
           .maybeSingle();
         memberId = member?.id ?? null;
+        if (memberId) touchedMemberIds.add(memberId);
       }
 
       orderRows.push({
@@ -245,6 +289,8 @@ export async function POST(req: NextRequest) {
 
     synced += batch.length;
   }
+
+  await recalcMemberStatsForMemberIds(admin, user.id, Array.from(touchedMemberIds));
 
   await admin
     .from('easystore_sync_state')

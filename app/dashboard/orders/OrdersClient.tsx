@@ -189,6 +189,7 @@ export function OrdersClient({
         >
           <option value="">全部狀態</option>
           <option value="pending">待出貨</option>
+          <option value="partial">部分出貨</option>
           <option value="shipped">已出貨</option>
           <option value="cancelled">已取消</option>
         </select>

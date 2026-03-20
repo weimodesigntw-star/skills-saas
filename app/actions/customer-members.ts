@@ -14,6 +14,7 @@ export interface CustomerMember {
   note: string | null;
   total_spent: number;
   visit_count: number;
+  order_count?: number;
   created_at: string;
   updated_at: string;
   // ERP 欄位

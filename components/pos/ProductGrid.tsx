@@ -18,9 +18,13 @@ import { toast as toastFn } from '@/components/ui/toast';
 
 interface ProductGridProps {
   isLoading?: boolean;
+  showOutOfStock?: boolean;
 }
 
-export function ProductGrid({ isLoading: externalLoading = false }: ProductGridProps) {
+export function ProductGrid({
+  isLoading: externalLoading = false,
+  showOutOfStock = false,
+}: ProductGridProps) {
   const { selectedCategory, searchQuery } = usePosStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(externalLoading);
@@ -33,7 +37,10 @@ export function ProductGrid({ isLoading: externalLoading = false }: ProductGridP
           selectedCategory === null ? undefined : selectedCategory,
           searchQuery || undefined
         );
-        setProducts(data);
+        const filtered = showOutOfStock
+          ? data
+          : data.filter((p) => Number(p.stock ?? 0) > 0 && Number(p.price ?? 0) > 0);
+        setProducts(filtered);
       } catch (error) {
         console.error('Failed to load products:', error);
         toastFn.error('無法載入商品清單');
@@ -43,7 +50,7 @@ export function ProductGrid({ isLoading: externalLoading = false }: ProductGridP
     };
 
     loadProducts();
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, showOutOfStock]);
 
   if (isLoading) {
     return (
