@@ -24,6 +24,8 @@ import { ProductPickerDialog, type ProductForOrder } from './ProductPickerDialog
 import { toast } from '@/components/ui/toast';
 import { formatNTD } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
+import { fetchMembers } from '@/app/actions/customer-members';
+import { MemberCombobox } from '@/components/ui/member-combobox';
 
 function calcItemSubtotal(item: {
   qty: number;
@@ -66,6 +68,7 @@ export function OrderForm({
   const router = useRouter();
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [members, setMembers] = useState<{ id: string; name: string; client_code: string | null }[]>([]);
 
   const form = useForm<CustomerOrderFormValues>({
     resolver: zodResolver(customerOrderSchema),
@@ -90,6 +93,12 @@ export function OrderForm({
   const taxType = form.watch('tax_type');
   const taxrate = form.watch('taxrate');
   const status = form.watch('status');
+
+  useEffect(() => {
+    fetchMembers({ pageSize: 500 }).then((r) => {
+      setMembers((r.members ?? []) as { id: string; name: string; client_code: string | null }[]);
+    });
+  }, []);
 
   // 即時連動：items 的 shipped_qty 變化 → 自動更新 status
   useEffect(() => {
@@ -209,7 +218,13 @@ export function OrderForm({
                 <FormItem>
                   <FormLabel>客戶</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="會員 ID（可留空）" />
+                    <MemberCombobox
+                      members={members}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      placeholder="搜尋客戶"
+                      allLabel="無會員"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { createServerClient } from '@/lib/supabase/server';
 import { formatNTD } from '@/lib/constants';
+import { SyncProductsButton } from './SyncProductsButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   let isAuthenticated = false;
   let totalPages = 0;
   let currentPage = 1;
+  let lastSyncedAt: string | null = null;
+  let lastSyncedCount: number | null = null;
   const search = searchParams.q || '';
   const pageParam = searchParams.page ? parseInt(searchParams.page) : 1;
 
@@ -78,6 +81,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       products = result.products;
       totalPages = result.totalPages;
       currentPage = result.page;
+
+      const { data: syncState } = await supabase
+        .from('easystore_sync_state')
+        .select('last_synced_at,synced_count')
+        .eq('user_id', user.id)
+        .eq('resource', 'products')
+        .maybeSingle();
+      lastSyncedAt = (syncState?.last_synced_at as string | null) ?? null;
+      lastSyncedCount = (syncState?.synced_count as number | null) ?? null;
     }
   } catch (error) {
     console.error('Failed to load products:', error);
@@ -94,6 +106,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             </p>
           </div>
           <div className="flex gap-2">
+            <SyncProductsButton lastSyncedAt={lastSyncedAt} lastSyncedCount={lastSyncedCount} />
             <ImportDialog type="products" />
             <Link href="/dashboard/products/new">
               <Button>
