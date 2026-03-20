@@ -33,9 +33,14 @@ async function recalcMemberStatsForMemberIds(
     stats[mid].count += 1;
   }
 
+  const isMissingOrderCountColumn = (error: unknown) => {
+    const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+    return message.includes('order_count') && message.includes('column');
+  };
+
   for (const id of uniqueIds) {
     const s = stats[id] ?? { total: 0, count: 0 };
-    await admin
+    let { error } = await admin
       .from('members')
       .update({
         total_spent: Number(s.total.toFixed(2)),
@@ -44,6 +49,17 @@ async function recalcMemberStatsForMemberIds(
       })
       .eq('user_id', userId)
       .eq('id', id);
+
+    if (error && isMissingOrderCountColumn(error)) {
+      ({ error } = await admin
+        .from('members')
+        .update({
+          total_spent: Number(s.total.toFixed(2)),
+          visit_count: s.count,
+        })
+        .eq('user_id', userId)
+        .eq('id', id));
+    }
   }
 }
 

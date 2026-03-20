@@ -3,6 +3,11 @@ import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
+function isMissingOrderCountColumn(error: unknown) {
+  const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+  return message.includes('order_count') && message.includes('column');
+}
+
 export async function POST() {
   const supabase = createServerClient();
   const {
@@ -50,15 +55,29 @@ export async function POST() {
   let updated = 0;
   for (const id of memberIds) {
     const s = stats[id] ?? { total: 0, count: 0 };
-    const { error } = await admin
+    const payload = {
+      total_spent: Number(s.total.toFixed(2)),
+      order_count: s.count,
+      visit_count: s.count,
+    };
+
+    let { error } = await admin
       .from('members')
-      .update({
-        total_spent: Number(s.total.toFixed(2)),
-        order_count: s.count,
-        visit_count: s.count,
-      })
+      .update(payload)
       .eq('user_id', user.id)
       .eq('id', id);
+
+    // Backward compatibility: production may not have `order_count` column yet.
+    if (error && isMissingOrderCountColumn(error)) {
+      ({ error } = await admin
+        .from('members')
+        .update({
+          total_spent: Number(s.total.toFixed(2)),
+          visit_count: s.count,
+        })
+        .eq('user_id', user.id)
+        .eq('id', id));
+    }
     if (!error) updated += 1;
   }
 
