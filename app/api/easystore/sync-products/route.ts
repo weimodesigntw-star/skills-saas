@@ -55,13 +55,18 @@ export async function POST(req: NextRequest) {
   const { shop, access_token } = integration as { shop: string; access_token: string };
 
   let sinceDate: string | null = null;
+  let syncStateReadError: string | null = null;
   if (mode === 'incremental') {
-    const { data: syncState } = await admin
+    const { data: syncState, error: syncStateErr } = await admin
       .from('easystore_sync_state')
       .select('last_synced_at')
       .eq('user_id', user.id)
       .eq('resource', 'products')
       .maybeSingle();
+    if (syncStateErr) {
+      syncStateReadError = syncStateErr.message;
+      console.error('[sync-products] easystore_sync_state read failed:', syncStateErr);
+    }
     sinceDate = (syncState?.last_synced_at as string | null) ?? null;
   }
   const syncStartedAt = new Date().toISOString();
@@ -121,8 +126,9 @@ export async function POST(req: NextRequest) {
     page++;
   }
 
+  let syncStateWriteError: string | null = null;
   if (!partial || synced > 0) {
-    await admin.from('easystore_sync_state').upsert(
+    const { error: upsertStateErr } = await admin.from('easystore_sync_state').upsert(
       {
         user_id: user.id,
         resource: 'products',
@@ -132,6 +138,10 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: 'user_id,resource' }
     );
+    if (upsertStateErr) {
+      syncStateWriteError = upsertStateErr.message;
+      console.error('[sync-products] easystore_sync_state upsert failed:', upsertStateErr);
+    }
   }
 
   return NextResponse.json({
@@ -142,5 +152,8 @@ export async function POST(req: NextRequest) {
     failed,
     partial,
     errors,
+    /** 若表未建立（migration 044），會有訊息，請在 Supabase 執行 044_easystore_sync_state.sql */
+    syncStateReadError,
+    syncStateWriteError,
   });
 }

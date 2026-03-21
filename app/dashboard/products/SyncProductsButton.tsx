@@ -26,6 +26,15 @@ export function SyncProductsButton({ lastSyncedAt, lastSyncedCount }: SyncProduc
       const data = await res.json();
       if (!res.ok) {
         toast.error(data?.error ?? '商品同步失敗');
+      } else if (data.syncStateWriteError || data.syncStateReadError) {
+        const msg = data.syncStateWriteError ?? data.syncStateReadError;
+        toast.error(
+          `同步狀態未寫入（${msg}）。請在 Supabase SQL Editor 執行 migration 044（easystore_sync_state）。`
+        );
+        if (data.partial) {
+          toast.info(`已部分同步 ${data.synced} 筆，請再按一次繼續`);
+        }
+        router.refresh();
       } else if (data.partial) {
         toast.info(`已部分同步 ${data.synced} 筆，請再按一次繼續（共已處理 ${data.total} 筆）`);
         router.refresh();
