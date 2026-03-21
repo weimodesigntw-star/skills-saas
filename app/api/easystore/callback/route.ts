@@ -157,6 +157,9 @@ export async function GET(req: NextRequest) {
     'orders/cancel',
     'customers/create',
     'customers/update',
+    'products/create',
+    'products/update',
+    'orders/fulfillment_create',
   ];
   await Promise.all(
     topics.map((t) => tryRegisterWebhook({ shop, accessToken, topic: t, address: webhookAddress }))

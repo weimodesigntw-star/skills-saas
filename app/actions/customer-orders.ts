@@ -1,8 +1,60 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import type { CustomerOrderFormValues } from '@/lib/schemas/customer-order';
+
+/** INT-006：依 customer_orders 重算單一會員 total_spent / order_count（RLS 下使用） */
+async function refreshMemberStats(memberId: string | null, supabase: SupabaseClient) {
+  if (!memberId) return;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: orders, error } = await supabase
+    .from('customer_orders')
+    .select('total')
+    .eq('user_id', user.id)
+    .eq('member_id', memberId);
+
+  if (error) {
+    console.error('[refreshMemberStats]', error);
+    return;
+  }
+
+  const list = orders ?? [];
+  const total = list.reduce((s, o) => s + Number((o as { total?: number }).total ?? 0), 0);
+  const count = list.length;
+
+  const isMissingOrderCountColumn = (err: unknown) => {
+    const message = String((err as { message?: string })?.message ?? '').toLowerCase();
+    return message.includes('order_count') && message.includes('column');
+  };
+
+  let { error: updErr } = await supabase
+    .from('members')
+    .update({
+      total_spent: Number(total.toFixed(2)),
+      order_count: count,
+      visit_count: count,
+    })
+    .eq('user_id', user.id)
+    .eq('id', memberId);
+
+  if (updErr && isMissingOrderCountColumn(updErr)) {
+    ({ error: updErr } = await supabase
+      .from('members')
+      .update({
+        total_spent: Number(total.toFixed(2)),
+        visit_count: count,
+      })
+      .eq('user_id', user.id)
+      .eq('id', memberId));
+  }
+}
 
 export async function getOrderCodePreview(): Promise<string | null> {
   const supabase = createServerClient();
@@ -268,7 +320,10 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
 
   if (itemsError) return { error: '建立明細失敗' };
 
+  await refreshMemberStats(values.member_id || null, supabase);
+
   revalidatePath('/dashboard/orders');
+  revalidatePath('/dashboard/members');
   return { success: true, orderId: order.id, orderCode };
 }
 
@@ -276,6 +331,14 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '請先登入' };
+
+  const { data: existing } = await supabase
+    .from('customer_orders')
+    .select('member_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const prevMemberId = (existing as { member_id?: string | null } | null)?.member_id ?? null;
 
   const { subtotal, tax_amount, total } = calcTotals(values);
 
@@ -320,8 +383,12 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
 
   if (itemsError) return { error: '更新明細失敗' };
 
+  await refreshMemberStats(prevMemberId, supabase);
+  await refreshMemberStats(values.member_id || null, supabase);
+
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${id}`);
+  revalidatePath('/dashboard/members');
   return { success: true };
 }
 
@@ -330,6 +397,14 @@ export async function deleteCustomerOrder(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '請先登入' };
 
+  const { data: existing } = await supabase
+    .from('customer_orders')
+    .select('member_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const memberId = (existing as { member_id?: string | null } | null)?.member_id ?? null;
+
   const { error } = await supabase
     .from('customer_orders')
     .delete()
@@ -337,6 +412,10 @@ export async function deleteCustomerOrder(id: string) {
     .eq('user_id', user.id);
 
   if (error) return { error: '刪除失敗' };
+
+  await refreshMemberStats(memberId, supabase);
+
   revalidatePath('/dashboard/orders');
+  revalidatePath('/dashboard/members');
   return { success: true };
 }
