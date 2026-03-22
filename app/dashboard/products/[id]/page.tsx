@@ -27,7 +27,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { getCategoriesFlatForSelect } from '@/app/actions/categories';
+import { getProductTagIds, listProductTags, setProductTags, type ProductTag } from '@/app/actions/product-tags';
 import { ProductEditHistoryTabs } from '@/components/products/ProductEditHistoryTabs';
+import { ProductTagPicker } from '@/components/products/ProductTagPicker';
 
 const ProductFormSchema = z.object({
   name: z.string().min(1, '商品名稱為必填').max(255),
@@ -106,6 +108,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [depots, setDepots] = useState<Depot[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [allTags, setAllTags] = useState<ProductTag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(ProductFormSchema),
@@ -162,14 +166,18 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         });
 
         // Load categories and ERP options
-        const [cats, depotsRes, vendorsRes] = await Promise.all([
+        const [cats, depotsRes, vendorsRes, tagsList, tagIds] = await Promise.all([
           getCategoriesFlatForSelect(),
           getDepots(),
           fetchVendors({ pageSize: 500 }),
+          listProductTags(),
+          getProductTagIds(params.id),
         ]);
         setCategories(cats);
         setDepots(depotsRes);
         setVendors(vendorsRes.vendors || []);
+        setAllTags(tagsList);
+        setSelectedTagIds(tagIds);
 
         setIsLoading(false);
       } catch (err) {
@@ -211,6 +219,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       }
 
       await updateProduct(params.id, formData);
+      await setProductTags(params.id, selectedTagIds);
       router.push('/dashboard/products');
     } catch (err) {
       setError(err instanceof Error ? err.message : '更新商品失敗');
@@ -710,6 +719,27 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 </div>
               </form>
             </Form>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>商品標籤</CardTitle>
+            <CardDescription>依維度多選（品項、工藝、染色、素材、系列），點選切換；可搜尋篩選</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {allTags.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                尚無標籤資料。請確認已執行 migration 049 與種子 SQL（每位使用者 33 筆預設標籤）。
+              </p>
+            ) : (
+              <ProductTagPicker
+                tags={allTags}
+                selectedIds={selectedTagIds}
+                onChange={setSelectedTagIds}
+                disabled={isSaving}
+              />
+            )}
           </CardContent>
         </Card>
 

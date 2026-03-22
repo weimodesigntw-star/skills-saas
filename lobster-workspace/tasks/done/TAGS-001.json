@@ -12,5 +12,14 @@
     "可列出使用者標籤並在商品編輯頁多選儲存",
     "`setProductTags` 正確更新 `product_tag_map` 且無跨租戶",
     "npm run build 通過"
-  ]
+  ],
+  "result": {
+    "success": true,
+    "files": [
+      "app/actions/product-tags.ts",
+      "components/products/ProductTagPicker.tsx",
+      "app/dashboard/products/[id]/page.tsx"
+    ],
+    "note": "Cursor 實作；商品編輯頁第二張 Card「商品標籤」+ 儲存時 setProductTags"
+  }
 }
