@@ -3,7 +3,7 @@ import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-/** ES-005：用 access_token 呼叫 shop.json 驗證連線 */
+/** ES-005：用 access_token 呼叫 EasyStore 驗證連線（store.json 為主，部分商店仍為 shop.json） */
 export async function GET() {
   const supabase = createServerClient();
   const {
@@ -26,19 +26,35 @@ export async function GET() {
   }
 
   const { shop, access_token } = integration as { shop: string; access_token: string };
-  const res = await fetch(`https://${shop}/api/3.0/shop.json`, {
-    headers: { 'Easystore-Access-Token': access_token },
-  });
+  const headers = { 'Easystore-Access-Token': access_token };
 
-  if (!res.ok) {
-    const text = (await res.text().catch(() => '')).slice(0, 300);
-    return NextResponse.json({
-      ok: false,
-      error: `EasyStore API ${res.status}: ${text || res.statusText}`,
-    });
+  const candidates = [
+    { url: `https://${shop}/api/3.0/store.json`, payloadKey: 'store' as const },
+    { url: `https://${shop}/api/3.0/shop.json`, payloadKey: 'shop' as const },
+  ];
+
+  let lastStatus = 0;
+  let lastText = '';
+
+  for (const { url, payloadKey } of candidates) {
+    const res = await fetch(url, { headers });
+    lastStatus = res.status;
+    lastText = (await res.text().catch(() => '')).slice(0, 300);
+
+    if (res.ok) {
+      let json: Record<string, unknown> = {};
+      try {
+        json = JSON.parse(lastText) as Record<string, unknown>;
+      } catch {
+        /* ignore */
+      }
+      const shopPayload = (json[payloadKey] ?? json) as Record<string, unknown>;
+      return NextResponse.json({ ok: true, shop: shopPayload });
+    }
   }
 
-  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  const shopPayload = (json.shop ?? json) as Record<string, unknown>;
-  return NextResponse.json({ ok: true, shop: shopPayload });
+  return NextResponse.json({
+    ok: false,
+    error: `EasyStore API ${lastStatus}: ${lastText || '無法取得商店資訊'}`,
+  });
 }
