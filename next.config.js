@@ -9,6 +9,8 @@ const nextConfig = {
     ];
   },
   images: {
+    /** EasyStore 等外部 CDN 商品圖不需經 Next 優化；避免逐一維護 remotePatterns */
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
