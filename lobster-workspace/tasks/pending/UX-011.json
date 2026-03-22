@@ -1,0 +1,16 @@
+{
+  "id": "UX-011",
+  "title": "報表來源篩選 + 匯出 CSV",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "batch": 4,
+  "description": "報表頁（出貨明細/毛利/應收）在已有「來源」欄基礎上，新增篩選：全部 / POS / EasyStore（或 customer_orders）。匯出除 Excel 外增加「匯出 CSV」按鈕，編碼 UTF-8 BOM 以利 Excel 開啟中文。篩選需作用於查詢與匯出兩者。",
+  "acceptance_criteria": [
+    "可依來源篩選報表資料",
+    "CSV 匯出欄位與畫面一致且中文正常",
+    "npm run build 通過"
+  ]
+}

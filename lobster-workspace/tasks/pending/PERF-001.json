@@ -1,0 +1,16 @@
+{
+  "id": "PERF-001",
+  "title": "訂單 DB index + loading skeleton",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "batch": 4,
+  "description": "1) 分析 customer_orders 列表查詢（user_id, status, advance_date, member_id 等）新增部分索引 migration（例如 WHERE status <> cancelled）。2) 訂單列表頁首次載入使用 Skeleton 或表格 placeholder，避免白屏。3) 確認 explain 或文件註記主要查詢使用索引。",
+  "acceptance_criteria": [
+    "新增 migration 含至少一個與訂單列表相關之 index（附註欄位與查詢條件）",
+    "訂單列表載入中有可辨識的 loading UI",
+    "npm run build 通過"
+  ]
+}

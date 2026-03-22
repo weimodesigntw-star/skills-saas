@@ -1,0 +1,16 @@
+{
+  "id": "UX-010",
+  "title": "總覽頁「待出貨訂單」統計卡",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "batch": 4,
+  "description": "Dashboard 總覽新增統計卡片：待出貨客戶訂單數量（定義：未取消且尚有未出貨數量之訂單，或依專案既有 status 規則）。點擊導向 /dashboard/orders?filter=pending_shipment（或等效 query）。資料來源可為單次 RPC/count 或既有 fetch 摘要，注意 RLS 與效能。",
+  "acceptance_criteria": [
+    "總覽顯示待出貨訂單數且與列表篩選一致",
+    "可從卡片連到訂單列表預設篩選",
+    "npm run build 通過"
+  ]
+}

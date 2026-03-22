@@ -1,0 +1,17 @@
+{
+  "id": "FIX-001",
+  "title": "sync-customers 重複 key / upsert 錯誤修正",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "batch": 4,
+  "description": "POST /api/easystore/sync-customers 在重複 EasyStore 顧客或已存在 members（easystore_customer_id / email / client_code 唯一性）時拋出 duplicate key 或 500。需：1) 盤點 members 上與 ES 對應的唯一約束與 RLS。2) 改為 ON CONFLICT upsert 或先查再 update，並記錄略過／合併筆數。3) API 回傳結構化結果 { synced, updated, skipped, errors[] }，MembersClient 顯示友善訊息。4) 補最小測試或手動驗收步驟於 PR 說明。",
+  "acceptance_criteria": [
+    "同一 ES 商店重複執行 sync-customers 不會因 duplicate key 整批失敗",
+    "衝突時採 upsert 或明確 skip，並在回應中可追蹤",
+    "前端同步按鈕顯示成功/部分失敗訊息（非空白錯誤）",
+    "npm run build 通過"
+  ]
+}

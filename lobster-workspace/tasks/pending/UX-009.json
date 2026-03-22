@@ -1,0 +1,16 @@
+{
+  "id": "UX-009",
+  "title": "訂單列表 inline 狀態切換",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "batch": 4,
+  "description": "customer_orders 列表（/dashboard/orders）支援在表格內直接變更狀態（例如 pending → confirmed → shipped），無需進編輯頁。需：1) server action 驗證 user_id 與合法狀態轉移。2) optimistic 或 loading 狀態避免重複提交。3) 取消/已完成等終態規則與後端一致。",
+  "acceptance_criteria": [
+    "列表上可切換訂單狀態且儲存後重新整理仍正確",
+    "非法轉移有錯誤提示",
+    "npm run build 通過"
+  ]
+}

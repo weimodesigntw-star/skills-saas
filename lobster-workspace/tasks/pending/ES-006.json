@@ -1,0 +1,16 @@
+{
+  "id": "ES-006",
+  "title": "EasyStore Token 過期偵測 + 重新授權引導",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "batch": 4,
+  "description": "當 access_token 過期或 API 回 401/403 時，儀表板或同步按鈕僅顯示泛用錯誤。需：1) 集中處理 EasyStore fetch 錯誤碼，辨識 token 失效。2) 設定頁或橫幅提示「Token 已過期，請重新授權」並連結 install/oauth 流程。3) 可選：排程或進入相關頁時呼叫 verify-token 預檢。與既有 verify-token、install route 整合，不重複儲存敏感資訊於 client。",
+  "acceptance_criteria": [
+    "Token 失效時使用者可理解原因並有一鍵/連結回到重新授權",
+    "sync / webhook 相關 UI 不因未處理 401 而顯示空白錯誤",
+    "npm run build 通過"
+  ]
+}

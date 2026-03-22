@@ -1,0 +1,16 @@
+{
+  "id": "ES-007",
+  "title": "商品庫存同步（stock_only 模式）",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "batch": 4,
+  "description": "新增僅同步庫存之模式：從 EasyStore 取得商品庫存（依現有 API 能力），以 product_id / SKU 對應本系 products，只更新 stock（可選 low_stock_threshold 不動）。實作方式擇一或並存：POST /api/easystore/sync-products?mode=stock_only 或獨立 route；設定頁加「僅同步庫存」按鈕；記錄最後同步時間與筆數。需處理分頁與速率限制，失敗列回 errors。",
+  "acceptance_criteria": [
+    "可觸發只更新本地 products.stock 的同步（不重建整份商品主檔）",
+    "回應或 UI 顯示更新筆數/失敗摘要",
+    "npm run build 通過"
+  ]
+}

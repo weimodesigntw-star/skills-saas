@@ -1,0 +1,49 @@
+{
+  "batch": 4,
+  "name": "Skills SaaS — 第四批（FIX / ES / UX / PERF）",
+  "created": "2026-02-06",
+  "task_count": 11,
+  "recommended_order": [
+    "FIX-001",
+    "FIX-002",
+    "FIX-003",
+    "ES-006",
+    "ES-007",
+    "PERF-001",
+    "UX-009",
+    "UX-010",
+    "UX-011",
+    "ES-008",
+    "UX-012"
+  ],
+  "tasks": [
+    { "id": "FIX-001", "priority": "high", "title": "sync-customers 重複 key 錯誤修正" },
+    { "id": "FIX-002", "priority": "high", "title": "庫存扣量 product_id 為 null 防護 + 歷史記錄" },
+    { "id": "FIX-003", "priority": "medium", "title": "README Production Migration Checklist" },
+    { "id": "ES-006", "priority": "medium", "title": "Token 過期偵測 + 重新授權引導" },
+    { "id": "ES-007", "priority": "medium", "title": "商品庫存同步（stock_only 模式）" },
+    { "id": "ES-008", "priority": "low", "title": "Webhook 訂閱狀態管理頁" },
+    { "id": "UX-009", "priority": "medium", "title": "訂單列表 inline 狀態切換" },
+    { "id": "UX-010", "priority": "medium", "title": "總覽頁「待出貨訂單」統計卡" },
+    { "id": "UX-011", "priority": "medium", "title": "報表來源篩選 + 匯出 CSV" },
+    { "id": "UX-012", "priority": "low", "title": "會員批次標籤管理" },
+    { "id": "PERF-001", "priority": "medium", "title": "訂單 DB index + loading skeleton" }
+  ],
+  "files": [
+    "lobster-workspace/tasks/pending/FIX-001.json",
+    "lobster-workspace/tasks/pending/FIX-002.json",
+    "lobster-workspace/tasks/pending/FIX-003.json",
+    "lobster-workspace/tasks/pending/ES-006.json",
+    "lobster-workspace/tasks/pending/ES-007.json",
+    "lobster-workspace/tasks/pending/ES-008.json",
+    "lobster-workspace/tasks/pending/UX-009.json",
+    "lobster-workspace/tasks/pending/UX-010.json",
+    "lobster-workspace/tasks/pending/UX-011.json",
+    "lobster-workspace/tasks/pending/UX-012.json",
+    "lobster-workspace/tasks/pending/PERF-001.json"
+  ],
+  "git_suggestion": {
+    "add_glob": "lobster-workspace/tasks/pending/FIX-*.json lobster-workspace/tasks/pending/ES-00[6-8].json lobster-workspace/tasks/pending/UX-00[9-9].json lobster-workspace/tasks/pending/UX-01*.json lobster-workspace/tasks/pending/PERF-001.json lobster-workspace/tasks/pending/batch-4-overview.json",
+    "commit_message": "chore(lobster): add batch 4 tasks FIX-001~003, ES-006~008, UX-009~012, PERF-001"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "UX-012",
+  "title": "會員批次標籤管理",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "low",
+  "batch": 4,
+  "description": "若 members 已有標籤欄位（或 JSONB tags）：在會員列表支援多選後批次「新增標籤」「移除標籤」。若尚無欄位則先 migration 新增。需 server action 批次更新、RLS 通過。無標籤需求時可改為批次改 client_code 前綴等—實作前對齊產品定義。",
+  "acceptance_criteria": [
+    "可多選會員並批次更新標籤（或文件約定之批次欄位）",
+    "單一使用者僅能改自己的 members",
+    "npm run build 通過"
+  ]
+}

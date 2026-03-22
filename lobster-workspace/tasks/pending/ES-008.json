@@ -1,0 +1,16 @@
+{
+  "id": "ES-008",
+  "title": "Webhook 訂閱狀態管理頁",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "low",
+  "batch": 4,
+  "description": "在 Dashboard 設定或獨立頁顯示目前註冊之 EasyStore Webhook：事件類型、callback URL、最後收到時間（若 DB 有 easystore_sync_state 或 log 可沿用）、手動「重新註冊」或說明文件連結。若平台 API 可查 subscription 列表則顯示；否則顯示本系儲存之目標 URL 與健康檢查提示。",
+  "acceptance_criteria": [
+    "管理員可從 UI 確認 webhook 預期 URL 與已訂閱事件（或明確說明手動設定步驟）",
+    "與既有 install / webhook route 不衝突",
+    "npm run build 通過"
+  ]
+}

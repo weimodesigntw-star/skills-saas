@@ -1,0 +1,16 @@
+{
+  "id": "FIX-003",
+  "title": "README Production Migration Checklist",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": false,
+  "priority": "medium",
+  "batch": 4,
+  "description": "在 README.md（或 docs/DEPLOYMENT.md）新增「Production 部署檢查表」：依序列出必跑 Supabase migrations（至少標出 047 customer_orders 應收、及依賴的 035 generate_writeoff_code 等）、Vercel 環境變數（NEXT_PUBLIC_SUPABASE_*、EasyStore、Stripe）、以及新環境驗收步驟連結。避免新機或還原 DB 漏跑 migration 導致 INT-002 等功能失效。",
+  "acceptance_criteria": [
+    "文件含 migration 順序或編號索引與「新 production 必跑」清單",
+    "文件含必要環境變數清單（不含密鑰本體）",
+    "文件含簡短 smoke test（登入、報表、沖帳、同步）"
+  ]
+}

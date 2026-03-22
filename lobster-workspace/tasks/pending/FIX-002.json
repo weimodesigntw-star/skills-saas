@@ -1,0 +1,16 @@
+{
+  "id": "FIX-002",
+  "title": "庫存扣量 product_id 為 null 防護 + 歷史記錄",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "batch": 4,
+  "description": "客戶訂單明細 shipped_qty 增加時，若 product_id 為 null 仍可能導致資料不一致或靜默略過扣庫。需：1) updateCustomerOrderItemShippedQty（或等效流程）在 delta>0 且 product_id 為空時：UI 提示無法扣庫、可選擇阻擋出貨或僅警告並寫入稽核。2) 有 product_id 時維持 adjust_stock；無論是否扣庫，將「出貨增量、product_id、訂單號」寫入 stock_adjustments 或專用 shipment_stock_log（若專案無表則以既有 stock_adjustments note/type 區分）。3) 訂單編輯頁對未綁商品之列顯示警示。",
+  "acceptance_criteria": [
+    "shipped_qty 增加且 product_id 為 null 時行為明確（阻擋或警告+不調 stock），不可 silent fail",
+    "有扣庫時 stock_adjustments（或約定表）可追溯訂單/明細",
+    "npm run build 通過"
+  ]
+}
