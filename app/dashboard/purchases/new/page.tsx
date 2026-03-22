@@ -32,6 +32,9 @@ export default async function NewPurchasePage({
     prefillLines = await getPurchasePrefillLowStock(60);
   }
 
+  /** 與 ?ids= / ?lowStock= 連動 remount，採購表單才能用預填品名初始化 useFieldArray */
+  const purchaseFormKey = `new-${sp.ids ?? ''}-${sp.lowStock ?? ''}`;
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <Link
@@ -43,6 +46,7 @@ export default async function NewPurchasePage({
       </Link>
       <h1 className="text-2xl font-bold mb-6">新增採購單</h1>
       <PurchaseForm
+        key={purchaseFormKey}
         codePreview={codePreview ?? 'CA202-YYYYMMDD-0001'}
         prefillLines={prefillLines}
       />

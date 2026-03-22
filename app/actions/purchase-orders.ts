@@ -217,10 +217,12 @@ export async function getPurchasePrefillFromProductIds(productIds: string[]): Pr
     const threshold = Number((p as { low_stock_threshold?: number }).low_stock_threshold ?? 5);
     const stock = Number((p as { stock?: number }).stock ?? 0);
     const need = Math.max(threshold - stock, 1);
+    const displayName = String((p as { name?: string | null }).name ?? '').trim();
+    const code = String((p as { product_code?: string | null }).product_code ?? '').trim();
     lines.push({
       product_id: id,
-      product_code: String((p as { product_code?: string }).product_code ?? ''),
-      product_name: String((p as { name?: string }).name ?? ''),
+      product_code: code,
+      product_name: displayName || code || '（未命名商品）',
       unit_name: String((p as { unit_name?: string }).unit_name ?? ''),
       qty: need,
       unit_price: Number((p as { purchase_price?: number }).purchase_price ?? 0),

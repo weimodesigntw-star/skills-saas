@@ -25,6 +25,21 @@ import { getDepots } from '@/app/actions/depots';
 import { getVendors } from '@/app/actions/vendors';
 import { useEffect } from 'react';
 
+function buildItemsFromPrefill(prefill?: PurchasePrefillLine[]): PurchaseOrderFormValues['items'] {
+  if (!prefill?.length) {
+    return [{ product_name: '', unit_name: '', qty: 1, unit_price: 0 }];
+  }
+  return prefill.map((l) => ({
+    product_id: l.product_id,
+    product_code: l.product_code ?? '',
+    product_name: l.product_name ?? '',
+    unit_name: l.unit_name || '',
+    qty: l.qty,
+    unit_price: l.unit_price,
+    subtotal: +(l.qty * l.unit_price).toFixed(2),
+  }));
+}
+
 function calcTotals(values: PurchaseOrderFormValues) {
   const subtotal = values.items.reduce((s, i) => s + Number(i.qty) * Number(i.unit_price), 0);
   const taxType = values.tax_type ?? '稅內含';
@@ -54,6 +69,7 @@ export function PurchaseForm({ codePreview, prefillLines }: PurchaseFormProps) {
   const [depots, setDepots] = useState<{ id: string; depot_code: string; depot_name: string }[]>([]);
   const [vendors, setVendors] = useState<{ id: string; vendor_code: string; vendor_name: string }[]>([]);
 
+  /** 首屏即帶入預填（父層請加 key 使 query 變更時 remount，否則 RHF 不會重讀 defaultValues） */
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
@@ -63,7 +79,7 @@ export function PurchaseForm({ codePreview, prefillLines }: PurchaseFormProps) {
       tax_type: '稅內含',
       taxrate: 0.05,
       note: '',
-      items: [{ product_name: '', unit_name: '', qty: 1, unit_price: 0 }],
+      items: buildItemsFromPrefill(prefillLines),
     },
   });
 
@@ -71,24 +87,6 @@ export function PurchaseForm({ codePreview, prefillLines }: PurchaseFormProps) {
     getDepots().then(setDepots);
     getVendors().then(setVendors);
   }, []);
-
-  useEffect(() => {
-    if (!prefillLines?.length) return;
-    const v = form.getValues();
-    form.reset({
-      ...v,
-      items: prefillLines.map((l) => ({
-        product_id: l.product_id,
-        product_code: l.product_code,
-        product_name: l.product_name,
-        unit_name: l.unit_name || '',
-        qty: l.qty,
-        unit_price: l.unit_price,
-        subtotal: +(l.qty * l.unit_price).toFixed(2),
-      })),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 僅在預填資料變更時套用一次
-  }, [prefillLines]);
 
   const items = form.watch('items');
   const taxType = form.watch('tax_type');
