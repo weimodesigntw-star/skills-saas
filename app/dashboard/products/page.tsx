@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Plus, Package } from 'lucide-react';
 import { getProducts } from '@/app/actions/products';
 import { fetchPosCategories } from '@/app/actions/pos';
+import { getTagsBatchForProducts, listProductTags } from '@/app/actions/product-tags';
+import type { ProductTag } from '@/app/actions/product-tags';
 import { Button } from '@/components/ui/button';
 import { ImportDialog } from '@/components/import/ImportDialog';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -30,6 +32,8 @@ interface ProductsPageProps {
     sort?: string;
     dir?: string;
     productStatus?: string;
+    /** INT-B：逗號分隔 tag UUID */
+    tags?: string;
   };
 }
 
@@ -52,7 +56,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     ? (searchParams.sort as ProductSortKey)
     : 'created_at';
   const sortDirection = searchParams.dir === 'asc' ? 'asc' : 'desc';
+  const tagIdsFilter =
+    searchParams.tags
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
   let productCategories: { id: string; name: string }[] = [];
+  let allTagsForFilter: ProductTag[] = [];
 
   try {
     const supabase = createServerClient();
@@ -63,6 +73,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     if (user) {
       isAuthenticated = true;
       productCategories = await fetchPosCategories();
+      allTagsForFilter = await listProductTags();
 
       const result = await getProducts({
         page: pageParam,
@@ -72,9 +83,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         sortBy: sortCol,
         sortDir: sortDirection,
         productStatus: productStatusFilter,
+        tagIds: tagIdsFilter.length ? tagIdsFilter : undefined,
       });
 
-      products = result.products;
+      const tagMap = await getTagsBatchForProducts(result.products.map((p) => p.id));
+      products = result.products.map((p) => ({
+        ...p,
+        tagChips: tagMap[p.id] ?? [],
+      }));
       totalPages = result.totalPages;
       currentPage = result.page;
 
@@ -116,7 +132,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
       {!isAuthenticated ? (
         <EmptyState icon={Package} title="請先登入" description="登入後即可管理商品" />
-      ) : products.length === 0 && !search && !categoryId && !productStatusFilter ? (
+      ) : products.length === 0 && !search && !categoryId && !productStatusFilter && tagIdsFilter.length === 0 ? (
         <EmptyState
           icon={Package}
           title="還沒有商品"
@@ -138,6 +154,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           sortCol={sortCol}
           sortDirection={sortDirection}
           productCategories={productCategories}
+          tagIdsFilter={tagIdsFilter}
+          allTagsForFilter={allTagsForFilter}
         />
       )}
     </div>

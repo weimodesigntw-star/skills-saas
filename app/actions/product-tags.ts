@@ -139,3 +139,108 @@ export async function setProductTags(productId: string, tagIds: string[]): Promi
   revalidatePath('/dashboard/products');
   revalidatePath(`/dashboard/products/${productId}`);
 }
+
+/** 列表顯示用（小 chip） */
+export type ProductTagChip = {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+};
+
+/**
+ * 同時擁有所有指定標籤的商品 id（AND）。
+ * 用於商品列表 `?tags=a,b` 篩選。
+ */
+export async function getProductIdsWithAllTags(tagIds: string[]): Promise<string[]> {
+  const unique = [...new Set(tagIds)].filter(Boolean);
+  if (unique.length === 0) return [];
+
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: rows, error } = await supabase
+    .from('product_tag_map')
+    .select('product_id, tag_id')
+    .in('tag_id', unique);
+
+  if (error) {
+    throw new Error(`Failed to filter by tags: ${error.message}`);
+  }
+
+  const byProduct = new Map<string, Set<string>>();
+  for (const r of rows ?? []) {
+    if (!byProduct.has(r.product_id)) byProduct.set(r.product_id, new Set());
+    byProduct.get(r.product_id)!.add(r.tag_id);
+  }
+
+  const need = new Set(unique);
+  const result: string[] = [];
+  for (const [pid, tagSet] of byProduct) {
+    if ([...need].every((t) => tagSet.has(t))) {
+      result.push(pid);
+    }
+  }
+  return result;
+}
+
+/**
+ * 批次查詢多個商品已套用的標籤（供列表欄位顯示）
+ */
+export async function getTagsBatchForProducts(
+  productIds: string[]
+): Promise<Record<string, ProductTagChip[]>> {
+  if (productIds.length === 0) return {};
+
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return {};
+
+  const { data: maps, error: mapErr } = await supabase
+    .from('product_tag_map')
+    .select('product_id, tag_id')
+    .in('product_id', productIds);
+
+  if (mapErr) {
+    throw new Error(`Failed to load product tags: ${mapErr.message}`);
+  }
+
+  if (!maps?.length) return {};
+
+  const allTagIds = [...new Set(maps.map((m) => m.tag_id))];
+  const { data: tags, error: tagErr } = await supabase
+    .from('product_tags')
+    .select('id, name, color, sort_order')
+    .eq('user_id', user.id)
+    .in('id', allTagIds);
+
+  if (tagErr) {
+    throw new Error(`Failed to load tags: ${tagErr.message}`);
+  }
+
+  const tagById = new Map((tags ?? []).map((t) => [t.id, t]));
+  const out: Record<string, ProductTagChip[]> = {};
+
+  for (const m of maps) {
+    const t = tagById.get(m.tag_id);
+    if (!t) continue;
+    if (!out[m.product_id]) out[m.product_id] = [];
+    out[m.product_id].push({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      sort_order: t.sort_order,
+    });
+  }
+
+  for (const pid of Object.keys(out)) {
+    out[pid].sort((a, b) => a.sort_order - b.sort_order);
+  }
+
+  return out;
+}

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getProductIdsWithAllTags } from '@/app/actions/product-tags';
 import { z } from 'zod';
 
 /**
@@ -42,6 +43,8 @@ export interface ProductQueryOptions {
   sortDir?: string;
   /** F-002：上架 / 下架 / 低庫存（需 migration 048 is_low_stock） */
   productStatus?: ProductStatusFilter;
+  /** INT-B：同時擁有所列標籤的商品（AND）；對應 URL `?tags=id1,id2` */
+  tagIds?: string[];
 }
 
 /**
@@ -96,6 +99,22 @@ export async function getProducts(options?: ProductQueryOptions) {
     : 'created_at';
   const ascending = options?.sortDir === 'asc';
 
+  let tagRestrictedIds: string[] | null = null;
+  if (options?.tagIds?.length) {
+    tagRestrictedIds = await getProductIdsWithAllTags(options.tagIds);
+    if (tagRestrictedIds.length === 0) {
+      const page = options?.page || 1;
+      const limit = options?.limit || 20;
+      return {
+        products: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+      };
+    }
+  }
+
   let query = supabase
     .from('products')
     .select(
@@ -107,6 +126,10 @@ export async function getProducts(options?: ProductQueryOptions) {
     )
     .eq('user_id', user.id)
     .order(sortCol, { ascending });
+
+  if (tagRestrictedIds !== null) {
+    query = query.in('id', tagRestrictedIds);
+  }
 
   // Apply category filter
   if (options?.categoryId) {

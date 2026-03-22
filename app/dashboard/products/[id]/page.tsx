@@ -269,7 +269,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         <Card>
           <CardHeader>
             <CardTitle>商品資訊</CardTitle>
-            <CardDescription>更新商品的基本信息</CardDescription>
+            <CardDescription>基本資訊、分類、標籤、圖片與庫存設定</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -637,6 +637,28 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   />
                 </div>
 
+                {/* INT-A：分類與標籤同 Card */}
+                <div className="border-t pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold">商品標籤</h3>
+                    <p className="text-sm text-muted-foreground">
+                      依維度多選（品項、工藝、染色、素材、系列），點選切換；可搜尋篩選
+                    </p>
+                  </div>
+                  {allTags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      尚無標籤資料。請確認已執行 migration 049 與種子 SQL（每位使用者預設標籤）。
+                    </p>
+                  ) : (
+                    <ProductTagPicker
+                      tags={allTags}
+                      selectedIds={selectedTagIds}
+                      onChange={setSelectedTagIds}
+                      disabled={isSaving}
+                    />
+                  )}
+                </div>
+
                 {/* Image Upload */}
                 <FormField
                   control={form.control}
@@ -719,27 +741,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 </div>
               </form>
             </Form>
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>商品標籤</CardTitle>
-            <CardDescription>依維度多選（品項、工藝、染色、素材、系列），點選切換；可搜尋篩選</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {allTags.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                尚無標籤資料。請確認已執行 migration 049 與種子 SQL（每位使用者 33 筆預設標籤）。
-              </p>
-            ) : (
-              <ProductTagPicker
-                tags={allTags}
-                selectedIds={selectedTagIds}
-                onChange={setSelectedTagIds}
-                disabled={isSaving}
-              />
-            )}
           </CardContent>
         </Card>
 

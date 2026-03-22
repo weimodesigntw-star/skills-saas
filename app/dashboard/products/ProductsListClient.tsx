@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatNTD } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { batchUpdateProductStatus } from '@/app/actions/products';
+import type { ProductTag } from '@/app/actions/product-tags';
 import { toast } from '@/components/ui/toast';
 
 const PRODUCT_SORT = ['name', 'price', 'stock', 'created_at'] as const;
@@ -20,6 +21,13 @@ export type ProductSortKey = (typeof PRODUCT_SORT)[number];
 
 const PRODUCT_STATUS_FILTERS = ['active', 'inactive', 'low_stock'] as const;
 export type ProductStatusFilterKey = (typeof PRODUCT_STATUS_FILTERS)[number];
+
+export type ProductTagChipRow = {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+};
 
 export type ProductRow = {
   id: string;
@@ -33,6 +41,8 @@ export type ProductRow = {
   is_active: boolean;
   created_at: string;
   categories?: { name: string } | null;
+  /** INT-C：列表標籤 chips */
+  tagChips?: ProductTagChipRow[];
 };
 
 function productsListHref(opts: {
@@ -42,6 +52,8 @@ function productsListHref(opts: {
   sort?: string | null;
   dir?: string | null;
   productStatus?: string | null;
+  /** INT-B：篩選同時擁有這些標籤的商品（AND） */
+  tags?: string[] | null;
 }) {
   const p = new URLSearchParams();
   if (opts.q?.trim()) p.set('q', opts.q.trim());
@@ -50,6 +62,7 @@ function productsListHref(opts: {
   if (opts.sort) p.set('sort', opts.sort);
   if (opts.dir) p.set('dir', opts.dir);
   if (opts.productStatus) p.set('productStatus', opts.productStatus);
+  if (opts.tags?.length) p.set('tags', opts.tags.join(','));
   const s = p.toString();
   return s ? `/dashboard/products?${s}` : '/dashboard/products';
 }
@@ -128,6 +141,10 @@ interface ProductsListClientProps {
   sortCol: ProductSortKey;
   sortDirection: 'asc' | 'desc';
   productCategories: { id: string; name: string }[];
+  /** 目前 URL ?tags= 篩選 */
+  tagIdsFilter?: string[];
+  /** 可點選篩選的全部標籤 */
+  allTagsForFilter?: ProductTag[];
 }
 
 export function ProductsListClient({
@@ -140,6 +157,8 @@ export function ProductsListClient({
   sortCol,
   sortDirection,
   productCategories,
+  tagIdsFilter = [],
+  allTagsForFilter = [],
 }: ProductsListClientProps) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -166,6 +185,8 @@ export function ProductsListClient({
     });
   }
 
+  const tagsForHref = tagIdsFilter.length ? tagIdsFilter : null;
+
   function productSortHref(column: ProductSortKey) {
     const active = sortCol === column;
     const nextDir = active
@@ -182,6 +203,23 @@ export function ProductsListClient({
       sort: column,
       dir: nextDir,
       productStatus: productStatusFilter ?? null,
+      tags: tagsForHref,
+    });
+  }
+
+  function toggleTagInFilter(tagId: string): string {
+    const set = new Set(tagIdsFilter);
+    if (set.has(tagId)) set.delete(tagId);
+    else set.add(tagId);
+    const next = [...set];
+    return productsListHref({
+      q: search,
+      page: 1,
+      category: categoryId ?? null,
+      sort: sortCol,
+      dir: sortDirection,
+      productStatus: productStatusFilter ?? null,
+      tags: next.length ? next : null,
     });
   }
 
@@ -221,6 +259,7 @@ export function ProductsListClient({
         <form className="flex gap-2 flex-wrap" action="/dashboard/products" method="GET">
           {categoryId ? <input type="hidden" name="category" value={categoryId} /> : null}
           {productStatusFilter ? <input type="hidden" name="productStatus" value={productStatusFilter} /> : null}
+          {tagIdsFilter.length > 0 ? <input type="hidden" name="tags" value={tagIdsFilter.join(',')} /> : null}
           <input type="hidden" name="sort" value={sortCol} />
           <input type="hidden" name="dir" value={sortDirection} />
           <Input
@@ -245,6 +284,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: null,
+                tags: tagsForHref,
               })}
             >
               全部
@@ -259,6 +299,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: 'active',
+                tags: tagsForHref,
               })}
             >
               上架中
@@ -273,6 +314,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: 'inactive',
+                tags: tagsForHref,
               })}
             >
               已下架
@@ -287,6 +329,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: 'low_stock',
+                tags: tagsForHref,
               })}
             >
               低庫存
@@ -305,6 +348,7 @@ export function ProductsListClient({
                   sort: sortCol,
                   dir: sortDirection,
                   productStatus: productStatusFilter ?? null,
+                  tags: tagsForHref,
                 })}
               >
                 全部
@@ -320,6 +364,7 @@ export function ProductsListClient({
                     sort: sortCol,
                     dir: sortDirection,
                     productStatus: productStatusFilter ?? null,
+                    tags: tagsForHref,
                   })}
                 >
                   {c.name}
@@ -328,13 +373,52 @@ export function ProductsListClient({
             ))}
           </div>
         )}
+        {allTagsForFilter.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-start">
+            <span className="text-sm text-muted-foreground mr-1 shrink-0 pt-1.5">標籤</span>
+            <div className="flex flex-wrap gap-2 flex-1 items-center">
+              {tagIdsFilter.length > 0 && (
+                <Button variant="secondary" size="sm" asChild>
+                  <Link
+                    href={productsListHref({
+                      q: search,
+                      page: 1,
+                      category: categoryId ?? null,
+                      sort: sortCol,
+                      dir: sortDirection,
+                      productStatus: productStatusFilter ?? null,
+                      tags: null,
+                    })}
+                  >
+                    清除標籤
+                  </Link>
+                </Button>
+              )}
+              {allTagsForFilter.map((t) => {
+                const active = tagIdsFilter.includes(t.id);
+                return (
+                  <Button key={t.id} variant={active ? 'default' : 'outline'} size="sm" asChild>
+                    <Link href={toggleTagInFilter(t.id)} className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full border border-black/10"
+                        style={{ backgroundColor: t.color }}
+                        aria-hidden
+                      />
+                      {t.name}
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {products.length === 0 && !search && (categoryId || productStatusFilter) ? (
+      {products.length === 0 && !search && (categoryId || productStatusFilter || tagIdsFilter.length > 0) ? (
         <EmptyState
           icon={Package}
           title="沒有符合條件的商品"
-          description="請調整分類、狀態篩選或搜尋關鍵字"
+          description="請調整分類、標籤、狀態篩選或搜尋關鍵字"
         />
       ) : products.length === 0 && search ? (
         <EmptyState icon={Package} title="未找到商品" description={`沒有符合「${search}」的商品`} />
@@ -378,6 +462,7 @@ export function ProductsListClient({
                       href={productSortHref('stock')}
                     />
                     <th className="text-left p-4 font-semibold text-sm">分類</th>
+                    <th className="text-left p-4 font-semibold text-sm min-w-[140px]">標籤</th>
                     <th className="text-left p-4 font-semibold text-sm">狀態</th>
                     <ProductSortHeaderLink
                       column="created_at"
@@ -444,6 +529,28 @@ export function ProductsListClient({
                         </span>
                       </td>
                       <td className="p-4 text-sm">{product.categories?.name || '-'}</td>
+                      <td className="p-4 text-sm align-top">
+                        {product.tagChips && product.tagChips.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {product.tagChips.map((t) => (
+                              <span
+                                key={t.id}
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs bg-background"
+                                style={{ borderColor: t.color }}
+                              >
+                                <span
+                                  className="h-2 w-2 shrink-0 rounded-full border border-black/10"
+                                  style={{ backgroundColor: t.color }}
+                                  aria-hidden
+                                />
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
                       <td className="p-4">
                         {getStatusBadge(product.is_active, product.stock, product.low_stock_threshold)}
                       </td>
@@ -477,6 +584,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: productStatusFilter ?? null,
+                tags: tagsForHref,
               })}
             >
               <Button variant="outline">上一頁</Button>
@@ -493,6 +601,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: productStatusFilter ?? null,
+                tags: tagsForHref,
               })}
             >
               <Button variant={page === currentPage ? 'default' : 'outline'} size="sm">
@@ -510,6 +619,7 @@ export function ProductsListClient({
                 sort: sortCol,
                 dir: sortDirection,
                 productStatus: productStatusFilter ?? null,
+                tags: tagsForHref,
               })}
             >
               <Button variant="outline">下一頁</Button>
