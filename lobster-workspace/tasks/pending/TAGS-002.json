@@ -1,0 +1,13 @@
+{
+  "id": "TAGS-002",
+  "title": "種子資料：33 個預設 product_tags（5 維度）",
+  "type": "run_migration",
+  "assignee": "tangyuan",
+  "migration_file": "../supabase/seeds/product_tags_default.sql",
+  "description": "**非** 自動 migration：請在 Supabase SQL Editor **手動**執行（須先完成 049）。\n\n為 `auth.users` 內每位使用者插入 33 筆標籤（品項/工藝/染色/素材/系列 + HEX 色）。`ON CONFLICT DO NOTHING` 可重複執行。\n\n新註冊帳號若需同樣標籤：再跑一次本 SQL，或等 TAGS-001 的 ensureDefaultTags。",
+  "acceptance_criteria": [
+    "049 已套用",
+    "執行後每位既有 user 的 product_tags 可為 33 筆（若先前無重複 name）",
+    "重跑不出錯（idempotent）"
+  ]
+}

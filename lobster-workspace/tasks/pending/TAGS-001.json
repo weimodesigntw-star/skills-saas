@@ -1,0 +1,15 @@
+{
+  "id": "TAGS-001",
+  "title": "product_tags 多對多：App 型別、Server Actions、商品編輯 UI",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "description": "在 migration 049 +（可選）種子 TAGS-002 後，於 App 完成標籤功能。\n\n**資料表**：`product_tags`（user_id, name, color, dimension, sort_order）、`product_tag_map`（product_id, tag_id）。\n\n**建議實作**：\n1. `lib/types` 或既有 types：`ProductTag` 型別。\n2. `app/actions/product-tags.ts`（或併入 `products` actions）：\n   - `listProductTags()`：目前使用者全部標籤，依 dimension + sort_order。\n   - `getProductTagIds(productId)` / `getProductTagsWithProduct(productId)`。\n   - `setProductTags(productId, tagIds: string[])`：先刪除該商品舊 map，再 INSERT 新組合（或 diff）；需 `revalidatePath` 商品列表/編輯頁。\n3. **商品編輯頁**：多選標籤（建議依 dimension 分組、色塊顯示 `color`）；可搜尋篩選。\n4. **商品列表／卡片**（可選）：顯示已套用之標籤 chips。\n5. **新使用者**：若未跑種子，可於首次開啟商品相關頁面呼叫 `ensureDefaultProductTags()`（複製 `seeds/product_tags_default.sql` 邏輯為 RPC 或單次 INSERT）— 非必要，可列為後續。\n\n**參考示例（川流枕套）**：`寢具` + `手捻手織` + `藍染` + `純棉` + `川流`（5 個 tag_id 寫入 map）。",
+  "acceptance_criteria": [
+    "已假設 DB 存在 049：`product_tags`、`product_tag_map` + RLS",
+    "可列出使用者標籤並在商品編輯頁多選儲存",
+    "`setProductTags` 正確更新 `product_tag_map` 且無跨租戶",
+    "npm run build 通過"
+  ]
+}
