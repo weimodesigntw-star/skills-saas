@@ -77,20 +77,28 @@ export async function fetchMemberById(id: string): Promise<CustomerMember | null
   return (data as CustomerMember) ?? null;
 }
 
+/** INT-007：會員的客戶訂單（customer_orders），供詳細頁歷史與連結 */
 export async function fetchMemberOrders(memberId: string) {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
   const { data } = await supabase
-    .from('orders')
-    .select('id, order_number, total_amount, status, created_at')
+    .from('customer_orders')
+    .select('id, order_code, total, status, advance_date, created_at')
     .eq('user_id', user.id)
     .eq('member_id', memberId)
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(50);
 
-  return (data ?? []) as { id: string; order_number: string; total_amount: number; status: string; created_at: string }[];
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    order_number: (row.order_code as string) ?? '',
+    total_amount: Number((row as { total?: number }).total ?? 0),
+    status: (row.status as string) ?? '—',
+    created_at: ((row as { advance_date?: string | null }).advance_date ??
+      (row.created_at as string)) as string,
+  }));
 }
 
 export async function createMember(values: MemberFormValues): Promise<{ success?: true; error?: string }> {

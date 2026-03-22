@@ -49,6 +49,29 @@ function fulfillmentOrderId(data: any): string | null {
   return id != null ? String(id) : null;
 }
 
+async function buildSkuToProductIdMapWebhook(
+  supabase: ReturnType<typeof createAdminClient>,
+  uid: string,
+  skus: string[]
+): Promise<Record<string, string>> {
+  const unique = [...new Set(skus.map((s) => String(s).trim()).filter(Boolean))];
+  const map: Record<string, string> = {};
+  const CHUNK = 150;
+  for (let j = 0; j < unique.length; j += CHUNK) {
+    const chunk = unique.slice(j, j + CHUNK);
+    const { data } = await supabase
+      .from('products')
+      .select('id, product_code')
+      .eq('user_id', uid)
+      .in('product_code', chunk);
+    for (const row of data ?? []) {
+      const code = row.product_code as string | null;
+      if (code && row.id && map[code] == null) map[code] = row.id as string;
+    }
+  }
+  return map;
+}
+
 export async function POST(req: NextRequest) {
   const secret = process.env.EASYSTORE_CLIENT_SECRET;
   if (!secret) {
@@ -127,25 +150,81 @@ export async function POST(req: NextRequest) {
       memberId = member?.id ?? null;
     }
 
-    await supabase.from('customer_orders').upsert(
-      {
-        user_id: userId,
-        easystore_order_id: String(data.id),
-        order_code: String(data.number ?? data.id),
-        advance_date: data.created_at ?? null,
-        member_id: memberId,
-        currency: data.currency ?? data.currency_code ?? '台幣',
-        tax_type: '稅內含',
-        taxrate: 0.05,
-        subtotal,
-        tax_amount: +Number(orderTotal - subtotal).toFixed(2),
-        total: orderTotal,
-        sales_channel: 'EasyStore',
-        note: data.note ?? null,
-        status: mapOrderStatus(data.financial_status, data.fulfillment_status),
-      },
-      { onConflict: 'user_id,easystore_order_id' }
-    );
+    const { data: upserted, error: orderUpsertErr } = await supabase
+      .from('customer_orders')
+      .upsert(
+        {
+          user_id: userId,
+          easystore_order_id: String(data.id),
+          order_code: String(data.number ?? data.id),
+          advance_date: data.created_at ?? null,
+          member_id: memberId,
+          currency: data.currency ?? data.currency_code ?? '台幣',
+          tax_type: '稅內含',
+          taxrate: 0.05,
+          subtotal,
+          tax_amount: +Number(orderTotal - subtotal).toFixed(2),
+          total: orderTotal,
+          sales_channel: 'EasyStore',
+          note: data.note ?? null,
+          status: mapOrderStatus(data.financial_status, data.fulfillment_status),
+        },
+        { onConflict: 'user_id,easystore_order_id' }
+      )
+      .select('id')
+      .maybeSingle();
+
+    if (orderUpsertErr) {
+      // eslint-disable-next-line no-console
+      console.error('[EasyStore webhook] customer_orders upsert', orderUpsertErr);
+    }
+
+    let orderUuid = upserted?.id as string | undefined;
+    if (!orderUuid) {
+      const { data: found } = await supabase
+        .from('customer_orders')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('easystore_order_id', String(data.id))
+        .maybeSingle();
+      orderUuid = found?.id;
+    }
+
+    // ES-003：同步明細並依 SKU 對應 product_id
+    const lineItems: any[] = data.line_items ?? [];
+    if (orderUuid && lineItems.length > 0) {
+      const skus = lineItems.map((li: any) => li.sku).filter(Boolean).map((s: any) => String(s).trim());
+      const skuMap = await buildSkuToProductIdMapWebhook(supabase, userId, skus);
+
+      await supabase.from('customer_order_items').delete().eq('order_id', orderUuid);
+
+      const rows = lineItems.map((li: any) => {
+        const qty = Number(li.quantity ?? li.qty ?? 0);
+        const unitPrice = Number(li.price ?? li.unit_price ?? 0);
+        const sku = li.sku != null ? String(li.sku).trim() : '';
+        const productId = sku && skuMap[sku] ? skuMap[sku] : null;
+        return {
+          order_id: orderUuid,
+          easystore_line_item_id: li.id != null ? String(li.id) : null,
+          product_id: productId,
+          product_code: li.sku ?? null,
+          product_name: li.name ?? '(未命名商品)',
+          unit_name: li.unit ?? null,
+          qty,
+          shipped_qty: 0,
+          unit_price: unitPrice,
+          discount_pct: 100,
+          subtotal: qty * unitPrice,
+          note: li.note ?? null,
+        };
+      });
+
+      const { error: itemsErr } = await supabase.from('customer_order_items').insert(rows);
+      if (itemsErr) {
+        // eslint-disable-next-line no-console
+        console.error('[EasyStore webhook] customer_order_items insert', itemsErr);
+      }
+    }
   }
 
   if (topic === 'orders/cancel') {

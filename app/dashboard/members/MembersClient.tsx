@@ -19,6 +19,9 @@ interface MembersClientProps {
   total: number;
   page: number;
   pageSize: number;
+  /** ES-004：EasyStore 會員同步狀態 */
+  lastSyncedAt?: string | null;
+  lastSyncedCount?: number | null;
 }
 
 export function MembersClient({
@@ -26,6 +29,8 @@ export function MembersClient({
   total,
   page,
   pageSize,
+  lastSyncedAt,
+  lastSyncedCount,
 }: MembersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -131,6 +136,18 @@ export function MembersClient({
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? '同步中...' : '從 EasyStore 同步'}
         </Button>
+        {lastSyncedAt && (
+          <span className="text-xs text-muted-foreground self-center">
+            上次同步：
+            {new Date(lastSyncedAt).toLocaleString('zh-TW', {
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            {lastSyncedCount != null ? `（${lastSyncedCount} 筆）` : ''}
+          </span>
+        )}
         <Button variant="outline" onClick={handleBackfillStats} disabled={backfilling}>
           {backfilling ? '回填中...' : '回填會員統計'}
         </Button>
@@ -188,6 +205,9 @@ export function MembersClient({
                   </td>
                   <td className="py-3 px-4 text-right">{member.order_count ?? member.visit_count} 次</td>
                   <td className="py-3 px-4">
+                    <Button size="sm" variant="ghost" className="h-8" asChild>
+                      <Link href={`/dashboard/members/${member.id}`}>查看</Link>
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"

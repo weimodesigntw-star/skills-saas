@@ -61,6 +61,9 @@ export default function SettingsPage() {
   const [easyStoreUserId, setEasyStoreUserId] = useState<string | null>(null);
   const [easyStoreConnected, setEasyStoreConnected] = useState(false);
   const [easyStoreShop, setEasyStoreShop] = useState<string | null>(null);
+  const [easyStoreVerifying, setEasyStoreVerifying] = useState(false);
+  const [easyStoreVerifyOk, setEasyStoreVerifyOk] = useState<boolean | null>(null);
+  const [easyStoreVerifyMessage, setEasyStoreVerifyMessage] = useState<string | null>(null);
 
   // ECPay Status
   const ecpayConfigured = !!process.env.NEXT_PUBLIC_ECPAY_MERCHANT_ID;
@@ -115,6 +118,28 @@ export default function SettingsPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('easystore') === 'connected') setEasyStoreConnected(true);
   }, []);
+
+  const handleEasyStoreVerify = async () => {
+    setEasyStoreVerifying(true);
+    setEasyStoreVerifyOk(null);
+    setEasyStoreVerifyMessage(null);
+    try {
+      const res = await fetch('/api/easystore/verify-token');
+      const data = await res.json();
+      if (data.ok) {
+        setEasyStoreVerifyOk(true);
+        setEasyStoreVerifyMessage('Connected');
+      } else {
+        setEasyStoreVerifyOk(false);
+        setEasyStoreVerifyMessage(typeof data.error === 'string' ? data.error : 'Token 無效，請重新授權');
+      }
+    } catch {
+      setEasyStoreVerifyOk(false);
+      setEasyStoreVerifyMessage('網路錯誤');
+    } finally {
+      setEasyStoreVerifying(false);
+    }
+  };
 
   const handleEasyStoreConnect = () => {
     if (!easyStoreUserId) {
@@ -200,17 +225,34 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           {easyStoreConnected ? (
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              <div>
-                <p className="text-sm font-medium text-green-700">已連結 EasyStore</p>
-                {easyStoreShop && (
-                  <p className="text-xs text-muted-foreground">{easyStoreShop}</p>
-                )}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <div>
+                  <p className="text-sm font-medium text-green-700">已連結 EasyStore</p>
+                  {easyStoreShop && (
+                    <p className="text-xs text-muted-foreground">{easyStoreShop}</p>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleEasyStoreConnect}>
+                  重新授權
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleEasyStoreVerify} disabled={easyStoreVerifying}>
+                  {easyStoreVerifying ? '驗證中…' : '驗證連線'}
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={handleEasyStoreConnect}>
-                重新授權
-              </Button>
+              {easyStoreVerifyOk === true && (
+                <p className="text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  {easyStoreVerifyMessage ?? '連線正常'}
+                </p>
+              )}
+              {easyStoreVerifyOk === false && easyStoreVerifyMessage && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {easyStoreVerifyMessage}
+                </p>
+              )}
             </div>
           ) : (
             <div>

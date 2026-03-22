@@ -90,7 +90,9 @@ export default async function MemberDetailPage({ params }: PageProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">消費次數</p>
-            <p className="text-lg font-semibold">{member.visit_count} 次</p>
+            <p className="text-lg font-semibold">
+              {(member as { order_count?: number }).order_count ?? member.visit_count} 次
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">上次消費</p>
@@ -126,7 +128,14 @@ export default async function MemberDetailPage({ params }: PageProps) {
                 <tbody>
                   {orders.map((order) => (
                     <tr key={order.id} className="border-b">
-                      <td className="py-2 font-mono">{order.order_number}</td>
+                      <td className="py-2 font-mono">
+                        <Link
+                          href={`/dashboard/orders/${order.id}`}
+                          className="text-primary underline-offset-4 hover:underline"
+                        >
+                          {order.order_number}
+                        </Link>
+                      </td>
                       <td className="py-2 text-muted-foreground">
                         {order.created_at
                           ? new Date(order.created_at).toLocaleDateString('zh-TW')

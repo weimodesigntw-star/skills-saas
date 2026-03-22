@@ -5,6 +5,30 @@ export const runtime = 'nodejs';
 
 type EasyStoreOrder = Record<string, any>;
 
+/** ES-003：依 SKU（product_code）對應本地 products.id */
+async function buildSkuToProductIdMap(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  skus: string[]
+): Promise<Record<string, string>> {
+  const unique = [...new Set(skus.map((s) => String(s).trim()).filter(Boolean))];
+  const map: Record<string, string> = {};
+  const CHUNK = 150;
+  for (let j = 0; j < unique.length; j += CHUNK) {
+    const chunk = unique.slice(j, j + CHUNK);
+    const { data } = await admin
+      .from('products')
+      .select('id, product_code')
+      .eq('user_id', userId)
+      .in('product_code', chunk);
+    for (const row of data ?? []) {
+      const code = row.product_code as string | null;
+      if (code && row.id && map[code] == null) map[code] = row.id as string;
+    }
+  }
+  return map;
+}
+
 async function recalcMemberStatsForMemberIds(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
@@ -174,6 +198,14 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < allOrders.length; i += BATCH) {
     const batch = allOrders.slice(i, i + BATCH);
 
+    const skusInBatch: string[] = [];
+    for (const o of batch) {
+      for (const li of o.line_items ?? []) {
+        if (li.sku != null && String(li.sku).trim()) skusInBatch.push(String(li.sku).trim());
+      }
+    }
+    const skuToProductId = await buildSkuToProductIdMap(admin, user.id, skusInBatch);
+
     // 先準備要 upsert 的 customer_orders 以及 items
     const orderRows: any[] = [];
     const itemRows: any[] = [];
@@ -220,11 +252,13 @@ export async function POST(req: NextRequest) {
         const qty = Number(li.quantity ?? li.qty ?? 0);
         const unitPrice = Number(li.price ?? li.unit_price ?? 0);
         const subtotalItem = qty * unitPrice;
+        const sku = li.sku != null ? String(li.sku).trim() : '';
+        const productId = sku && skuToProductId[sku] ? skuToProductId[sku] : null;
 
         itemRows.push({
           _easystore_order_id: easystoreOrderId,
           easystore_line_item_id: String(li.id ?? ''),
-          product_id: null,
+          product_id: productId,
           product_code: li.sku ?? null,
           product_name: li.name ?? '(未命名商品)',
           unit_name: li.unit ?? null,

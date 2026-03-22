@@ -33,12 +33,21 @@ export default async function MembersPage({ searchParams }: PageProps) {
     pageSize: 20,
   });
 
+  const { data: customersSyncState } = await supabase
+    .from('easystore_sync_state')
+    .select('last_synced_at, synced_count')
+    .eq('user_id', user.id)
+    .eq('resource', 'customers')
+    .maybeSingle();
+
   return (
     <MembersClient
       initialMembers={members}
       total={total}
       page={page}
       pageSize={pageSize}
+      lastSyncedAt={(customersSyncState?.last_synced_at as string | null) ?? null}
+      lastSyncedCount={(customersSyncState?.synced_count as number | null) ?? null}
     />
   );
 }
