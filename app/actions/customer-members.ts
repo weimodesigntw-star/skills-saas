@@ -27,10 +27,17 @@ export interface CustomerMember {
   client_cat: string | null;
 }
 
+const MEMBER_SORT_COLUMNS = ['created_at', 'name', 'total_spent', 'order_count'] as const;
+export type MemberSortColumn = (typeof MEMBER_SORT_COLUMNS)[number];
+
 export async function fetchMembers(params: {
   search?: string;
   page?: number;
   pageSize?: number;
+  /** S-001：排序欄位 */
+  sortBy?: string;
+  /** asc | desc */
+  sortDir?: string;
 }) {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -39,11 +46,16 @@ export async function fetchMembers(params: {
   const { search, page = 1, pageSize = 20 } = params;
   const from = (page - 1) * pageSize;
 
+  const sortBy = MEMBER_SORT_COLUMNS.includes(params.sortBy as MemberSortColumn)
+    ? (params.sortBy as MemberSortColumn)
+    : 'created_at';
+  const ascending = params.sortDir === 'asc';
+
   let query = supabase
     .from('members')
     .select('*', { count: 'exact' })
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order(sortBy, { ascending })
     .range(from, from + pageSize - 1);
 
   if (search?.trim()) {

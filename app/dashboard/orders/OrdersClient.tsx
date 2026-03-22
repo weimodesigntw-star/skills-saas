@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Eye, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, Trash2, RefreshCw, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -24,14 +24,28 @@ type OrderRow = {
   sales_channel: string;
   total: number;
   status: string;
+  created_at?: string;
   members: { id: string; name: string; client_code: string | null } | null;
 };
+
+type OrderSortKey = 'created_at' | 'advance_date' | 'total' | 'order_code';
+
+/** V-001：預交日已過且尚未完成出貨 */
+export function isCustomerOrderOverdue(row: OrderRow): boolean {
+  if (row.status === 'shipped' || row.status === 'cancelled' || row.status === 'paid') return false;
+  if (!row.advance_date) return false;
+  const d = row.advance_date.slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  return d < today;
+}
 
 interface OrdersClientProps {
   initialOrders: OrderRow[];
   total: number;
   page: number;
   pageSize: number;
+  sortBy: OrderSortKey;
+  sortDir: 'asc' | 'desc';
   lastSyncedAt?: string | null;
   lastSyncedCount?: number | null;
 }
@@ -41,6 +55,8 @@ export function OrdersClient({
   total,
   page,
   pageSize,
+  sortBy,
+  sortDir,
   lastSyncedAt,
   lastSyncedCount,
 }: OrdersClientProps) {
@@ -67,6 +83,9 @@ export function OrdersClient({
     status?: string;
     dateFrom?: string;
     dateTo?: string;
+    sort?: string;
+    dir?: string;
+    pageSize?: number;
   }) {
     const p = new URLSearchParams();
     const query = overrides?.q ?? q;
@@ -77,6 +96,13 @@ export function OrdersClient({
     if (st) p.set('status', st);
     if (df) p.set('dateFrom', df);
     if (dt) p.set('dateTo', dt);
+    const sort = overrides?.sort ?? searchParams.get('sort') ?? sortBy;
+    const dir = overrides?.dir ?? searchParams.get('dir') ?? sortDir;
+    const ps =
+      overrides?.pageSize ?? (Number(searchParams.get('pageSize')) || pageSize);
+    p.set('sort', sort);
+    p.set('dir', dir);
+    p.set('pageSize', String(ps));
     const pg = overrides?.page ?? page;
     if (pg > 1) p.set('page', String(pg));
     return p.toString();
@@ -90,6 +116,56 @@ export function OrdersClient({
     router.push(`/dashboard/orders?${buildParams({ page: newPage })}`);
   }
 
+  function handleSortClick(column: OrderSortKey) {
+    const curSort = (searchParams.get('sort') || sortBy) as OrderSortKey;
+    const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
+    let nextDir: 'asc' | 'desc';
+    if (curSort !== column) {
+      nextDir = column === 'order_code' ? 'asc' : 'desc';
+    } else {
+      nextDir = curDir === 'asc' ? 'desc' : 'asc';
+    }
+    router.push(
+      `/dashboard/orders?${buildParams({ page: 1, sort: column, dir: nextDir })}`
+    );
+  }
+
+  function handlePageSizeChange(next: number) {
+    router.push(`/dashboard/orders?${buildParams({ page: 1, pageSize: next })}`);
+  }
+
+  function SortTh({
+    column,
+    label,
+    className,
+  }: {
+    column: OrderSortKey;
+    label: string;
+    className?: string;
+  }) {
+    const curSort = (searchParams.get('sort') || sortBy) as OrderSortKey;
+    const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
+    const active = curSort === column;
+    return (
+      <th className={`py-3 px-4 font-semibold ${className ?? ''}`}>
+        <button
+          type="button"
+          onClick={() => handleSortClick(column)}
+          className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+        >
+          {label}
+          {active ? (
+            curDir === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5" />
+            )
+          ) : null}
+        </button>
+      </th>
+    );
+  }
+
   async function refresh() {
     const res = await fetchCustomerOrders({
       q: searchParams.get('q') ?? undefined,
@@ -97,7 +173,9 @@ export function OrdersClient({
       dateFrom: searchParams.get('dateFrom') || undefined,
       dateTo: searchParams.get('dateTo') || undefined,
       page,
-      pageSize,
+      pageSize: Number(searchParams.get('pageSize')) || pageSize,
+      sortBy: (searchParams.get('sort') || sortBy) as OrderSortKey,
+      sortDir: (searchParams.get('dir') || sortDir) as 'asc' | 'desc',
     });
     setOrders(res.orders as OrderRow[]);
   }
@@ -237,6 +315,20 @@ export function OrdersClient({
             {lastSyncedCount != null ? `（${lastSyncedCount} 筆）` : ''}
           </span>
         )}
+        <div className="flex items-center gap-2 text-sm w-full sm:w-auto sm:ml-auto">
+          <span className="text-muted-foreground whitespace-nowrap">每頁</span>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={String(pageSize)}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n} 筆
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {orders.length === 0 ? (
@@ -259,25 +351,46 @@ export function OrdersClient({
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left py-3 px-4 font-semibold">訂單號碼</th>
-                  <th className="text-left py-3 px-4 font-semibold">預交日期</th>
+                  <SortTh column="order_code" label="訂單號碼" className="text-left" />
+                  <SortTh column="advance_date" label="預交日期" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">客戶名稱</th>
                   <th className="text-left py-3 px-4 font-semibold">銷售方式</th>
-                  <th className="text-right py-3 px-4 font-semibold">原幣合計</th>
+                  <SortTh column="total" label="原幣合計" className="text-right" />
                   <th className="text-left py-3 px-4 font-semibold">狀態</th>
+                  <SortTh column="created_at" label="建立" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map((row) => {
+                  const overdue = isCustomerOrderOverdue(row);
                   return (
-                    <tr key={row.id} className="border-t">
+                    <tr
+                      key={row.id}
+                      className={
+                        overdue
+                          ? 'border-t bg-amber-50/80 dark:bg-amber-950/25 border-l-4 border-l-amber-600'
+                          : 'border-t'
+                      }
+                    >
                       <td className="py-3 px-4 font-medium">{row.order_code}</td>
-                      <td className="py-3 px-4">{row.advance_date ?? '—'}</td>
+                      <td className="py-3 px-4">
+                        <span className={overdue ? 'font-semibold text-amber-800 dark:text-amber-200' : undefined}>
+                          {row.advance_date ?? '—'}
+                        </span>
+                        {overdue && (
+                          <span className="ml-2 text-xs text-amber-700 dark:text-amber-300">逾期</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">{customerName(row)}</td>
                       <td className="py-3 px-4">{row.sales_channel ?? '—'}</td>
                       <td className="py-3 px-4 text-right">{formatNTD(row.total ?? 0)}</td>
                       <td className="py-3 px-4">{statusBadge(row.status)}</td>
+                      <td className="py-3 px-4 text-muted-foreground text-xs whitespace-nowrap">
+                        {row.created_at
+                          ? new Date(row.created_at).toLocaleDateString('zh-TW')
+                          : '—'}
+                      </td>
                       <td className="py-3 px-4 flex items-center gap-1">
                         <Button variant="ghost" size="sm" asChild>
                           <Link href={`/dashboard/orders/${row.id}`}>

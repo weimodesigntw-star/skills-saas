@@ -12,7 +12,13 @@ type SearchParams = {
   dateFrom?: string;
   dateTo?: string;
   page?: string;
+  sort?: string;
+  dir?: string;
+  pageSize?: string;
 };
+
+const ORDER_SORT = ['created_at', 'advance_date', 'total', 'order_code'] as const;
+const PAGE_SIZES = [10, 20, 50, 100] as const;
 
 export default async function OrdersPage({
   searchParams,
@@ -36,13 +42,22 @@ export default async function OrdersPage({
 
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
-  const { orders, total, pageSize } = await fetchCustomerOrders({
+  const rawSize = Number(params.pageSize);
+  const pageSize = PAGE_SIZES.includes(rawSize as (typeof PAGE_SIZES)[number]) ? rawSize : 20;
+  const sortBy = ORDER_SORT.includes(params.sort as (typeof ORDER_SORT)[number])
+    ? (params.sort as (typeof ORDER_SORT)[number])
+    : 'created_at';
+  const sortDir = params.dir === 'asc' ? 'asc' : 'desc';
+
+  const { orders, total, pageSize: resolvedSize } = await fetchCustomerOrders({
     q: params.q,
     status: params.status,
     dateFrom: params.dateFrom,
     dateTo: params.dateTo,
     page,
-    pageSize: 20,
+    pageSize,
+    sortBy,
+    sortDir,
   });
 
   // 讀上次增量同步時間
@@ -58,7 +73,9 @@ export default async function OrdersPage({
       initialOrders={orders}
       total={total}
       page={page}
-      pageSize={pageSize}
+      pageSize={resolvedSize}
+      sortBy={sortBy}
+      sortDir={sortDir}
       lastSyncedAt={(syncState?.last_synced_at as string | null) ?? null}
       lastSyncedCount={(syncState?.synced_count as number | null) ?? null}
     />

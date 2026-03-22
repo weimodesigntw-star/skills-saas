@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Plus, Package } from 'lucide-react';
 import { getProducts } from '@/app/actions/products';
+import { fetchPosCategories } from '@/app/actions/pos';
 import { Button } from '@/components/ui/button';
 import { ImportDialog } from '@/components/import/ImportDialog';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,15 @@ interface ProductsPageProps {
     page?: string;
     category?: string;
   };
+}
+
+function productsListHref(opts: { q?: string; page?: number; category?: string | null }) {
+  const p = new URLSearchParams();
+  if (opts.q?.trim()) p.set('q', opts.q.trim());
+  if (opts.page && opts.page > 1) p.set('page', String(opts.page));
+  if (opts.category) p.set('category', opts.category);
+  const s = p.toString();
+  return s ? `/dashboard/products?${s}` : '/dashboard/products';
 }
 
 /**
@@ -63,6 +73,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   let lastSyncedCount: number | null = null;
   const search = searchParams.q || '';
   const pageParam = searchParams.page ? parseInt(searchParams.page) : 1;
+  const categoryId = searchParams.category || undefined;
+  let productCategories: { id: string; name: string }[] = [];
 
   try {
     const supabase = createServerClient();
@@ -70,12 +82,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
     if (user) {
       isAuthenticated = true;
+      productCategories = await fetchPosCategories();
 
       const result = await getProducts({
         page: pageParam,
         limit: 20,
         search: search || undefined,
-        categoryId: searchParams.category || undefined,
+        categoryId,
       });
 
       products = result.products;
@@ -137,9 +150,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         />
       ) : (
         <>
-          {/* Search Bar */}
-          <div className="mb-6">
+          {/* Search Bar + F-001 分類 tabs */}
+          <div className="mb-6 space-y-4">
             <form className="flex gap-2" action="/dashboard/products" method="GET">
+              {categoryId ? <input type="hidden" name="category" value={categoryId} /> : null}
               <Input
                 type="text"
                 name="q"
@@ -151,6 +165,26 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 搜尋
               </Button>
             </form>
+            {productCategories.length > 0 && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-sm text-muted-foreground mr-1">分類</span>
+                <Button variant={!categoryId ? 'default' : 'outline'} size="sm" asChild>
+                  <Link href={productsListHref({ q: search, page: 1, category: null })}>全部</Link>
+                </Button>
+                {productCategories.map((c) => (
+                  <Button
+                    key={c.id}
+                    variant={categoryId === c.id ? 'default' : 'outline'}
+                    size="sm"
+                    asChild
+                  >
+                    <Link href={productsListHref({ q: search, page: 1, category: c.id })}>
+                      {c.name}
+                    </Link>
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
 
           {products.length === 0 && search ? (
@@ -271,10 +305,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-6 flex justify-center gap-2">
+            <div className="mt-6 flex justify-center gap-2 flex-wrap">
               {currentPage > 1 && (
                 <Link
-                  href={`/dashboard/products?q=${search}&page=${currentPage - 1}`}
+                  href={productsListHref({
+                    q: search,
+                    page: currentPage - 1,
+                    category: categoryId ?? null,
+                  })}
                 >
                   <Button variant="outline">上一頁</Button>
                 </Link>
@@ -283,7 +321,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <Link
                   key={page}
-                  href={`/dashboard/products?q=${search}&page=${page}`}
+                  href={productsListHref({
+                    q: search,
+                    page,
+                    category: categoryId ?? null,
+                  })}
                 >
                   <Button
                     variant={page === currentPage ? 'default' : 'outline'}
@@ -296,7 +338,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
               {currentPage < totalPages && (
                 <Link
-                  href={`/dashboard/products?q=${search}&page=${currentPage + 1}`}
+                  href={productsListHref({
+                    q: search,
+                    page: currentPage + 1,
+                    category: categoryId ?? null,
+                  })}
                 >
                   <Button variant="outline">下一頁</Button>
                 </Link>

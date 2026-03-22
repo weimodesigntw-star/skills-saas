@@ -68,6 +68,9 @@ export async function getOrderCodePreview(): Promise<string | null> {
   return typeof data === 'string' ? data : String(data);
 }
 
+const ORDER_SORT_COLUMNS = ['created_at', 'advance_date', 'total', 'order_code'] as const;
+export type CustomerOrderSortColumn = (typeof ORDER_SORT_COLUMNS)[number];
+
 export async function fetchCustomerOrders(params?: {
   q?: string;
   status?: string;
@@ -76,6 +79,9 @@ export async function fetchCustomerOrders(params?: {
   memberId?: string;
   page?: number;
   pageSize?: number;
+  /** S-002：排序欄位 */
+  sortBy?: string;
+  sortDir?: string;
 }) {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -83,6 +89,11 @@ export async function fetchCustomerOrders(params?: {
 
   const { q, status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
+
+  const sortBy = ORDER_SORT_COLUMNS.includes(params?.sortBy as CustomerOrderSortColumn)
+    ? (params!.sortBy as CustomerOrderSortColumn)
+    : 'created_at';
+  const ascending = params?.sortDir === 'asc';
 
   let query = supabase
     .from('customer_orders')
@@ -94,7 +105,7 @@ export async function fetchCustomerOrders(params?: {
       { count: 'exact' }
     )
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order(sortBy, { ascending })
     .range(from, from + pageSize - 1);
 
   if (q?.trim()) {
