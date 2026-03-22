@@ -2,6 +2,38 @@
 
 此目錄為 **Skills SaaS** 的 Lobster Squad workspace 範本。
 
+## 最快啟動（本 repo 已內建腳本）
+
+在**專案根目錄**（與 `package.json` 同層）：
+
+```bash
+# 顯示 help + 目前 config（敏感 key 會遮罩）
+npm run lobster
+
+# 驗證單一 task（例：TAGS-001）
+npm run lobster:validate-tags
+
+# 或直接用腳本（可傳 watchdog 任何參數）
+./scripts/run-lobster.sh --validate lobster-workspace/tasks/pending/TAGS-001.json
+./scripts/run-lobster.sh --inject-context lobster-workspace/tasks/pending/TAGS-001.json
+```
+
+腳本會自動找本機常見路徑：
+
+- `~/Library/CloudStorage/SynologyDrive-M4/AI/lobster-squad-v4.2/watchdog_router.py`
+- 備援：`~/lobster-squad-v4.1/watchdog_router.py`
+
+若路徑不同，請設定：
+
+```bash
+export LOBSTER_WATCHDOG=/你的路徑/lobster-squad-v4.2/watchdog_router.py
+npm run lobster
+```
+
+**`write_code` 任務**：需安裝 `pip install anthropic`，並在環境變數或 `config.json` 設定 `ANTHROPIC_API_KEY`（或 `anthropic.api_key`）。任務 JSON 須含 **`spec_file`**（相對於本 workspace），例如 TAGS-001 已指向 `../docs/TAGS-001_WRITE_CODE_SPEC.md`。
+
+**`--run-pending` 警告**：會依檔名**一次跑完** `tasks/pending/` 內**所有** JSON。若只想跑 TAGS-001，請先暫移其他 pending、或改用 Cursor／本機手動實作，勿盲目全跑。
+
 ## 複製到專案與正確執行流程
 
 **重要：** 必須在**專案根目錄**（有 `supabase/` 與 `lobster-workspace/` 的那一層）執行 watchdog，`../supabase/migrations/` 才會解析到專案的 migration 檔案。從框架目錄執行會找不到檔案。

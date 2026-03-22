@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "tsx scripts/seed-categories.ts"
+    "seed": "tsx scripts/seed-categories.ts",
+    "lobster": "bash scripts/run-lobster.sh",
+    "lobster:validate-tags": "bash scripts/run-lobster.sh --validate lobster-workspace/tasks/pending/TAGS-001.json"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.21",
