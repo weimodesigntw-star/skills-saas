@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, ShoppingCart, Calendar, AlertTriangle } from 'lucide-react';
+import { formatNTD, formatNumber } from '@/lib/constants';
 
 type Props = {
   todayRevenue: number;
@@ -17,25 +18,25 @@ export function StatsCards({
   const cards = [
     {
       label: '今日營收',
-      value: `NT$ ${todayRevenue.toLocaleString()}`,
+      value: formatNTD(todayRevenue),
       icon: TrendingUp,
       color: 'text-green-600',
     },
     {
       label: '今日訂單',
-      value: `${todayOrderCount} 筆`,
+      value: `${formatNumber(todayOrderCount)} 筆`,
       icon: ShoppingCart,
       color: 'text-blue-600',
     },
     {
       label: '本月營收',
-      value: `NT$ ${monthRevenue.toLocaleString()}`,
+      value: formatNTD(monthRevenue),
       icon: Calendar,
       color: 'text-purple-600',
     },
     {
       label: '低庫存商品',
-      value: `${lowStockCount} 項`,
+      value: `${formatNumber(lowStockCount)} 項`,
       icon: AlertTriangle,
       color: lowStockCount > 0 ? 'text-red-500' : 'text-gray-400',
     },

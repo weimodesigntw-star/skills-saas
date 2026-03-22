@@ -13,6 +13,7 @@ import { MemberDialog } from '@/components/members/MemberDialog';
 import { fetchMembers, deleteMember, type CustomerMember } from '@/app/actions/customer-members';
 import { Users, ArrowDown, ArrowUp } from 'lucide-react';
 import { toast } from '@/components/ui/toast';
+import { formatNTD } from '@/lib/constants';
 
 type MemberSortKey = 'created_at' | 'name' | 'total_spent' | 'order_count';
 
@@ -292,7 +293,7 @@ export function MembersClient({
                   <td className="py-3 px-4 text-muted-foreground">{member.phone ?? '—'}</td>
                   <td className="py-3 px-4 text-muted-foreground">{member.email ?? '—'}</td>
                   <td className="py-3 px-4 text-right font-medium">
-                    NT$ {Number(member.total_spent).toLocaleString()}
+                    {formatNTD(Number(member.total_spent))}
                   </td>
                   <td className="py-3 px-4 text-right">{member.order_count ?? member.visit_count} 次</td>
                   <td className="py-3 px-4 text-muted-foreground text-xs whitespace-nowrap">

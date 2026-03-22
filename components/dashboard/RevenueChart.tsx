@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { formatNumber } from '@/lib/constants';
 
 type Props = {
   data: { date: string; revenue: number }[];
@@ -26,8 +27,8 @@ export function RevenueChart({ data }: Props) {
           <LineChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v.toLocaleString()}`} />
-            <Tooltip formatter={(v) => [`NT$ ${(v as number).toLocaleString()}`, '營收']} />
+            <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `NT$${formatNumber(v as number)}`} />
+            <Tooltip formatter={(v) => [`NT$ ${formatNumber(v as number)}`, '營收']} />
             <Line
               type="monotone"
               dataKey="revenue"

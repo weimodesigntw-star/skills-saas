@@ -37,7 +37,10 @@ export function formatNTD(amount: number): string {
   return ntdFormatter.format(amount);
 }
 
-/** 格式化為千分位數字 (e.g. 1,200) */
+/**
+ * V-004：全站數字千分位（zh-TW）
+ * 金額請優先使用 formatNTD；純數量、百分比底數等使用 formatNumber。
+ */
 export function formatNumber(n: number): string {
   return new Intl.NumberFormat('zh-TW').format(n);
 }

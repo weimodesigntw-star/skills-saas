@@ -30,6 +30,8 @@ type ProductInput = z.infer<typeof ProductSchema>;
 const PRODUCT_SORT_COLUMNS = ['name', 'price', 'stock', 'created_at'] as const;
 export type ProductSortColumn = (typeof PRODUCT_SORT_COLUMNS)[number];
 
+export type ProductStatusFilter = 'active' | 'inactive' | 'low_stock';
+
 export interface ProductQueryOptions {
   page?: number;
   limit?: number;
@@ -38,6 +40,8 @@ export interface ProductQueryOptions {
   /** S-003 */
   sortBy?: string;
   sortDir?: string;
+  /** F-002：上架 / 下架 / 低庫存（需 migration 048 is_low_stock） */
+  productStatus?: ProductStatusFilter;
 }
 
 /**
@@ -58,6 +62,8 @@ export interface Product {
   low_stock_threshold: number;
   image_url: string | null;
   is_active: boolean;
+  /** F-002：migration 048 產生欄，舊 DB 未跑 migration 時可能為 undefined */
+  is_low_stock?: boolean;
   tax_type: 'taxable' | 'tax_free' | 'zero_rate';
   metadata: Record<string, any>;
   created_at: string;
@@ -105,6 +111,16 @@ export async function getProducts(options?: ProductQueryOptions) {
   // Apply category filter
   if (options?.categoryId) {
     query = query.eq('category_id', options.categoryId);
+  }
+
+  // F-002：商品狀態篩選
+  const ps = options?.productStatus;
+  if (ps === 'active') {
+    query = query.eq('is_active', true);
+  } else if (ps === 'inactive') {
+    query = query.eq('is_active', false);
+  } else if (ps === 'low_stock') {
+    query = query.eq('is_active', true).eq('is_low_stock', true);
   }
 
   // Apply search filter

@@ -26,6 +26,9 @@ export const dynamic = 'force-dynamic';
 const PRODUCT_SORT = ['name', 'price', 'stock', 'created_at'] as const;
 type ProductSortKey = (typeof PRODUCT_SORT)[number];
 
+const PRODUCT_STATUS_FILTERS = ['active', 'inactive', 'low_stock'] as const;
+type ProductStatusFilterKey = (typeof PRODUCT_STATUS_FILTERS)[number];
+
 interface ProductsPageProps {
   searchParams: {
     q?: string;
@@ -33,6 +36,8 @@ interface ProductsPageProps {
     category?: string;
     sort?: string;
     dir?: string;
+    /** F-002 */
+    productStatus?: string;
   };
 }
 
@@ -42,6 +47,7 @@ function productsListHref(opts: {
   category?: string | null;
   sort?: string | null;
   dir?: string | null;
+  productStatus?: string | null;
 }) {
   const p = new URLSearchParams();
   if (opts.q?.trim()) p.set('q', opts.q.trim());
@@ -49,6 +55,7 @@ function productsListHref(opts: {
   if (opts.category) p.set('category', opts.category);
   if (opts.sort) p.set('sort', opts.sort);
   if (opts.dir) p.set('dir', opts.dir);
+  if (opts.productStatus) p.set('productStatus', opts.productStatus);
   const s = p.toString();
   return s ? `/dashboard/products?${s}` : '/dashboard/products';
 }
@@ -134,6 +141,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const search = searchParams.q || '';
   const pageParam = searchParams.page ? parseInt(searchParams.page) : 1;
   const categoryId = searchParams.category || undefined;
+  const productStatusFilter = PRODUCT_STATUS_FILTERS.includes(
+    searchParams.productStatus as ProductStatusFilterKey
+  )
+    ? (searchParams.productStatus as ProductStatusFilterKey)
+    : undefined;
   const sortCol = PRODUCT_SORT.includes(searchParams.sort as ProductSortKey)
     ? (searchParams.sort as ProductSortKey)
     : 'created_at';
@@ -155,6 +167,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       category: categoryId ?? null,
       sort: column,
       dir: nextDir,
+      productStatus: productStatusFilter ?? null,
     });
   }
 
@@ -173,6 +186,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         categoryId,
         sortBy: sortCol,
         sortDir: sortDirection,
+        productStatus: productStatusFilter,
       });
 
       products = result.products;
@@ -221,7 +235,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           title="請先登入"
           description="登入後即可管理商品"
         />
-      ) : products.length === 0 && !search ? (
+      ) : products.length === 0 && !search && !categoryId && !productStatusFilter ? (
         <EmptyState
           icon={Package}
           title="還沒有商品"
@@ -236,8 +250,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         <>
           {/* Search Bar + F-001 分類 tabs */}
           <div className="mb-6 space-y-4">
-            <form className="flex gap-2" action="/dashboard/products" method="GET">
+            <form className="flex gap-2 flex-wrap" action="/dashboard/products" method="GET">
               {categoryId ? <input type="hidden" name="category" value={categoryId} /> : null}
+              {productStatusFilter ? (
+                <input type="hidden" name="productStatus" value={productStatusFilter} />
+              ) : null}
               <input type="hidden" name="sort" value={sortCol} />
               <input type="hidden" name="dir" value={sortDirection} />
               <Input
@@ -251,6 +268,65 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 搜尋
               </Button>
             </form>
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-muted-foreground mr-1">狀態</span>
+              <Button variant={!productStatusFilter ? 'default' : 'outline'} size="sm" asChild>
+                <Link
+                  href={productsListHref({
+                    q: search,
+                    page: 1,
+                    category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
+                    productStatus: null,
+                  })}
+                >
+                  全部
+                </Link>
+              </Button>
+              <Button variant={productStatusFilter === 'active' ? 'default' : 'outline'} size="sm" asChild>
+                <Link
+                  href={productsListHref({
+                    q: search,
+                    page: 1,
+                    category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
+                    productStatus: 'active',
+                  })}
+                >
+                  上架中
+                </Link>
+              </Button>
+              <Button variant={productStatusFilter === 'inactive' ? 'default' : 'outline'} size="sm" asChild>
+                <Link
+                  href={productsListHref({
+                    q: search,
+                    page: 1,
+                    category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
+                    productStatus: 'inactive',
+                  })}
+                >
+                  已下架
+                </Link>
+              </Button>
+              <Button variant={productStatusFilter === 'low_stock' ? 'default' : 'outline'} size="sm" asChild>
+                <Link
+                  href={productsListHref({
+                    q: search,
+                    page: 1,
+                    category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
+                    productStatus: 'low_stock',
+                  })}
+                >
+                  低庫存
+                </Link>
+              </Button>
+            </div>
             {productCategories.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-muted-foreground mr-1">分類</span>
@@ -262,6 +338,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                       category: null,
                       sort: sortCol,
                       dir: sortDirection,
+                      productStatus: productStatusFilter ?? null,
                     })}
                   >
                     全部
@@ -281,6 +358,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                         category: c.id,
                         sort: sortCol,
                         dir: sortDirection,
+                        productStatus: productStatusFilter ?? null,
                       })}
                     >
                       {c.name}
@@ -291,7 +369,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             )}
           </div>
 
-          {products.length === 0 && search ? (
+          {products.length === 0 && !search && (categoryId || productStatusFilter) ? (
+            <EmptyState
+              icon={Package}
+              title="沒有符合條件的商品"
+              description="請調整分類、狀態篩選或搜尋關鍵字"
+            />
+          ) : products.length === 0 && search ? (
             <EmptyState
               icon={Package}
               title="未找到商品"
@@ -451,6 +535,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     category: categoryId ?? null,
                     sort: sortCol,
                     dir: sortDirection,
+                    productStatus: productStatusFilter ?? null,
                   })}
                 >
                   <Button variant="outline">上一頁</Button>
@@ -466,6 +551,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     category: categoryId ?? null,
                     sort: sortCol,
                     dir: sortDirection,
+                    productStatus: productStatusFilter ?? null,
                   })}
                 >
                   <Button
@@ -485,6 +571,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     category: categoryId ?? null,
                     sort: sortCol,
                     dir: sortDirection,
+                    productStatus: productStatusFilter ?? null,
                   })}
                 >
                   <Button variant="outline">下一頁</Button>

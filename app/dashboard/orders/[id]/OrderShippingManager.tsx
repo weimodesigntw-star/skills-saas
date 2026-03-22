@@ -1,5 +1,7 @@
 'use client';
 
+import { formatNTD } from '@/lib/constants';
+
 import { useMemo } from 'react';
 
 type Item = {
@@ -64,7 +66,7 @@ export function OrderShippingManager(props: {
                   <td className="py-2 text-right">{Number(r.qty)}</td>
                   <td className="py-2 text-right">{Number(r.shipped_qty)}</td>
                   <td className="py-2 text-right">
-                    {mode === 'unshipped' ? remaining : Number(r.unit_price).toLocaleString()}
+                    {mode === 'unshipped' ? remaining : formatNTD(Number(r.unit_price))}
                   </td>
                 </tr>
               );

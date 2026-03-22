@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Eye, DollarSign, Ban, ArrowDown, ArrowUp } from 'lucide-react';
+import { Plus, Search, Eye, DollarSign, Ban, ArrowDown, ArrowUp, PackageCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -259,12 +259,20 @@ export function PurchasesClient({
                         {row.status === 'void' ? '取消' : hasUnpaid ? '進行中' : '完成'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 flex items-center gap-1">
-                      <Button variant="ghost" size="sm" asChild>
+                    <td className="py-3 px-4 flex items-center gap-1 flex-wrap">
+                      <Button variant="ghost" size="sm" asChild title="查看">
                         <Link href={`/dashboard/purchases/${row.id}`}>
                           <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
+                      {row.status === 'valid' && (
+                        <Button variant="outline" size="sm" asChild title="確認進貨">
+                          <Link href={`/dashboard/purchases/${row.id}`}>
+                            <PackageCheck className="h-4 w-4 mr-1" />
+                            確認進貨
+                          </Link>
+                        </Button>
+                      )}
                       {row.status === 'valid' && hasUnpaid && (
                         <Button variant="ghost" size="sm" onClick={() => setPayPurchaseId(row.id)} title="付款">
                           <DollarSign className="h-4 w-4" />

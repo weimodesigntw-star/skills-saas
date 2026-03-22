@@ -16,6 +16,36 @@ import { toast } from '@/components/ui/toast';
 import { ClipboardList } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
 
+/** F-007：預交日區間（與 fetchCustomerOrders 的 advance_date 一致） */
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function orderDatePresetRange(preset: 'today' | 'week' | 'month'): { from: string; to: string } {
+  const now = new Date();
+  const todayStr = ymdLocal(now);
+  if (preset === 'today') {
+    return { from: todayStr, to: todayStr };
+  }
+  if (preset === 'month') {
+    const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    return { from, to: todayStr };
+  }
+  const day = now.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  const from = ymdLocal(monday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  let to = ymdLocal(sunday);
+  if (to > todayStr) to = todayStr;
+  return { from, to };
+}
+
 type OrderRow = {
   id: string;
   order_code: string;
@@ -75,6 +105,11 @@ export function OrdersClient({
     setOrders(initialOrders);
   }, [initialOrders]);
 
+  useEffect(() => {
+    setDateFrom(searchParams.get('dateFrom') ?? '');
+    setDateTo(searchParams.get('dateTo') ?? '');
+  }, [searchParams]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   function buildParams(overrides?: {
@@ -132,6 +167,14 @@ export function OrdersClient({
 
   function handlePageSizeChange(next: number) {
     router.push(`/dashboard/orders?${buildParams({ page: 1, pageSize: next })}`);
+  }
+
+  /** F-007 */
+  function applyDatePreset(preset: 'today' | 'week' | 'month') {
+    const { from, to } = orderDatePresetRange(preset);
+    setDateFrom(from);
+    setDateTo(to);
+    router.push(`/dashboard/orders?${buildParams({ page: 1, dateFrom: from, dateTo: to })}`);
   }
 
   function SortTh({
@@ -285,6 +328,18 @@ export function OrdersClient({
           onChange={(e) => setDateTo(e.target.value)}
           placeholder="日期訖"
         />
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="text-xs text-muted-foreground mr-1">快捷</span>
+          <Button type="button" variant="secondary" size="sm" onClick={() => applyDatePreset('today')}>
+            今天
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => applyDatePreset('week')}>
+            本週
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => applyDatePreset('month')}>
+            本月
+          </Button>
+        </div>
         <Input
           placeholder="搜尋訂單號 / 姓名 / 手機 / 日期（如 2020-03）"
           className="flex-1 min-w-[240px]"
