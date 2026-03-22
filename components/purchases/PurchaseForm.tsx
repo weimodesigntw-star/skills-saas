@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { purchaseOrderSchema, type PurchaseOrderFormValues } from '@/lib/schemas/purchase-order';
-import { createPurchaseOrder } from '@/app/actions/purchase-orders';
+import { createPurchaseOrder, type PurchasePrefillLine } from '@/app/actions/purchase-orders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -43,9 +43,11 @@ function calcTotals(values: PurchaseOrderFormValues) {
 
 interface PurchaseFormProps {
   codePreview: string;
+  /** INT-004：由庫存頁或 URL 帶入的預填明細 */
+  prefillLines?: PurchasePrefillLine[];
 }
 
-export function PurchaseForm({ codePreview }: PurchaseFormProps) {
+export function PurchaseForm({ codePreview, prefillLines }: PurchaseFormProps) {
   const router = useRouter();
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
@@ -69,6 +71,24 @@ export function PurchaseForm({ codePreview }: PurchaseFormProps) {
     getDepots().then(setDepots);
     getVendors().then(setVendors);
   }, []);
+
+  useEffect(() => {
+    if (!prefillLines?.length) return;
+    const v = form.getValues();
+    form.reset({
+      ...v,
+      items: prefillLines.map((l) => ({
+        product_id: l.product_id,
+        product_code: l.product_code,
+        product_name: l.product_name,
+        unit_name: l.unit_name || '',
+        qty: l.qty,
+        unit_price: l.unit_price,
+        subtotal: +(l.qty * l.unit_price).toFixed(2),
+      })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 僅在預填資料變更時套用一次
+  }, [prefillLines]);
 
   const items = form.watch('items');
   const taxType = form.watch('tax_type');

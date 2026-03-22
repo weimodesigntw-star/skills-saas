@@ -199,6 +199,18 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
               <Search className="h-4 w-4 mr-2" />
               查詢
             </Button>
+            {lowStockOnly && items.some((i) => i.is_low_stock) && (
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  href={`/dashboard/purchases/new?ids=${items
+                    .filter((i) => i.is_low_stock)
+                    .map((i) => i.id)
+                    .join(',')}`}
+                >
+                  本頁低庫存匯入採購
+                </Link>
+              </Button>
+            )}
           </div>
         </CardHeader>
       </Card>
@@ -232,7 +244,7 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                       <th className="text-left p-3 font-medium">條碼</th>
                       <th className="text-right p-3 font-medium">目前庫存</th>
                       <th className="text-left p-3 font-medium">狀態</th>
-                      <th className="p-3 w-20" />
+                      <th className="p-3 min-w-[140px]" />
                     </tr>
                   </thead>
                   <tbody>
@@ -252,7 +264,12 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                             <span className="text-muted-foreground">正常</span>
                           )}
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 flex flex-wrap gap-1 justify-end">
+                          {item.is_low_stock && (
+                            <Button variant="secondary" size="sm" asChild>
+                              <Link href={`/dashboard/purchases/new?ids=${item.id}`}>採購</Link>
+                            </Button>
+                          )}
                           <Button variant="outline" size="sm" onClick={() => openAdjust(item)}>
                             調整
                           </Button>

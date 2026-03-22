@@ -65,7 +65,7 @@ export default async function WriteoffDetailPage({ params }: PageProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2 font-semibold">出貨單號</th>
+                  <th className="text-left py-2 font-semibold">單號（出貨／訂單）</th>
                   <th className="text-right py-2 font-semibold">應收金額</th>
                   <th className="text-right py-2 font-semibold">本次沖帳</th>
                 </tr>

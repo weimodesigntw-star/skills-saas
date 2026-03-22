@@ -8,10 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { fetchMembers } from '@/app/actions/customer-members';
 import { fetchMemberById } from '@/app/actions/customer-members';
-import { fetchPendingShipmentsByMember } from '@/app/actions/receivable-writeoffs';
-import { createWriteoff } from '@/app/actions/receivable-writeoffs';
+import {
+  fetchPendingShipmentsByMember,
+  fetchPendingCustomerOrdersByMember,
+  createWriteoff,
+} from '@/app/actions/receivable-writeoffs';
 import { toast } from '@/components/ui/toast';
 import { formatNTD } from '@/lib/constants';
+import { MemberCombobox } from '@/components/ui/member-combobox';
 
 type PendingShipment = {
   id: string;
@@ -22,11 +26,22 @@ type PendingShipment = {
   amt_outstanding: number;
 };
 
+type PendingCustomerOrder = {
+  id: string;
+  order_code: string;
+  ship_date: string | null;
+  total: number;
+  amt_recd: number;
+  amt_outstanding: number;
+};
+
 export function WriteoffForm() {
   const router = useRouter();
   const [members, setMembers] = useState<{ id: string; name: string; client_code: string | null }[]>([]);
   const [memberId, setMemberId] = useState('');
+  const [writeoffSource, setWriteoffSource] = useState<'shipment' | 'customer_order'>('shipment');
   const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<PendingCustomerOrder[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [writeoffDate, setWriteoffDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [discount, setDiscount] = useState(0);
@@ -49,9 +64,26 @@ export function WriteoffForm() {
       return;
     }
     fetchMemberById(memberId).then((m) => {
-      setMemberPrepaid(Number((m as any)?.prepaid) ?? 0);
+      setMemberPrepaid(Number((m as { prepaid?: number })?.prepaid) ?? 0);
     });
   }, [memberId]);
+
+  const currentPending =
+    writeoffSource === 'shipment'
+      ? pendingShipments.map((s) => ({
+          id: s.id,
+          code: s.ship_code,
+          date: s.ship_date,
+          total: s.total,
+          outstanding: s.amt_outstanding,
+        }))
+      : pendingOrders.map((o) => ({
+          id: o.id,
+          code: o.order_code,
+          date: o.ship_date,
+          total: o.total,
+          outstanding: o.amt_outstanding,
+        }));
 
   const loadPending = () => {
     if (!memberId) {
@@ -59,25 +91,42 @@ export function WriteoffForm() {
       return;
     }
     setLoadingPending(true);
-    fetchPendingShipmentsByMember(memberId).then((list) => {
-      setPendingShipments(list);
-      const amounts: Record<string, number> = {};
-      const ids = new Set<string>();
-      list.forEach((s) => {
-        amounts[s.id] = s.amt_outstanding;
-        ids.add(s.id);
+    if (writeoffSource === 'shipment') {
+      fetchPendingShipmentsByMember(memberId).then((list) => {
+        setPendingShipments(list);
+        setPendingOrders([]);
+        const amounts: Record<string, number> = {};
+        const ids = new Set<string>();
+        list.forEach((s) => {
+          amounts[s.id] = s.amt_outstanding;
+          ids.add(s.id);
+        });
+        setWriteoffAmounts(amounts);
+        setSelectedIds(ids);
+        setLoadingPending(false);
       });
-      setWriteoffAmounts(amounts);
-      setSelectedIds(ids);
-      setLoadingPending(false);
-    });
+    } else {
+      fetchPendingCustomerOrdersByMember(memberId).then((list) => {
+        setPendingOrders(list);
+        setPendingShipments([]);
+        const amounts: Record<string, number> = {};
+        const ids = new Set<string>();
+        list.forEach((o) => {
+          amounts[o.id] = o.amt_outstanding;
+          ids.add(o.id);
+        });
+        setWriteoffAmounts(amounts);
+        setSelectedIds(ids);
+        setLoadingPending(false);
+      });
+    }
   };
 
-  const setAmount = (shipmentId: string, value: number) => {
-    const ship = pendingShipments.find((s) => s.id === shipmentId);
-    const max = ship ? ship.amt_outstanding : 0;
+  const setAmount = (docId: string, value: number) => {
+    const row = currentPending.find((r) => r.id === docId);
+    const max = row ? row.outstanding : 0;
     const clamped = Math.min(Math.max(0, value), max);
-    setWriteoffAmounts((prev) => ({ ...prev, [shipmentId]: clamped }));
+    setWriteoffAmounts((prev) => ({ ...prev, [docId]: clamped }));
   };
 
   const toggleSelected = (id: string) => {
@@ -89,9 +138,9 @@ export function WriteoffForm() {
     });
   };
 
-  const totalCharge = pendingShipments
-    .filter((s) => selectedIds.has(s.id))
-    .reduce((sum, s) => sum + (writeoffAmounts[s.id] ?? 0), 0);
+  const totalCharge = currentPending
+    .filter((r) => selectedIds.has(r.id))
+    .reduce((sum, r) => sum + (writeoffAmounts[r.id] ?? 0), 0);
   const actualRecd = totalCharge - discount - prepaidUsed;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,16 +149,26 @@ export function WriteoffForm() {
       toast.error('請選擇客戶');
       return;
     }
-    const items = pendingShipments
-      .filter((s) => selectedIds.has(s.id) && (writeoffAmounts[s.id] ?? 0) > 0)
-      .map((s) => ({
-        shipment_id: s.id,
-        ship_code: s.ship_code,
-        charge_amount: s.amt_outstanding,
-        writeoff_amount: writeoffAmounts[s.id] ?? 0,
-      }));
+    const items =
+      writeoffSource === 'shipment'
+        ? pendingShipments
+            .filter((s) => selectedIds.has(s.id) && (writeoffAmounts[s.id] ?? 0) > 0)
+            .map((s) => ({
+              shipment_id: s.id,
+              ship_code: s.ship_code,
+              charge_amount: s.amt_outstanding,
+              writeoff_amount: writeoffAmounts[s.id] ?? 0,
+            }))
+        : pendingOrders
+            .filter((o) => selectedIds.has(o.id) && (writeoffAmounts[o.id] ?? 0) > 0)
+            .map((o) => ({
+              customer_order_id: o.id,
+              order_code: o.order_code,
+              charge_amount: o.amt_outstanding,
+              writeoff_amount: writeoffAmounts[o.id] ?? 0,
+            }));
     if (items.length === 0) {
-      toast.error('請至少勾選一張出貨單並填寫本次沖帳金額');
+      toast.error('請至少勾選一筆並填寫本次沖帳金額');
       return;
     }
     if (prepaidUsed > memberPrepaid) {
@@ -138,26 +197,57 @@ export function WriteoffForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-2 md:col-span-2">
           <Label>選擇客戶</Label>
-          <div className="flex gap-2">
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm min-w-[200px]"
+          <div className="flex flex-wrap gap-2 items-center">
+            <MemberCombobox
+              members={members}
               value={memberId}
-              onChange={(e) => {
-                setMemberId(e.target.value);
+              onChange={(v) => {
+                setMemberId(v);
                 setPendingShipments([]);
+                setPendingOrders([]);
                 setSelectedIds(new Set());
                 setWriteoffAmounts({});
               }}
-            >
-              <option value="">請選擇客戶</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.client_code ? `${m.name}（${m.client_code}）` : m.name}
-                </option>
-              ))}
-            </select>
+              placeholder="搜尋客戶"
+              allLabel="請選擇客戶"
+            />
+          </div>
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label>沖帳來源</Label>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="src"
+                checked={writeoffSource === 'shipment'}
+                onChange={() => {
+                  setWriteoffSource('shipment');
+                  setPendingShipments([]);
+                  setPendingOrders([]);
+                  setSelectedIds(new Set());
+                  setWriteoffAmounts({});
+                }}
+              />
+              POS 出貨單
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="src"
+                checked={writeoffSource === 'customer_order'}
+                onChange={() => {
+                  setWriteoffSource('customer_order');
+                  setPendingShipments([]);
+                  setPendingOrders([]);
+                  setSelectedIds(new Set());
+                  setWriteoffAmounts({});
+                }}
+              />
+              客戶訂單（EasyStore / 手開）
+            </label>
             <Button type="button" variant="outline" onClick={loadPending} disabled={loadingPending || !memberId}>
               {loadingPending ? '載入中...' : '查詢待收'}
             </Button>
@@ -165,47 +255,47 @@ export function WriteoffForm() {
         </div>
       </div>
 
-      {pendingShipments.length > 0 && (
+      {currentPending.length > 0 && (
         <>
           <div className="space-y-2">
-            <Label>勾選出貨單並填寫本次沖帳金額</Label>
+            <Label>勾選單據並填寫本次沖帳金額</Label>
             <div className="rounded border overflow-x-auto">
               <table className="w-full text-sm min-w-[600px]">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="w-10 text-left py-2 px-3">勾選</th>
-                    <th className="text-left py-2 px-3 font-semibold">出貨單號</th>
-                    <th className="text-left py-2 px-3 font-semibold">出貨日期</th>
+                    <th className="text-left py-2 px-3 font-semibold">單號</th>
+                    <th className="text-left py-2 px-3 font-semibold">日期</th>
                     <th className="text-right py-2 px-3 font-semibold">合計</th>
                     <th className="text-right py-2 px-3 font-semibold">未收金額</th>
                     <th className="text-right py-2 px-3 font-semibold">本次沖帳金額</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingShipments.map((s) => (
-                    <tr key={s.id} className="border-t">
+                  {currentPending.map((r) => (
+                    <tr key={r.id} className="border-t">
                       <td className="py-2 px-3">
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(s.id)}
-                          onChange={() => toggleSelected(s.id)}
+                          checked={selectedIds.has(r.id)}
+                          onChange={() => toggleSelected(r.id)}
                           className="h-4 w-4"
                         />
                       </td>
-                      <td className="py-2 px-3 font-mono">{s.ship_code}</td>
-                      <td className="py-2 px-3">{s.ship_date ?? '—'}</td>
-                      <td className="py-2 px-3 text-right">{formatNTD(s.total)}</td>
-                      <td className="py-2 px-3 text-right">{formatNTD(s.amt_outstanding)}</td>
+                      <td className="py-2 px-3 font-mono">{r.code}</td>
+                      <td className="py-2 px-3">{r.date ?? '—'}</td>
+                      <td className="py-2 px-3 text-right">{formatNTD(r.total)}</td>
+                      <td className="py-2 px-3 text-right">{formatNTD(r.outstanding)}</td>
                       <td className="py-2 px-3">
                         <Input
                           type="number"
                           step="0.01"
                           min={0}
-                          max={s.amt_outstanding}
+                          max={r.outstanding}
                           className="h-8 w-28 text-right"
-                          value={selectedIds.has(s.id) ? (writeoffAmounts[s.id] ?? s.amt_outstanding) : 0}
-                          onChange={(e) => setAmount(s.id, parseFloat(e.target.value) || 0)}
-                          disabled={!selectedIds.has(s.id)}
+                          value={selectedIds.has(r.id) ? (writeoffAmounts[r.id] ?? r.outstanding) : 0}
+                          onChange={(e) => setAmount(r.id, parseFloat(e.target.value) || 0)}
+                          disabled={!selectedIds.has(r.id)}
                         />
                       </td>
                     </tr>

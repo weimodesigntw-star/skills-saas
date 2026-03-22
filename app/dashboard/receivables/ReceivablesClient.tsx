@@ -7,27 +7,15 @@ import { Plus, Search, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
-import { fetchWriteoffs } from '@/app/actions/receivable-writeoffs';
+import { fetchWriteoffs, type WriteoffListRow } from '@/app/actions/receivable-writeoffs';
 import { fetchMembers } from '@/app/actions/customer-members';
 import { toast } from '@/components/ui/toast';
 import { Receipt } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
 import { MemberCombobox } from '@/components/ui/member-combobox';
 
-type WriteoffRow = {
-  id: string;
-  writeoff_code: string;
-  writeoff_date: string;
-  member_id: string | null;
-  total_charge: number;
-  discount: number;
-  actual_recd: number;
-  note: string | null;
-  members: { id: string; name: string; client_code: string | null } | null;
-};
-
 interface ReceivablesClientProps {
-  initialWriteoffs: WriteoffRow[];
+  initialWriteoffs: WriteoffListRow[];
   total: number;
   page: number;
   pageSize: number;
@@ -41,7 +29,7 @@ export function ReceivablesClient({
 }: ReceivablesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [writeoffs, setWriteoffs] = useState<WriteoffRow[]>(initialWriteoffs);
+  const [writeoffs, setWriteoffs] = useState<WriteoffListRow[]>(initialWriteoffs);
   const [memberId, setMemberId] = useState(searchParams.get('memberId') ?? '');
   const [dateFrom, setDateFrom] = useState(searchParams.get('dateFrom') ?? '');
   const [dateTo, setDateTo] = useState(searchParams.get('dateTo') ?? '');
@@ -76,7 +64,7 @@ export function ReceivablesClient({
     router.push(`/dashboard/receivables?${buildParams({ page: 1 })}`);
   }
 
-  const customerLabel = (row: WriteoffRow) => {
+  const customerLabel = (row: WriteoffListRow) => {
     const m = row.members;
     return m ? (m.client_code ? `${m.name}（${m.client_code}）` : m.name) : '—';
   };
@@ -132,6 +120,7 @@ export function ReceivablesClient({
                   <th className="text-left py-3 px-4 font-semibold">沖帳單號</th>
                   <th className="text-left py-3 px-4 font-semibold">日期</th>
                   <th className="text-left py-3 px-4 font-semibold">客戶</th>
+                  <th className="text-left py-3 px-4 font-semibold">來源單號</th>
                   <th className="text-right py-3 px-4 font-semibold">應收總額</th>
                   <th className="text-right py-3 px-4 font-semibold">折讓</th>
                   <th className="text-right py-3 px-4 font-semibold">實收</th>
@@ -145,6 +134,7 @@ export function ReceivablesClient({
                     <td className="py-3 px-4 font-mono">{row.writeoff_code}</td>
                     <td className="py-3 px-4">{row.writeoff_date}</td>
                     <td className="py-3 px-4">{customerLabel(row)}</td>
+                    <td className="py-3 px-4 font-mono text-xs">{row.source_doc ?? '—'}</td>
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.total_charge))}</td>
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.discount))}</td>
                     <td className="py-3 px-4 text-right font-medium">{formatNTD(Number(row.actual_recd))}</td>

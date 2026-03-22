@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { getCategoriesFlatForSelect } from '@/app/actions/categories';
+import { ProductEditHistoryTabs } from '@/components/products/ProductEditHistoryTabs';
 
 const ProductFormSchema = z.object({
   name: z.string().min(1, '商品名稱為必填').max(255),
@@ -711,6 +712,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             </Form>
           </CardContent>
         </Card>
+
+        <ProductEditHistoryTabs productId={params.id} />
       </div>
     </div>
   );

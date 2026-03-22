@@ -206,10 +206,9 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '請先登入' };
 
-  // 先抓 item 以驗證歸屬與 qty 上限
   const { data: item, error: itemErr } = await supabase
     .from('customer_order_items')
-    .select('id, order_id, qty')
+    .select('id, order_id, qty, shipped_qty, product_id')
     .eq('id', itemId)
     .maybeSingle();
 
@@ -217,7 +216,7 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
 
   const { data: order, error: orderErr } = await supabase
     .from('customer_orders')
-    .select('id')
+    .select('id, order_code')
     .eq('id', item.order_id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -225,7 +224,9 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
   if (orderErr || !order) return { error: '無權限' };
 
   const maxQty = Number(item.qty) || 0;
+  const prevShipped = Math.max(0, Number((item as { shipped_qty?: number }).shipped_qty ?? 0));
   const next = Math.max(0, Math.min(Number(shippedQty) || 0, maxQty));
+  const delta = next - prevShipped;
 
   const { error: updateErr } = await supabase
     .from('customer_order_items')
@@ -233,6 +234,26 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
     .eq('id', itemId);
 
   if (updateErr) return { error: '更新失敗' };
+
+  // INT-003：本次出貨增量扣庫存（有綁 product_id 時）
+  if (delta > 0 && (item as { product_id?: string | null }).product_id) {
+    const pid = (item as { product_id: string }).product_id;
+    const orderCode = (order as { order_code?: string }).order_code ?? '';
+    const { error: rpcErr } = await supabase.rpc('adjust_stock', {
+      p_product_id: pid,
+      p_user_id: user.id,
+      p_type: 'loss',
+      p_qty: Math.floor(delta),
+      p_note: `客戶訂單出貨${orderCode ? `（${orderCode}）` : ''}`,
+    });
+    if (rpcErr) {
+      await supabase.from('customer_order_items').update({ shipped_qty: prevShipped }).eq('id', itemId);
+      return { error: rpcErr.message || '庫存扣減失敗，已還原出貨數量' };
+    }
+    revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/pos/inventory');
+  }
+
   revalidatePath(`/dashboard/orders/${order.id}`);
   return { success: true, shipped_qty: next };
 }

@@ -109,9 +109,9 @@ export function ReportsClient() {
 
       {/* 共用篩選 */}
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <span className="text-sm text-muted-foreground">出貨日期起</span>
+        <span className="text-sm text-muted-foreground">日期起（POS 出貨日／客戶訂單預定日）</span>
         <Input type="date" className="w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <span className="text-sm text-muted-foreground">出貨日期迄</span>
+        <span className="text-sm text-muted-foreground">日期迄</span>
         <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         <span className="text-sm text-muted-foreground">客戶</span>
         <MemberCombobox
@@ -137,6 +137,7 @@ export function ReportsClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="text-left py-3 px-3 font-semibold">來源</th>
                 <th className="text-left py-3 px-3 font-semibold">出貨日期</th>
                 <th className="text-left py-3 px-3 font-semibold">出貨單號</th>
                 <th className="text-left py-3 px-3 font-semibold">客戶代碼</th>
@@ -150,13 +151,14 @@ export function ReportsClient() {
             <tbody>
               {shipmentData.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={9} className="py-8 text-center text-muted-foreground">
                     請選擇條件後按「查詢」
                   </td>
                 </tr>
               )}
               {shipmentData.map((row) => (
                 <tr key={row.id} className="border-b hover:bg-muted/30">
+                  <td className="py-2 px-3">{row.source === 'POS' ? 'POS' : 'EasyStore'}</td>
                   <td className="py-2 px-3">{row.shipments?.ship_date ?? '—'}</td>
                   <td className="py-2 px-3 font-mono text-xs">{row.shipments?.ship_code ?? '—'}</td>
                   <td className="py-2 px-3">{row.shipments?.members?.client_code ?? '—'}</td>
@@ -175,6 +177,7 @@ export function ReportsClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="text-left py-3 px-3 font-semibold">來源</th>
                 <th className="text-left py-3 px-3 font-semibold">出貨日期</th>
                 <th className="text-left py-3 px-3 font-semibold">出貨單號</th>
                 <th className="text-left py-3 px-3 font-semibold">客戶名稱</th>
@@ -191,18 +194,19 @@ export function ReportsClient() {
             <tbody>
               {profitData.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={11} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={12} className="py-8 text-center text-muted-foreground">
                     請選擇條件後按「查詢」
                   </td>
                 </tr>
               )}
-              {profitData.map((row, idx) => {
+              {profitData.map((row) => {
                 const cost = Number(row.qty) * Number(row.products?.purchase_price ?? 0);
                 const sales = Number(row.subtotal);
                 const profit = sales - cost;
                 const margin = sales > 0 ? ((profit / sales) * 100).toFixed(1) + '%' : '—';
                 return (
-                  <tr key={idx} className="border-b hover:bg-muted/30">
+                  <tr key={row.id} className="border-b hover:bg-muted/30">
+                    <td className="py-2 px-3">{row.source === 'POS' ? 'POS' : 'EasyStore'}</td>
                     <td className="py-2 px-3">{row.shipments?.ship_date ?? '—'}</td>
                     <td className="py-2 px-3 font-mono text-xs">{row.shipments?.ship_code ?? '—'}</td>
                     <td className="py-2 px-3">{row.shipments?.members?.name ?? '—'}</td>
@@ -225,8 +229,9 @@ export function ReportsClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="text-left py-3 px-3 font-semibold">來源</th>
                 <th className="text-left py-3 px-3 font-semibold">出貨日期</th>
-                <th className="text-left py-3 px-3 font-semibold">出貨單號</th>
+                <th className="text-left py-3 px-3 font-semibold">單號</th>
                 <th className="text-left py-3 px-3 font-semibold">客戶名稱</th>
                 <th className="text-right py-3 px-3 font-semibold">合計</th>
                 <th className="text-right py-3 px-3 font-semibold">已收款</th>
@@ -237,20 +242,21 @@ export function ReportsClient() {
             <tbody>
               {receivableData.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="py-8 text-center text-muted-foreground">
                     請選擇條件後按「查詢」
                   </td>
                 </tr>
               )}
-              {receivableData.map((row, idx) => {
+              {receivableData.map((row) => {
                 const total = Number(row.total);
                 const rate = total > 0 ? ((Number(row.amt_recd) / total) * 100).toFixed(1) + '%' : '—';
                 const outstanding = Number(row.amt_outstanding);
                 return (
                   <tr
-                    key={idx}
+                    key={row.id}
                     className={`border-b hover:bg-muted/30 ${outstanding > 0 ? 'bg-amber-50 dark:bg-amber-950/20' : ''}`}
                   >
+                    <td className="py-2 px-3">{row.source === 'POS' ? 'POS' : 'EasyStore'}</td>
                     <td className="py-2 px-3">{row.ship_date ?? '—'}</td>
                     <td className="py-2 px-3 font-mono text-xs">{row.ship_code}</td>
                     <td className="py-2 px-3">{row.members?.name ?? '—'}</td>

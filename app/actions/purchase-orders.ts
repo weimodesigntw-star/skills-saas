@@ -184,3 +184,68 @@ export async function voidPurchaseOrder(id: string) {
   revalidatePath('/dashboard/purchases');
   return { success: true };
 }
+
+/** INT-004：新增採購單預填列 */
+export type PurchasePrefillLine = {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  unit_name: string;
+  qty: number;
+  unit_price: number;
+};
+
+export async function getPurchasePrefillFromProductIds(productIds: string[]): Promise<PurchasePrefillLine[]> {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || productIds.length === 0) return [];
+
+  const unique = [...new Set(productIds.map((s) => s.trim()).filter(Boolean))].slice(0, 80);
+  const { data } = await supabase
+    .from('products')
+    .select('id, name, product_code, unit_name, purchase_price, stock, low_stock_threshold')
+    .eq('user_id', user.id)
+    .in('id', unique);
+
+  const map = new Map((data ?? []).map((p) => [p.id as string, p]));
+  const lines: PurchasePrefillLine[] = [];
+  for (const id of unique) {
+    const p = map.get(id);
+    if (!p) continue;
+    const threshold = Number((p as { low_stock_threshold?: number }).low_stock_threshold ?? 5);
+    const stock = Number((p as { stock?: number }).stock ?? 0);
+    const need = Math.max(threshold - stock, 1);
+    lines.push({
+      product_id: id,
+      product_code: String((p as { product_code?: string }).product_code ?? ''),
+      product_name: String((p as { name?: string }).name ?? ''),
+      unit_name: String((p as { unit_name?: string }).unit_name ?? ''),
+      qty: need,
+      unit_price: Number((p as { purchase_price?: number }).purchase_price ?? 0),
+    });
+  }
+  return lines;
+}
+
+export async function getPurchasePrefillLowStock(maxLines = 60): Promise<PurchasePrefillLine[]> {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from('products')
+    .select('id, name, product_code, unit_name, purchase_price, stock, low_stock_threshold')
+    .eq('user_id', user.id)
+    .limit(500);
+
+  const low = (data ?? []).filter((p) => {
+    const threshold = Number((p as { low_stock_threshold?: number }).low_stock_threshold ?? 5);
+    return Number((p as { stock?: number }).stock ?? 0) <= threshold;
+  });
+
+  return getPurchasePrefillFromProductIds(low.slice(0, maxLines).map((p) => p.id as string));
+}
