@@ -1,0 +1,16 @@
+{
+  "id": "O-004",
+  "title": "破壞性操作：刪除／作廢統一確認對話框",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "operation",
+  "description": "抽共用 AlertDialog 或確認元件：作廢採購、刪除沖帳、刪除訂單等需輸入「確認」或顯示不可逆警告；統一按鈕文案（確認／取消）。",
+  "acceptance_criteria": [
+    "至少 2 個破壞性流程使用同一確認元件",
+    "誤觸機率降低（非單一 click）",
+    "npm run build 通過"
+  ]
+}

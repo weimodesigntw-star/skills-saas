@@ -1,0 +1,16 @@
+{
+  "id": "F-007",
+  "title": "跨頁篩選：返回列表時保留 query（breadcrumb / 返回連結）",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "low",
+  "category": "filter",
+  "description": "從訂單詳情、出貨詳情返回列表時，帶回上一頁的 searchParams（或使用 router.back + sessionStorage 備援）；至少實作 2 條路徑。",
+  "acceptance_criteria": [
+    "詳情頁「返回」可還原列表篩選狀態",
+    "無 query 時行為與現狀一致",
+    "npm run build 通過"
+  ]
+}

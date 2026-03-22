@@ -1,0 +1,16 @@
+{
+  "id": "V-005",
+  "title": "Toast／通知：成功與錯誤樣式、位置、持續時間統一",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "low",
+  "category": "visual",
+  "description": "統一 toast：成功綠/錯誤紅/警告黃（或沿用 design token）；固定位置（如右下角）；duration 規則；錯誤可較長停留。",
+  "acceptance_criteria": [
+    "toast 元件或封裝有統一 API（success/error）",
+    "主要流程已改用統一 toast（至少掃描 5 處）",
+    "npm run build 通過"
+  ]
+}

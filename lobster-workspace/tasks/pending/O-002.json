@@ -1,0 +1,16 @@
+{
+  "id": "O-002",
+  "title": "Dashboard 常用操作快捷：鍵盤捷徑（Cmd+K 或 /）",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "operation",
+  "description": "新增簡易 command palette 或快捷鍵：聚焦搜尋、前往訂單/商品/會員；使用 cmdk 或輕量自寫；不與輸入框衝突。",
+  "acceptance_criteria": [
+    "至少 1 個全域快捷可開啟選單或跳轉",
+    "有簡短說明（tooltip 或說明頁）",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "O-006",
+  "title": "行動版 Dashboard：側欄與表格觸控優化",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "low",
+  "category": "operation",
+  "description": "主要列表在小螢幕：按鈕最小點擊區 44px、表格橫向捲動提示、側欄抽屜可關閉；以 Tailwind 斷點調整為主。",
+  "acceptance_criteria": [
+    "375px 寬度下主要列表可捲動且不裁切",
+    "側欄在行動版不遮擋主要操作",
+    "npm run build 通過"
+  ]
+}

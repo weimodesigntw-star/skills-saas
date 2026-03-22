@@ -1,0 +1,15 @@
+{
+  "id": "V-002",
+  "title": "空狀態：列表無資料插圖與下一步引導",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "visual",
+  "description": "EmptyState 統一：訂單、出貨、採購等無資料時顯示圖示+說明+「建立」連結；沿用既有 EmptyState 元件擴充 props。",
+  "acceptance_criteria": [
+    "至少 3 個列表空狀態有明確引導動作",
+    "npm run build 通過"
+  ]
+}

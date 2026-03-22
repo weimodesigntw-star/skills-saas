@@ -1,0 +1,16 @@
+{
+  "id": "V-004",
+  "title": "表格響應式：橫向捲動提示與欄位優先級",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "visual",
+  "description": "寬表格加 overflow-x-auto、可選右側漸層陰影提示可捲動；小螢幕隱藏次要欄位或改為卡片列表（擇一列表實作 POC）。",
+  "acceptance_criteria": [
+    "寬表格在小螢幕可捲動且不裁切",
+    "使用者能察覺可橫向捲動（視覺或文字提示）",
+    "npm run build 通過"
+  ]
+}

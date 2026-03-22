@@ -1,0 +1,17 @@
+{
+  "id": "S-001",
+  "title": "客戶訂單列表：預設排序與欄位點擊排序",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "sort",
+  "description": "/dashboard/orders 列表預設依 advance_date 或建立日遞減；表頭「日期／金額／訂單號」可點擊切換 asc/desc。排序參數寫入 URL query（可分享連結），與既有分頁相容。",
+  "acceptance_criteria": [
+    "預設排序合理且與後端查詢一致",
+    "至少 2 個欄位可切換升冪/降冪",
+    "重新整理或分享 URL 可還原排序",
+    "npm run build 通過"
+  ]
+}

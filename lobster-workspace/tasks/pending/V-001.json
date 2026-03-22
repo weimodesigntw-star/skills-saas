@@ -1,0 +1,16 @@
+{
+  "id": "V-001",
+  "title": "Dashboard 視覺一致性：主色／卡片／表頭樣式統一",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "visual",
+  "description": "統一 dashboard 內頁：Card 圓角與陰影、表格 thead 背景、主要按鈕 primary 使用一致；抽出共用 className 或元件變體；不強制大改品牌色。",
+  "acceptance_criteria": [
+    "至少 3 個模組頁面（訂單/商品/報表）視覺層級一致",
+    "無明顯對比度問題（文字可讀）",
+    "npm run build 通過"
+  ]
+}

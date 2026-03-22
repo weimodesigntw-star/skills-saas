@@ -1,0 +1,16 @@
+{
+  "id": "V-003",
+  "title": "載入狀態：列表 Skeleton 與按鈕 loading 統一",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "visual",
+  "description": "主要資料列表首次載入使用 Skeleton（訂單、商品、會員擇二）；提交按鈕使用 isSubmitting 與 disabled；避免版面跳動。",
+  "acceptance_criteria": [
+    "至少 2 個列表有 skeleton loading",
+    "主要表單提交有按鈕 loading",
+    "npm run build 通過"
+  ]
+}

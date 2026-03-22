@@ -1,0 +1,16 @@
+{
+  "id": "S-003",
+  "title": "會員列表：累計消費／最近訂單日排序",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "sort",
+  "description": "members 列表可排序：名稱、client_code、total_spent、order_count、最近一筆訂單日（若欄位不足則先文件化或子查詢）。避免 N+1，必要時 single RPC 或 view。",
+  "acceptance_criteria": [
+    "會員列表至少 2 個業務欄位可排序",
+    "無明顯效能退化（大量會員時可接受延遲或提示）",
+    "npm run build 通過"
+  ]
+}

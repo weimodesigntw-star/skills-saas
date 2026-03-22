@@ -1,0 +1,16 @@
+{
+  "id": "F-006",
+  "title": "應收沖帳列表：客戶 + 日期 + 單號搜尋",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "filter",
+  "description": "receivable_writeoffs 列表強化：memberId、日期區間外，增加 writeoff_code 或 source_doc 模糊搜尋；與既有 fetchWriteoffs 參數擴充。",
+  "acceptance_criteria": [
+    "可依沖帳單號或來源單號關鍵字篩選",
+    "與現有會員/日期篩選並存",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "S-004",
+  "title": "出貨／採購列表：單號與日期排序",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "sort",
+  "description": "shipments、purchase_orders 列表統一表頭排序：單號、日期、金額；行為與訂單列表一致（URL query）。",
+  "acceptance_criteria": [
+    "出貨列表與採購列表皆可欄位排序",
+    "篩選條件與排序並存",
+    "npm run build 通過"
+  ]
+}

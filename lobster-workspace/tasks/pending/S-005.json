@@ -1,0 +1,16 @@
+{
+  "id": "S-005",
+  "title": "庫存列表：依庫存量／低庫存優先排序",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "sort",
+  "description": "inventory 頁可選「庫存由低到高」「依名稱」等排序；與低庫存篩選聯動時語意清楚（例如先篩低庫存再按 stock asc）。",
+  "acceptance_criteria": [
+    "庫存頁可切換至少 2 種排序",
+    "與「只顯示低庫存」不衝突",
+    "npm run build 通過"
+  ]
+}

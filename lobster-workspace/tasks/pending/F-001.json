@@ -1,0 +1,16 @@
+{
+  "id": "F-001",
+  "title": "訂單列表：日期區間 + 狀態多選篩選",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "filter",
+  "description": "customer_orders 列表 URL 支援 dateFrom/dateTo、status（可多選或下拉多值）；與搜尋、分頁、排序整合；後端查詢使用索引友善條件。",
+  "acceptance_criteria": [
+    "可依日期區間與狀態篩選",
+    "篩選條件反映在 URL，可分享",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "F-002",
+  "title": "商品列表：分類 + 庫存區間 + 關鍵字",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "filter",
+  "description": "products 列表篩選：category_id、stockMin/stockMax（或「僅低庫存」）、延長現有 search；UI 清楚標示作用中篩選與一鍵清除。",
+  "acceptance_criteria": [
+    "至少分類與庫存區間可組合篩選",
+    "有「清除篩選」或等效",
+    "npm run build 通過"
+  ]
+}

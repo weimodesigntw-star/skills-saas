@@ -1,0 +1,16 @@
+{
+  "id": "S-002",
+  "title": "商品列表：名稱／價格／庫存欄位排序",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "sort",
+  "description": "dashboard/products 列表支援依 name、price、stock、updated_at 排序；使用 Supabase order 與索引友善寫法；大量資料時維持分頁。",
+  "acceptance_criteria": [
+    "至少 3 種排序欄位可切換",
+    "排序與搜尋/分類篩選可同時生效",
+    "npm run build 通過"
+  ]
+}

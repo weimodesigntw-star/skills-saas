@@ -1,0 +1,16 @@
+{
+  "id": "S-006",
+  "title": "列表排序偏好：localStorage 記住最後選擇",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "sort",
+  "description": "主要列表（訂單/商品/會員擇二實作）在無 URL 參數時還原使用者上次排序欄位與方向；key 命名空間化（含 user 或 tenant id 若可取得）。",
+  "acceptance_criteria": [
+    "至少一個列表頁記住排序偏好",
+    "清除快取或無資料時有合理預設",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "O-003",
+  "title": "匯出 Excel／CSV：進度與完成提示",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "operation",
+  "description": "報表或列表匯出時顯示 loading、完成 toast、錯誤可重試；大資料集時提示「可能需要數秒」。",
+  "acceptance_criteria": [
+    "匯出過程有非靜默回饋",
+    "失敗時有錯誤訊息",
+    "npm run build 通過"
+  ]
+}

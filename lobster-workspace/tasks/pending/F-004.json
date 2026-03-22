@@ -1,0 +1,16 @@
+{
+  "id": "F-004",
+  "title": "出貨單列表：客戶 + 日期 + 狀態篩選",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "filter",
+  "description": "shipments 列表支援 member、日期區間、status/valid；與 MemberCombobox 或等效選客戶元件一致。",
+  "acceptance_criteria": [
+    "可依客戶與日期篩選出貨單",
+    "與分頁相容",
+    "npm run build 通過"
+  ]
+}

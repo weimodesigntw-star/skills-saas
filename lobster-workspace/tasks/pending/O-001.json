@@ -1,0 +1,16 @@
+{
+  "id": "O-001",
+  "title": "列表批量選取：訂單／會員（匯出或批次標籤前置）",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "operation",
+  "description": "訂單或會員列表（擇一為 MVP）加入 checkbox 全選/單選、已選計數；後續可接「匯出選取」或批次動作 placeholder。需無障礙 label 與鍵盤可操作。",
+  "acceptance_criteria": [
+    "可多選列並顯示選取數量",
+    "全選僅作用於當前頁或文件說明行為",
+    "npm run build 通過"
+  ]
+}

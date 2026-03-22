@@ -1,0 +1,16 @@
+{
+  "id": "O-007",
+  "title": "列表列印：出貨單／採購單瀏覽器列印樣式",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "low",
+  "category": "operation",
+  "description": "出貨或採購詳情頁加「列印」按鈕，window.print() + @media print 隱藏側欄與按鈕；A4 簡易排版。",
+  "acceptance_criteria": [
+    "列印預覽不含導覽列與多餘按鈕",
+    "單號與明細可讀",
+    "npm run build 通過"
+  ]
+}

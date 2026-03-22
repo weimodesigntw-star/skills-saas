@@ -1,0 +1,16 @@
+{
+  "id": "F-003",
+  "title": "會員列表：關鍵字 + 標籤／來源篩選",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "filter",
+  "description": "members 強化搜尋（姓名、編號、電話）；若 schema 有 easystore 或 tag 欄位則加篩選，否則文件註記「待欄位」並實作 name/code 模糊搜尋優化。",
+  "acceptance_criteria": [
+    "搜尋可命中多欄位（至少 2）",
+    "有載入中狀態，避免重複送出",
+    "npm run build 通過"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "F-005",
+  "title": "採購單列表：廠商 + 進貨日 + 狀態",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "medium",
+  "category": "filter",
+  "description": "purchase_orders 篩選：vendor_id、receive_day 區間、status；URL query 可書籤。",
+  "acceptance_criteria": [
+    "廠商與日期可組合篩選",
+    "npm run build 通過"
+  ]
+}

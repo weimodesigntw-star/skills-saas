@@ -1,0 +1,16 @@
+{
+  "id": "O-005",
+  "title": "長表單：離開頁面未儲存提示（beforeunload + 路由）",
+  "type": "write_code",
+  "assignee": "tangyuan",
+  "project_dir": "/Users/weimodesign/Downloads/skills",
+  "build_check": true,
+  "priority": "high",
+  "category": "operation",
+  "description": "採購新增、訂單編輯、商品編輯等長表單在 dirty 狀態下瀏覽器關閉或 Next 內導航時提示「有未儲存變更」；使用 react-hook-form isDirty 或等效。",
+  "acceptance_criteria": [
+    "至少 1 個表單頁有未儲存離開提示",
+    "儲存成功後不誤觸發",
+    "npm run build 通過"
+  ]
+}
