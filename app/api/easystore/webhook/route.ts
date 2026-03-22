@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
+import { extractEasyStoreProductImageUrl } from '@/lib/easystore/extract-product-image-url';
 
 export const runtime = 'nodejs';
 
@@ -22,14 +23,13 @@ function toProductRow(p: EasyStoreProduct, userId: string) {
   const statusRaw = String(p.status ?? p.state ?? 'active').toLowerCase();
   const isActive = !['archived', 'disabled', 'inactive', 'draft'].includes(statusRaw);
 
-  const imageUrl: string | null =
-    p.images?.[0]?.src ?? p.image?.src ?? p.featured_image ?? null;
+  const imageUrl = extractEasyStoreProductImageUrl(p);
 
   return {
     user_id: userId,
     easystore_product_id: String(p.id),
     name: p.name ?? p.title ?? '(未命名商品)',
-    image_url: imageUrl,
+    ...(imageUrl ? { image_url: imageUrl } : {}),
     price,
     stock,
     is_active: isActive,
