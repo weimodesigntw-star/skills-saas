@@ -13,6 +13,7 @@ import { getVendors } from '@/app/actions/vendors';
 import { toast } from '@/components/ui/toast';
 import { ShoppingCart } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { PayPurchaseDialog } from '@/components/purchases/PayPurchaseDialog';
 
 type PurchaseRow = {
@@ -225,6 +226,8 @@ export function PurchasesClient({
               <tbody>
                 {purchases.map((row) => {
                   const unpaid = Number(row.amt_unpaid);
+                  /** V-003：避免字串/小數誤差；>0 才標橘底+橘字（全付清則不會出現） */
+                  const hasUnpaid = Number.isFinite(unpaid) && unpaid > 0;
                   return (
                   <tr key={row.id} className="border-t">
                     <td className="py-3 px-4 font-mono">{row.receive_code}</td>
@@ -233,11 +236,13 @@ export function PurchasesClient({
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.total))}</td>
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.amt_paid))}</td>
                     <td
-                      className={
-                        unpaid > 0
-                          ? 'py-3 px-4 text-right text-orange-600 font-semibold'
-                          : 'py-3 px-4 text-right text-muted-foreground'
-                      }
+                      className={cn(
+                        'py-3 px-4 text-right tabular-nums',
+                        hasUnpaid
+                          ? 'bg-orange-50 font-semibold text-orange-700 dark:bg-orange-950/50 dark:text-orange-400'
+                          : 'text-muted-foreground'
+                      )}
+                      data-purchase-amt-unpaid={hasUnpaid ? 'positive' : 'zero'}
                     >
                       {formatNTD(unpaid)}
                     </td>
@@ -246,12 +251,12 @@ export function PurchasesClient({
                         className={
                           row.status === 'void'
                             ? 'inline-flex rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground'
-                            : unpaid > 0
+                            : hasUnpaid
                               ? 'inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
                               : 'inline-flex rounded-md bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800'
                         }
                       >
-                        {row.status === 'void' ? '取消' : unpaid > 0 ? '進行中' : '完成'}
+                        {row.status === 'void' ? '取消' : hasUnpaid ? '進行中' : '完成'}
                       </span>
                     </td>
                     <td className="py-3 px-4 flex items-center gap-1">
@@ -260,7 +265,7 @@ export function PurchasesClient({
                           <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
-                      {row.status === 'valid' && Number(row.amt_unpaid) > 0 && (
+                      {row.status === 'valid' && hasUnpaid && (
                         <Button variant="ghost" size="sm" onClick={() => setPayPurchaseId(row.id)} title="付款">
                           <DollarSign className="h-4 w-4" />
                         </Button>

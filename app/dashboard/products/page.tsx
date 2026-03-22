@@ -7,7 +7,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Plus, Package, ArrowDown, ArrowUp } from 'lucide-react';
+import { Plus, Package, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { getProducts } from '@/app/actions/products';
 import { fetchPosCategories } from '@/app/actions/pos';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,45 @@ function productsListHref(opts: {
   if (opts.dir) p.set('dir', opts.dir);
   const s = p.toString();
   return s ? `/dashboard/products?${s}` : '/dashboard/products';
+}
+
+/** S-003：可排序欄一律顯示圖示（作用中 ↑/↓，其餘 ⇅）方便辨識與自動化驗收 */
+function ProductSortHeaderLink({
+  column,
+  label,
+  sortCol,
+  sortDirection,
+  href,
+  thClassName,
+}: {
+  column: ProductSortKey;
+  label: string;
+  sortCol: ProductSortKey;
+  sortDirection: 'asc' | 'desc';
+  href: string;
+  thClassName?: string;
+}) {
+  const active = sortCol === column;
+  return (
+    <th className={cn('text-left p-4 font-semibold text-sm', thClassName)}>
+      <Link
+        href={href}
+        className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+        aria-sort={active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        {label}
+        {active ? (
+          sortDirection === 'asc' ? (
+            <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-80" aria-hidden />
+        )}
+      </Link>
+    </th>
+  );
 }
 
 /**
@@ -266,69 +305,38 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-4 font-semibold text-sm w-16">圖片</th>
-                        <th className="text-left p-4 font-semibold text-sm">
-                          <Link
-                            href={productSortHref('name')}
-                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
-                          >
-                            商品名稱
-                            {sortCol === 'name' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              )
-                            ) : null}
-                          </Link>
-                        </th>
+                        <ProductSortHeaderLink
+                          column="name"
+                          label="商品名稱"
+                          sortCol={sortCol}
+                          sortDirection={sortDirection}
+                          href={productSortHref('name')}
+                        />
                         <th className="text-left p-4 font-semibold text-sm">條碼</th>
-                        <th className="text-left p-4 font-semibold text-sm">
-                          <Link
-                            href={productSortHref('price')}
-                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
-                          >
-                            單價
-                            {sortCol === 'price' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              )
-                            ) : null}
-                          </Link>
-                        </th>
-                        <th className="text-left p-4 font-semibold text-sm">
-                          <Link
-                            href={productSortHref('stock')}
-                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
-                          >
-                            庫存
-                            {sortCol === 'stock' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              )
-                            ) : null}
-                          </Link>
-                        </th>
+                        <ProductSortHeaderLink
+                          column="price"
+                          label="單價"
+                          sortCol={sortCol}
+                          sortDirection={sortDirection}
+                          href={productSortHref('price')}
+                        />
+                        <ProductSortHeaderLink
+                          column="stock"
+                          label="庫存"
+                          sortCol={sortCol}
+                          sortDirection={sortDirection}
+                          href={productSortHref('stock')}
+                        />
                         <th className="text-left p-4 font-semibold text-sm">分類</th>
                         <th className="text-left p-4 font-semibold text-sm">狀態</th>
-                        <th className="text-left p-4 font-semibold text-sm whitespace-nowrap">
-                          <Link
-                            href={productSortHref('created_at')}
-                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
-                          >
-                            建立
-                            {sortCol === 'created_at' ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              )
-                            ) : null}
-                          </Link>
-                        </th>
+                        <ProductSortHeaderLink
+                          column="created_at"
+                          label="建立"
+                          sortCol={sortCol}
+                          sortDirection={sortDirection}
+                          href={productSortHref('created_at')}
+                          thClassName="whitespace-nowrap"
+                        />
                         <th className="text-right p-4 font-semibold text-sm">操作</th>
                       </tr>
                     </thead>
