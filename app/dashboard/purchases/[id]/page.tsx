@@ -100,7 +100,13 @@ export default async function PurchaseDetailPage({ params }: PageProps) {
             <p>稅額：{formatNTD(Number(purchase.tax_amount))}</p>
             <p className="font-bold">合計：{formatNTD(Number(purchase.total))}</p>
             <p>已付：{formatNTD(Number(purchase.amt_paid))}</p>
-            <p>未付：{formatNTD(Number(purchase.amt_unpaid))}</p>
+            <p
+              className={
+                Number(purchase.amt_unpaid) > 0 ? 'text-orange-600 font-semibold' : undefined
+              }
+            >
+              未付：{formatNTD(Number(purchase.amt_unpaid))}
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -165,14 +165,24 @@ export function PurchasesClient({
                 </tr>
               </thead>
               <tbody>
-                {purchases.map((row) => (
+                {purchases.map((row) => {
+                  const unpaid = Number(row.amt_unpaid);
+                  return (
                   <tr key={row.id} className="border-t">
                     <td className="py-3 px-4 font-mono">{row.receive_code}</td>
                     <td className="py-3 px-4">{row.receive_day ?? '—'}</td>
                     <td className="py-3 px-4">{vendorLabel(row)}</td>
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.total))}</td>
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.amt_paid))}</td>
-                    <td className="py-3 px-4 text-right">{formatNTD(Number(row.amt_unpaid))}</td>
+                    <td
+                      className={
+                        unpaid > 0
+                          ? 'py-3 px-4 text-right text-orange-600 font-semibold'
+                          : 'py-3 px-4 text-right text-muted-foreground'
+                      }
+                    >
+                      {formatNTD(unpaid)}
+                    </td>
                     <td className="py-3 px-4">
                       <span
                         className={
@@ -202,7 +212,8 @@ export function PurchasesClient({
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { getDepots } from '@/app/actions/depots';
 import { getVendors } from '@/app/actions/vendors';
 import { useEffect } from 'react';
+import { onFormEnterFocusNext } from '@/lib/form-enter-nav';
 
 function buildItemsFromPrefill(prefill?: PurchasePrefillLine[]): PurchaseOrderFormValues['items'] {
   if (!prefill?.length) {
@@ -127,7 +128,11 @@ export function PurchaseForm({ codePreview, prefillLines }: PurchaseFormProps) {
   return (
     <FormProvider {...form}>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          onKeyDown={onFormEnterFocusNext}
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FormLabel>採購單號</FormLabel>
