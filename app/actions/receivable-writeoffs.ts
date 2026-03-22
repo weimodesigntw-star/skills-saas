@@ -220,6 +220,7 @@ export async function createWriteoff(values: ReceivableWriteoffFormValues) {
   revalidatePath(`/dashboard/receivables/${result.writeoff_id}`);
   revalidatePath('/dashboard/shipments');
   revalidatePath('/dashboard/orders');
+  revalidatePath('/dashboard/reports');
   return { success: true, writeoffId: result.writeoff_id, writeoffCode: result.writeoff_code };
 }
 
@@ -294,5 +295,6 @@ export async function deleteWriteoff(id: string) {
   revalidatePath('/dashboard/receivables');
   revalidatePath('/dashboard/shipments');
   revalidatePath('/dashboard/orders');
+  revalidatePath('/dashboard/reports');
   return { success: true };
 }
