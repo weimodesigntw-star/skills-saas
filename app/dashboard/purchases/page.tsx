@@ -6,7 +6,17 @@ import { ShoppingCart } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = { vendorId?: string; status?: string; dateFrom?: string; dateTo?: string; page?: string };
+type SearchParams = {
+  vendorId?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: string;
+  sort?: string;
+  dir?: string;
+};
+
+const PURCHASE_SORT = ['receive_code', 'receive_day', 'total', 'created_at'] as const;
 
 export default async function PurchasesPage({
   searchParams,
@@ -26,6 +36,11 @@ export default async function PurchasesPage({
 
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
+  const sortBy = PURCHASE_SORT.includes(params.sort as (typeof PURCHASE_SORT)[number])
+    ? (params.sort as (typeof PURCHASE_SORT)[number])
+    : 'created_at';
+  const sortDir = params.dir === 'asc' ? 'asc' : 'desc';
+
   const { purchases, total, pageSize } = await fetchPurchaseOrders({
     vendorId: params.vendorId,
     status: params.status,
@@ -33,6 +48,8 @@ export default async function PurchasesPage({
     dateTo: params.dateTo,
     page,
     pageSize: 20,
+    sortBy,
+    sortDir,
   });
 
   return (
@@ -41,6 +58,8 @@ export default async function PurchasesPage({
       total={total}
       page={page}
       pageSize={pageSize}
+      sortBy={sortBy}
+      sortDir={sortDir}
     />
   );
 }

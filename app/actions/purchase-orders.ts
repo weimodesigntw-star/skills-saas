@@ -4,6 +4,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { PurchaseOrderFormValues } from '@/lib/schemas/purchase-order';
 
+const PURCHASE_SORT_COLUMNS = ['receive_code', 'receive_day', 'total', 'created_at'] as const;
+
 export async function fetchPurchaseOrders(params?: {
   vendorId?: string;
   status?: string;
@@ -11,6 +13,9 @@ export async function fetchPurchaseOrders(params?: {
   dateTo?: string;
   page?: number;
   pageSize?: number;
+  /** S-005 */
+  sortBy?: string;
+  sortDir?: string;
 }) {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,11 +24,16 @@ export async function fetchPurchaseOrders(params?: {
   const { vendorId, status, dateFrom, dateTo, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
 
+  const sortCol = PURCHASE_SORT_COLUMNS.includes(params?.sortBy as (typeof PURCHASE_SORT_COLUMNS)[number])
+    ? (params!.sortBy as (typeof PURCHASE_SORT_COLUMNS)[number])
+    : 'created_at';
+  const ascending = params?.sortDir === 'asc';
+
   let query = supabase
     .from('purchase_orders')
     .select('*, vendors(id, vendor_code, vendor_name)', { count: 'exact' })
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order(sortCol, { ascending })
     .range(from, from + pageSize - 1);
 
   if (vendorId) query = query.eq('vendor_id', vendorId);

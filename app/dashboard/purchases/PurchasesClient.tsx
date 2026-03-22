@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Eye, DollarSign, Ban } from 'lucide-react';
+import { Plus, Search, Eye, DollarSign, Ban, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -28,11 +28,15 @@ type PurchaseRow = {
   vendors: { id: string; vendor_code: string; vendor_name: string } | null;
 };
 
+type PurchaseSortKey = 'receive_code' | 'receive_day' | 'total' | 'created_at';
+
 interface PurchasesClientProps {
   initialPurchases: PurchaseRow[];
   total: number;
   page: number;
   pageSize: number;
+  sortBy: PurchaseSortKey;
+  sortDir: 'asc' | 'desc';
 }
 
 export function PurchasesClient({
@@ -40,6 +44,8 @@ export function PurchasesClient({
   total,
   page,
   pageSize,
+  sortBy,
+  sortDir,
 }: PurchasesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,12 +68,16 @@ export function PurchasesClient({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  function buildParams(overrides?: { page?: number }) {
+  function buildParams(overrides?: { page?: number; sort?: string; dir?: string }) {
     const p = new URLSearchParams();
     if (vendorId) p.set('vendorId', vendorId);
     if (statusFilter) p.set('status', statusFilter);
     if (dateFrom) p.set('dateFrom', dateFrom);
     if (dateTo) p.set('dateTo', dateTo);
+    const sort = overrides?.sort ?? searchParams.get('sort') ?? sortBy;
+    const dir = overrides?.dir ?? searchParams.get('dir') ?? sortDir;
+    p.set('sort', sort);
+    p.set('dir', dir);
     const pg = overrides?.page ?? page;
     if (pg > 1) p.set('page', String(pg));
     return p.toString();
@@ -75,6 +85,50 @@ export function PurchasesClient({
 
   function handleSearch() {
     router.push(`/dashboard/purchases?${buildParams({ page: 1 })}`);
+  }
+
+  function handleSortClick(column: PurchaseSortKey) {
+    const curSort = (searchParams.get('sort') || sortBy) as PurchaseSortKey;
+    const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
+    let nextDir: 'asc' | 'desc';
+    if (curSort !== column) {
+      nextDir = column === 'receive_code' ? 'asc' : 'desc';
+    } else {
+      nextDir = curDir === 'asc' ? 'desc' : 'asc';
+    }
+    router.push(`/dashboard/purchases?${buildParams({ page: 1, sort: column, dir: nextDir })}`);
+  }
+
+  function SortTh({
+    column,
+    label,
+    className,
+  }: {
+    column: PurchaseSortKey;
+    label: string;
+    className?: string;
+  }) {
+    const curSort = (searchParams.get('sort') || sortBy) as PurchaseSortKey;
+    const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
+    const active = curSort === column;
+    return (
+      <th className={`py-3 px-4 font-semibold ${className ?? ''}`}>
+        <button
+          type="button"
+          onClick={() => handleSortClick(column)}
+          className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+        >
+          {label}
+          {active ? (
+            curDir === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5" />
+            )
+          ) : null}
+        </button>
+      </th>
+    );
   }
 
   async function handleVoid() {
@@ -118,9 +172,10 @@ export function PurchasesClient({
           ))}
         </select>
         <select
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[120px]"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="採購單狀態篩選"
         >
           <option value="">全部狀態</option>
           <option value="valid">有效</option>
@@ -154,10 +209,10 @@ export function PurchasesClient({
             <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left py-3 px-4 font-semibold">採購單號</th>
-                  <th className="text-left py-3 px-4 font-semibold">進貨日期</th>
+                  <SortTh column="receive_code" label="採購單號" className="text-left" />
+                  <SortTh column="receive_day" label="進貨日期" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">廠商名稱</th>
-                  <th className="text-right py-3 px-4 font-semibold">合計</th>
+                  <SortTh column="total" label="合計" className="text-right" />
                   <th className="text-right py-3 px-4 font-semibold">已付</th>
                   <th className="text-right py-3 px-4 font-semibold">未付</th>
                   <th className="text-left py-3 px-4 font-semibold">狀態</th>

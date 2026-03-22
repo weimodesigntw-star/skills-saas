@@ -19,12 +19,17 @@ export type InventoryItem = {
   is_low_stock: boolean;
 };
 
+const INVENTORY_SORT_COLUMNS = ['stock', 'name', 'barcode'] as const;
+
 export type FetchInventoryParams = {
   categoryId?: string;
   lowStockOnly?: boolean;
   search?: string;
   page?: number;
   pageSize?: number;
+  /** S-004：未指定時預設依庫存由低到高 */
+  sortBy?: string;
+  sortDir?: string;
 };
 
 export type FetchInventoryResult = {
@@ -45,13 +50,17 @@ export async function fetchInventory(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  const explicitSort = INVENTORY_SORT_COLUMNS.includes(params.sortBy as (typeof INVENTORY_SORT_COLUMNS)[number]);
+  const sortColumn = explicitSort ? (params.sortBy as (typeof INVENTORY_SORT_COLUMNS)[number]) : 'stock';
+  const ascending = explicitSort ? params.sortDir !== 'desc' : true;
+
   let query = supabase
     .from('products')
     .select('id, name, category_id, barcode, stock, low_stock_threshold, categories(name)', {
       count: 'exact',
     })
     .eq('user_id', user.id)
-    .order('name');
+    .order(sortColumn, { ascending });
 
   if (categoryId && categoryId !== 'all') {
     query = query.eq('category_id', categoryId);

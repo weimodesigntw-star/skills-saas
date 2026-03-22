@@ -6,7 +6,23 @@ import { Receipt } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = { memberId?: string; dateFrom?: string; dateTo?: string; page?: string };
+type SearchParams = {
+  memberId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: string;
+  sort?: string;
+  dir?: string;
+};
+
+const WRITEOFF_SORT = [
+  'writeoff_code',
+  'writeoff_date',
+  'total_charge',
+  'discount',
+  'actual_recd',
+  'created_at',
+] as const;
 
 export default async function ReceivablesPage({
   searchParams,
@@ -30,12 +46,19 @@ export default async function ReceivablesPage({
 
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
+  const sortBy = WRITEOFF_SORT.includes(params.sort as (typeof WRITEOFF_SORT)[number])
+    ? (params.sort as (typeof WRITEOFF_SORT)[number])
+    : 'created_at';
+  const sortDir = params.dir === 'asc' ? 'asc' : 'desc';
+
   const { writeoffs, total, pageSize } = await fetchWriteoffs({
     memberId: params.memberId,
     dateFrom: params.dateFrom,
     dateTo: params.dateTo,
     page,
     pageSize: 20,
+    sortBy,
+    sortDir,
   });
 
   return (
@@ -44,6 +67,8 @@ export default async function ReceivablesPage({
       total={total}
       page={page}
       pageSize={pageSize}
+      sortBy={sortBy}
+      sortDir={sortDir}
     />
   );
 }

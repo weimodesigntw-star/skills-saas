@@ -7,7 +7,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Plus, Package } from 'lucide-react';
+import { Plus, Package, ArrowDown, ArrowUp } from 'lucide-react';
 import { getProducts } from '@/app/actions/products';
 import { fetchPosCategories } from '@/app/actions/pos';
 import { Button } from '@/components/ui/button';
@@ -22,19 +22,32 @@ import { SyncProductsButton } from './SyncProductsButton';
 
 export const dynamic = 'force-dynamic';
 
+const PRODUCT_SORT = ['name', 'price', 'stock', 'created_at'] as const;
+type ProductSortKey = (typeof PRODUCT_SORT)[number];
+
 interface ProductsPageProps {
   searchParams: {
     q?: string;
     page?: string;
     category?: string;
+    sort?: string;
+    dir?: string;
   };
 }
 
-function productsListHref(opts: { q?: string; page?: number; category?: string | null }) {
+function productsListHref(opts: {
+  q?: string;
+  page?: number;
+  category?: string | null;
+  sort?: string | null;
+  dir?: string | null;
+}) {
   const p = new URLSearchParams();
   if (opts.q?.trim()) p.set('q', opts.q.trim());
   if (opts.page && opts.page > 1) p.set('page', String(opts.page));
   if (opts.category) p.set('category', opts.category);
+  if (opts.sort) p.set('sort', opts.sort);
+  if (opts.dir) p.set('dir', opts.dir);
   const s = p.toString();
   return s ? `/dashboard/products?${s}` : '/dashboard/products';
 }
@@ -74,7 +87,29 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const search = searchParams.q || '';
   const pageParam = searchParams.page ? parseInt(searchParams.page) : 1;
   const categoryId = searchParams.category || undefined;
+  const sortCol = PRODUCT_SORT.includes(searchParams.sort as ProductSortKey)
+    ? (searchParams.sort as ProductSortKey)
+    : 'created_at';
+  const sortDirection = searchParams.dir === 'asc' ? 'asc' : 'desc';
   let productCategories: { id: string; name: string }[] = [];
+
+  function productSortHref(column: ProductSortKey) {
+    const active = sortCol === column;
+    const nextDir = active
+      ? sortDirection === 'asc'
+        ? 'desc'
+        : 'asc'
+      : column === 'name'
+        ? 'asc'
+        : 'desc';
+    return productsListHref({
+      q: search,
+      page: 1,
+      category: categoryId ?? null,
+      sort: column,
+      dir: nextDir,
+    });
+  }
 
   try {
     const supabase = createServerClient();
@@ -89,6 +124,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         limit: 20,
         search: search || undefined,
         categoryId,
+        sortBy: sortCol,
+        sortDir: sortDirection,
       });
 
       products = result.products;
@@ -154,6 +191,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <div className="mb-6 space-y-4">
             <form className="flex gap-2" action="/dashboard/products" method="GET">
               {categoryId ? <input type="hidden" name="category" value={categoryId} /> : null}
+              <input type="hidden" name="sort" value={sortCol} />
+              <input type="hidden" name="dir" value={sortDirection} />
               <Input
                 type="text"
                 name="q"
@@ -169,7 +208,17 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-muted-foreground mr-1">分類</span>
                 <Button variant={!categoryId ? 'default' : 'outline'} size="sm" asChild>
-                  <Link href={productsListHref({ q: search, page: 1, category: null })}>全部</Link>
+                  <Link
+                    href={productsListHref({
+                      q: search,
+                      page: 1,
+                      category: null,
+                      sort: sortCol,
+                      dir: sortDirection,
+                    })}
+                  >
+                    全部
+                  </Link>
                 </Button>
                 {productCategories.map((c) => (
                   <Button
@@ -178,7 +227,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     size="sm"
                     asChild
                   >
-                    <Link href={productsListHref({ q: search, page: 1, category: c.id })}>
+                    <Link
+                      href={productsListHref({
+                        q: search,
+                        page: 1,
+                        category: c.id,
+                        sort: sortCol,
+                        dir: sortDirection,
+                      })}
+                    >
                       {c.name}
                     </Link>
                   </Button>
@@ -201,12 +258,69 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-4 font-semibold text-sm w-16">圖片</th>
-                        <th className="text-left p-4 font-semibold text-sm">商品名稱</th>
+                        <th className="text-left p-4 font-semibold text-sm">
+                          <Link
+                            href={productSortHref('name')}
+                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                          >
+                            商品名稱
+                            {sortCol === 'name' ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              )
+                            ) : null}
+                          </Link>
+                        </th>
                         <th className="text-left p-4 font-semibold text-sm">條碼</th>
-                        <th className="text-left p-4 font-semibold text-sm">單價</th>
-                        <th className="text-left p-4 font-semibold text-sm">庫存</th>
+                        <th className="text-left p-4 font-semibold text-sm">
+                          <Link
+                            href={productSortHref('price')}
+                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                          >
+                            單價
+                            {sortCol === 'price' ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              )
+                            ) : null}
+                          </Link>
+                        </th>
+                        <th className="text-left p-4 font-semibold text-sm">
+                          <Link
+                            href={productSortHref('stock')}
+                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                          >
+                            庫存
+                            {sortCol === 'stock' ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              )
+                            ) : null}
+                          </Link>
+                        </th>
                         <th className="text-left p-4 font-semibold text-sm">分類</th>
                         <th className="text-left p-4 font-semibold text-sm">狀態</th>
+                        <th className="text-left p-4 font-semibold text-sm whitespace-nowrap">
+                          <Link
+                            href={productSortHref('created_at')}
+                            className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                          >
+                            建立
+                            {sortCol === 'created_at' ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              )
+                            ) : null}
+                          </Link>
+                        </th>
                         <th className="text-right p-4 font-semibold text-sm">操作</th>
                       </tr>
                     </thead>
@@ -286,6 +400,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                             )}
                           </td>
 
+                          <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
+                            {formatDate(product.created_at)}
+                          </td>
+
                           {/* Actions */}
                           <td className="p-4 text-right">
                             <Link href={`/dashboard/products/${product.id}`}>
@@ -312,6 +430,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     q: search,
                     page: currentPage - 1,
                     category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
                   })}
                 >
                   <Button variant="outline">上一頁</Button>
@@ -325,6 +445,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     q: search,
                     page,
                     category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
                   })}
                 >
                   <Button
@@ -342,6 +464,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     q: search,
                     page: currentPage + 1,
                     category: categoryId ?? null,
+                    sort: sortCol,
+                    dir: sortDirection,
                   })}
                 >
                   <Button variant="outline">下一頁</Button>

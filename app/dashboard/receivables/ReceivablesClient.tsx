@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Eye } from 'lucide-react';
+import { Plus, Search, Eye, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -14,11 +14,21 @@ import { Receipt } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
 import { MemberCombobox } from '@/components/ui/member-combobox';
 
+type WriteoffSortKey =
+  | 'writeoff_code'
+  | 'writeoff_date'
+  | 'total_charge'
+  | 'discount'
+  | 'actual_recd'
+  | 'created_at';
+
 interface ReceivablesClientProps {
   initialWriteoffs: WriteoffListRow[];
   total: number;
   page: number;
   pageSize: number;
+  sortBy: WriteoffSortKey;
+  sortDir: 'asc' | 'desc';
 }
 
 export function ReceivablesClient({
@@ -26,6 +36,8 @@ export function ReceivablesClient({
   total,
   page,
   pageSize,
+  sortBy,
+  sortDir,
 }: ReceivablesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,7 +59,14 @@ export function ReceivablesClient({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  function buildParams(overrides?: { page?: number; memberId?: string; dateFrom?: string; dateTo?: string }) {
+  function buildParams(overrides?: {
+    page?: number;
+    memberId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    sort?: string;
+    dir?: string;
+  }) {
     const p = new URLSearchParams();
     const m = overrides?.memberId ?? memberId;
     const df = overrides?.dateFrom ?? dateFrom;
@@ -55,6 +74,10 @@ export function ReceivablesClient({
     if (m) p.set('memberId', m);
     if (df) p.set('dateFrom', df);
     if (dt) p.set('dateTo', dt);
+    const sort = overrides?.sort ?? searchParams.get('sort') ?? sortBy;
+    const dir = overrides?.dir ?? searchParams.get('dir') ?? sortDir;
+    p.set('sort', sort);
+    p.set('dir', dir);
     const pg = overrides?.page ?? page;
     if (pg > 1) p.set('page', String(pg));
     return p.toString();
@@ -62,6 +85,50 @@ export function ReceivablesClient({
 
   function handleSearch() {
     router.push(`/dashboard/receivables?${buildParams({ page: 1 })}`);
+  }
+
+  function handleSortClick(column: WriteoffSortKey) {
+    const curSort = (searchParams.get('sort') || sortBy) as WriteoffSortKey;
+    const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
+    let nextDir: 'asc' | 'desc';
+    if (curSort !== column) {
+      nextDir = column === 'writeoff_code' || column === 'writeoff_date' ? 'asc' : 'desc';
+    } else {
+      nextDir = curDir === 'asc' ? 'desc' : 'asc';
+    }
+    router.push(`/dashboard/receivables?${buildParams({ page: 1, sort: column, dir: nextDir })}`);
+  }
+
+  function SortTh({
+    column,
+    label,
+    className,
+  }: {
+    column: WriteoffSortKey;
+    label: string;
+    className?: string;
+  }) {
+    const curSort = (searchParams.get('sort') || sortBy) as WriteoffSortKey;
+    const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
+    const active = curSort === column;
+    return (
+      <th className={`py-3 px-4 font-semibold ${className ?? ''}`}>
+        <button
+          type="button"
+          onClick={() => handleSortClick(column)}
+          className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+        >
+          {label}
+          {active ? (
+            curDir === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5" />
+            )
+          ) : null}
+        </button>
+      </th>
+    );
   }
 
   const customerLabel = (row: WriteoffListRow) => {
@@ -117,14 +184,15 @@ export function ReceivablesClient({
             <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left py-3 px-4 font-semibold">沖帳單號</th>
-                  <th className="text-left py-3 px-4 font-semibold">日期</th>
+                  <SortTh column="writeoff_code" label="沖帳單號" className="text-left" />
+                  <SortTh column="writeoff_date" label="日期" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">客戶</th>
                   <th className="text-left py-3 px-4 font-semibold">來源單號</th>
-                  <th className="text-right py-3 px-4 font-semibold">應收總額</th>
-                  <th className="text-right py-3 px-4 font-semibold">折讓</th>
-                  <th className="text-right py-3 px-4 font-semibold">實收</th>
+                  <SortTh column="total_charge" label="應收總額" className="text-right" />
+                  <SortTh column="discount" label="折讓" className="text-right" />
+                  <SortTh column="actual_recd" label="實收" className="text-right" />
                   <th className="text-left py-3 px-4 font-semibold">備註</th>
+                  <SortTh column="created_at" label="建立" className="text-left whitespace-nowrap" />
                   <th className="text-left py-3 px-4 font-semibold">操作</th>
                 </tr>
               </thead>
@@ -139,6 +207,11 @@ export function ReceivablesClient({
                     <td className="py-3 px-4 text-right">{formatNTD(Number(row.discount))}</td>
                     <td className="py-3 px-4 text-right font-medium">{formatNTD(Number(row.actual_recd))}</td>
                     <td className="py-3 px-4 text-muted-foreground max-w-[120px] truncate">{row.note ?? '—'}</td>
+                    <td className="py-3 px-4 text-muted-foreground text-xs whitespace-nowrap">
+                      {row.created_at
+                        ? new Date(row.created_at).toLocaleDateString('zh-TW')
+                        : '—'}
+                    </td>
                     <td className="py-3 px-4">
                       <Button variant="ghost" size="sm" asChild>
                         <Link href={`/dashboard/receivables/${row.id}`}>

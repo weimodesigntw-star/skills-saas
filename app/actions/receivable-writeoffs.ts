@@ -16,7 +16,17 @@ export type WriteoffListRow = {
   note: string | null;
   members: { id: string; name: string; client_code: string | null } | null;
   source_doc: string | null;
+  created_at?: string;
 };
+
+const WRITEOFF_SORT_COLUMNS = [
+  'writeoff_code',
+  'writeoff_date',
+  'total_charge',
+  'discount',
+  'actual_recd',
+  'created_at',
+] as const;
 
 export async function fetchWriteoffs(params?: {
   memberId?: string;
@@ -24,6 +34,9 @@ export async function fetchWriteoffs(params?: {
   dateTo?: string;
   page?: number;
   pageSize?: number;
+  /** S-006 */
+  sortBy?: string;
+  sortDir?: string;
 }) {
   const supabase = createServerClient();
   const {
@@ -34,13 +47,18 @@ export async function fetchWriteoffs(params?: {
   const { memberId, dateFrom, dateTo, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
 
+  const sortCol = WRITEOFF_SORT_COLUMNS.includes(params?.sortBy as (typeof WRITEOFF_SORT_COLUMNS)[number])
+    ? (params!.sortBy as (typeof WRITEOFF_SORT_COLUMNS)[number])
+    : 'created_at';
+  const ascending = params?.sortDir === 'asc';
+
   let query = supabase
     .from('receivable_writeoffs')
     .select('*, members(id, name, client_code), receivable_writeoff_items(ship_code, customer_order_id)', {
       count: 'exact',
     })
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order(sortCol, { ascending })
     .range(from, from + pageSize - 1);
 
   if (memberId) query = query.eq('member_id', memberId);
@@ -60,6 +78,7 @@ export async function fetchWriteoffs(params?: {
       discount: number;
       actual_recd: number;
       note: string | null;
+      created_at?: string;
       members: { id: string; name: string; client_code: string | null } | null;
       receivable_writeoff_items?: { ship_code?: string | null }[];
     };
@@ -76,6 +95,7 @@ export async function fetchWriteoffs(params?: {
       note: w.note,
       members: w.members,
       source_doc: first?.ship_code ?? null,
+      created_at: w.created_at,
     };
   });
 

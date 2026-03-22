@@ -28,12 +28,23 @@ import {
   type StockHistoryRecord,
 } from '@/app/actions/inventory';
 import { fetchPosCategories } from '@/app/actions/pos';
-import { ArrowLeft, Search, Package, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ArrowLeft,
+  Search,
+  Package,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
 
 interface InventoryPageContentProps {
   /** 返回按鈕連結，例如 /dashboard 或 /dashboard/pos */
   backHref: string;
 }
+
+type InventorySortKey = 'stock' | 'name' | 'barcode';
 
 export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -44,6 +55,9 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  /** S-004 預設：庫存由低到高 */
+  const [sortBy, setSortBy] = useState<InventorySortKey>('stock');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustProduct, setAdjustProduct] = useState<InventoryItem | null>(null);
@@ -68,11 +82,13 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
       search: search.trim() || undefined,
       page,
       pageSize,
+      sortBy,
+      sortDir,
     });
     setItems(res.items);
     setTotal(res.total);
     setLoading(false);
-  }, [categoryId, lowStockOnly, search, page, pageSize]);
+  }, [categoryId, lowStockOnly, search, page, pageSize, sortBy, sortDir]);
 
   useEffect(() => {
     loadInventory();
@@ -147,6 +163,46 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const historyPages = Math.max(1, Math.ceil(historyTotal / 20));
 
+  function handleInventorySort(column: InventorySortKey) {
+    if (sortBy === column) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDir(column === 'name' ? 'asc' : 'asc');
+    }
+    setPage(1);
+  }
+
+  function SortInvTh({
+    column,
+    label,
+    className,
+  }: {
+    column: InventorySortKey;
+    label: string;
+    className?: string;
+  }) {
+    const active = sortBy === column;
+    return (
+      <th className={`p-3 font-medium ${className ?? ''}`}>
+        <button
+          type="button"
+          onClick={() => handleInventorySort(column)}
+          className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+        >
+          {label}
+          {active ? (
+            sortDir === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5" />
+            )
+          ) : null}
+        </button>
+      </th>
+    );
+  }
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex items-center gap-4 mb-6">
@@ -178,7 +234,10 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
               <Label className="text-sm font-medium">分類</Label>
               <select
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setPage(1);
+                }}
                 className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-40"
               >
                 <option value="all">全部</option>
@@ -239,10 +298,10 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-3 font-medium">商品名稱</th>
+                      <SortInvTh column="name" label="商品名稱" className="text-left" />
                       <th className="text-left p-3 font-medium">分類</th>
-                      <th className="text-left p-3 font-medium">條碼</th>
-                      <th className="text-right p-3 font-medium">目前庫存</th>
+                      <SortInvTh column="barcode" label="條碼" className="text-left" />
+                      <SortInvTh column="stock" label="目前庫存" className="text-right" />
                       <th className="text-left p-3 font-medium">狀態</th>
                       <th className="p-3 min-w-[140px]" />
                     </tr>
@@ -253,7 +312,15 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                         <td className="p-3 font-medium">{item.name}</td>
                         <td className="p-3 text-muted-foreground">{item.category_name ?? '—'}</td>
                         <td className="p-3 font-mono text-muted-foreground">{item.barcode ?? '—'}</td>
-                        <td className="p-3 text-right">{item.stock}</td>
+                        <td
+                          className={
+                            item.is_low_stock
+                              ? 'p-3 text-right text-destructive font-semibold tabular-nums'
+                              : 'p-3 text-right tabular-nums'
+                          }
+                        >
+                          {item.stock}
+                        </td>
                         <td className="p-3">
                           {item.is_low_stock ? (
                             <span className="inline-flex items-center gap-1 text-destructive font-medium">

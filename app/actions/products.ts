@@ -27,11 +27,17 @@ type ProductInput = z.infer<typeof ProductSchema>;
 /**
  * Product query type
  */
+const PRODUCT_SORT_COLUMNS = ['name', 'price', 'stock', 'created_at'] as const;
+export type ProductSortColumn = (typeof PRODUCT_SORT_COLUMNS)[number];
+
 export interface ProductQueryOptions {
   page?: number;
   limit?: number;
   search?: string;
   categoryId?: string;
+  /** S-003 */
+  sortBy?: string;
+  sortDir?: string;
 }
 
 /**
@@ -79,6 +85,11 @@ export async function getProducts(options?: ProductQueryOptions) {
   const limit = options?.limit || 20;
   const offset = (page - 1) * limit;
 
+  const sortCol = PRODUCT_SORT_COLUMNS.includes(options?.sortBy as ProductSortColumn)
+    ? (options!.sortBy as ProductSortColumn)
+    : 'created_at';
+  const ascending = options?.sortDir === 'asc';
+
   let query = supabase
     .from('products')
     .select(
@@ -89,7 +100,7 @@ export async function getProducts(options?: ProductQueryOptions) {
       { count: 'exact' }
     )
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order(sortCol, { ascending });
 
   // Apply category filter
   if (options?.categoryId) {
