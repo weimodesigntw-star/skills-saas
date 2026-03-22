@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { createServerClient } from '@/lib/supabase/server';
 import { formatNTD } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { SyncProductsButton } from './SyncProductsButton';
 
 export const dynamic = 'force-dynamic';
@@ -70,6 +71,13 @@ function formatDate(dateString: string): string {
 function getStatusBadge(isActive: boolean, stock: number, lowThreshold: number) {
   if (!isActive) {
     return <Badge variant="outline">已停用</Badge>;
+  }
+  if (stock === 0) {
+    return (
+      <Badge variant="outline" className="border-red-600 text-red-600">
+        缺貨
+      </Badge>
+    );
   }
   if (stock < lowThreshold) {
     return <Badge variant="destructive">低庫存</Badge>;
@@ -373,16 +381,19 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                             {formatNTD(product.price)}
                           </td>
 
-                          {/* Stock */}
+                          {/* Stock — V-002：≤5 紅字；0 另顯缺貨 badge */}
                           <td className="p-4 text-sm">
-                            <span
-                              className={
-                                product.stock < product.low_stock_threshold
-                                  ? 'text-destructive font-medium'
-                                  : ''
-                              }
-                            >
-                              {product.stock}
+                            <span className="inline-flex items-center gap-2 flex-wrap">
+                              <span
+                                className={cn(product.stock <= 5 && 'text-red-600 font-semibold')}
+                              >
+                                {product.stock}
+                              </span>
+                              {product.stock === 0 ? (
+                                <Badge variant="outline" className="border-red-600 text-red-600 text-xs">
+                                  缺貨
+                                </Badge>
+                              ) : null}
                             </span>
                           </td>
 

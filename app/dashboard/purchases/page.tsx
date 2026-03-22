@@ -16,7 +16,7 @@ type SearchParams = {
   dir?: string;
 };
 
-const PURCHASE_SORT = ['receive_code', 'receive_day', 'total', 'created_at'] as const;
+const PURCHASE_SORT = ['receive_day', 'total', 'amt_unpaid', 'created_at'] as const;
 
 export default async function PurchasesPage({
   searchParams,

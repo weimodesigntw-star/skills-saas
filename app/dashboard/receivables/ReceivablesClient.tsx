@@ -22,6 +22,9 @@ type WriteoffSortKey =
   | 'actual_recd'
   | 'created_at';
 
+/** S-006：僅三欄可排序 UI */
+type WriteoffSortKeyUi = 'writeoff_date' | 'total_charge' | 'actual_recd';
+
 interface ReceivablesClientProps {
   initialWriteoffs: WriteoffListRow[];
   total: number;
@@ -87,12 +90,12 @@ export function ReceivablesClient({
     router.push(`/dashboard/receivables?${buildParams({ page: 1 })}`);
   }
 
-  function handleSortClick(column: WriteoffSortKey) {
+  function handleSortClick(column: WriteoffSortKeyUi) {
     const curSort = (searchParams.get('sort') || sortBy) as WriteoffSortKey;
     const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
     let nextDir: 'asc' | 'desc';
     if (curSort !== column) {
-      nextDir = column === 'writeoff_code' || column === 'writeoff_date' ? 'asc' : 'desc';
+      nextDir = column === 'writeoff_date' ? 'desc' : 'desc';
     } else {
       nextDir = curDir === 'asc' ? 'desc' : 'asc';
     }
@@ -104,7 +107,7 @@ export function ReceivablesClient({
     label,
     className,
   }: {
-    column: WriteoffSortKey;
+    column: WriteoffSortKeyUi;
     label: string;
     className?: string;
   }) {
@@ -184,15 +187,15 @@ export function ReceivablesClient({
             <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-muted/50">
                 <tr>
-                  <SortTh column="writeoff_code" label="沖帳單號" className="text-left" />
+                  <th className="text-left py-3 px-4 font-semibold">沖帳單號</th>
                   <SortTh column="writeoff_date" label="日期" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">客戶</th>
                   <th className="text-left py-3 px-4 font-semibold">來源單號</th>
                   <SortTh column="total_charge" label="應收總額" className="text-right" />
-                  <SortTh column="discount" label="折讓" className="text-right" />
+                  <th className="text-right py-3 px-4 font-semibold">折讓</th>
                   <SortTh column="actual_recd" label="實收" className="text-right" />
                   <th className="text-left py-3 px-4 font-semibold">備註</th>
-                  <SortTh column="created_at" label="建立" className="text-left whitespace-nowrap" />
+                  <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">建立</th>
                   <th className="text-left py-3 px-4 font-semibold">操作</th>
                 </tr>
               </thead>

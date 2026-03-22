@@ -207,7 +207,7 @@ export function OrdersClient({
         toast.error(data?.error ?? '同步失敗');
       } else {
         toast.success(
-          `${mode === 'full' ? '全量' : data.since ? '增量' : '首次增量（等同全量）'}同步完成：${data.synced} 筆成功` +
+          `${mode === 'full' ? '重新同步全部訂單' : data.since ? '同步新增/異動訂單' : '首次同步全部訂單'}完成：${data.synced} 筆成功` +
           `${data.failed > 0 ? `，${data.failed} 筆失敗` : ''}` +
           `${data.since ? `（自 ${String(data.since).slice(0, 10)} 起）` : ''}`
         );
@@ -298,10 +298,10 @@ export function OrdersClient({
         </Button>
         <Button variant="outline" onClick={() => handleEasyStoreSync('incremental')} disabled={syncing}>
           <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? '同步中...' : '增量同步'}
+          {syncing ? '同步中...' : '同步新增/異動訂單'}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => handleEasyStoreSync('full')} disabled={syncing}>
-          全量同步
+          重新同步全部訂單
         </Button>
         {lastSyncedAt && (
           <span className="text-xs text-muted-foreground">

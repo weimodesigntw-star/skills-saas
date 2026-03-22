@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { PurchaseOrderFormValues } from '@/lib/schemas/purchase-order';
 
-const PURCHASE_SORT_COLUMNS = ['receive_code', 'receive_day', 'total', 'created_at'] as const;
+const PURCHASE_SORT_COLUMNS = ['receive_day', 'total', 'amt_unpaid', 'created_at'] as const;
 
 export async function fetchPurchaseOrders(params?: {
   vendorId?: string;
@@ -37,7 +37,17 @@ export async function fetchPurchaseOrders(params?: {
     .range(from, from + pageSize - 1);
 
   if (vendorId) query = query.eq('vendor_id', vendorId);
-  if (status) query = query.eq('status', status);
+  if (status === 'ongoing') {
+    query = query.eq('status', 'valid').gt('amt_unpaid', 0);
+  } else if (status === 'completed') {
+    query = query.eq('status', 'valid').lte('amt_unpaid', 0);
+  } else if (status === 'void') {
+    query = query.eq('status', 'void');
+  } else if (status === 'valid' || status === 'active') {
+    query = query.eq('status', 'valid');
+  } else if (status) {
+    query = query.eq('status', status);
+  }
   if (dateFrom) query = query.gte('receive_day', dateFrom);
   if (dateTo) query = query.lte('receive_day', dateTo);
 

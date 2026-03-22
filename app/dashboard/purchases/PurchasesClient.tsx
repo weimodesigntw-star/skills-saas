@@ -28,7 +28,9 @@ type PurchaseRow = {
   vendors: { id: string; vendor_code: string; vendor_name: string } | null;
 };
 
-type PurchaseSortKey = 'receive_code' | 'receive_day' | 'total' | 'created_at';
+/** 後端可排序欄（含預設 created_at）；表頭僅三欄可點 */
+type PurchaseSortKey = 'receive_day' | 'total' | 'amt_unpaid' | 'created_at';
+type PurchaseSortKeyUi = 'receive_day' | 'total' | 'amt_unpaid';
 
 interface PurchasesClientProps {
   initialPurchases: PurchaseRow[];
@@ -87,12 +89,12 @@ export function PurchasesClient({
     router.push(`/dashboard/purchases?${buildParams({ page: 1 })}`);
   }
 
-  function handleSortClick(column: PurchaseSortKey) {
+  function handleSortClick(column: PurchaseSortKeyUi) {
     const curSort = (searchParams.get('sort') || sortBy) as PurchaseSortKey;
     const curDir = (searchParams.get('dir') || sortDir) as 'asc' | 'desc';
     let nextDir: 'asc' | 'desc';
     if (curSort !== column) {
-      nextDir = column === 'receive_code' ? 'asc' : 'desc';
+      nextDir = 'desc';
     } else {
       nextDir = curDir === 'asc' ? 'desc' : 'asc';
     }
@@ -104,7 +106,7 @@ export function PurchasesClient({
     label,
     className,
   }: {
-    column: PurchaseSortKey;
+    column: PurchaseSortKeyUi;
     label: string;
     className?: string;
   }) {
@@ -177,9 +179,10 @@ export function PurchasesClient({
           onChange={(e) => setStatusFilter(e.target.value)}
           aria-label="採購單狀態篩選"
         >
-          <option value="">全部狀態</option>
-          <option value="valid">有效</option>
-          <option value="void">已作廢</option>
+          <option value="">全部</option>
+          <option value="ongoing">進行中</option>
+          <option value="completed">完成</option>
+          <option value="void">取消</option>
         </select>
         <Input type="date" className="w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -209,12 +212,12 @@ export function PurchasesClient({
             <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-muted/50">
                 <tr>
-                  <SortTh column="receive_code" label="採購單號" className="text-left" />
+                  <th className="text-left py-3 px-4 font-semibold">採購單號</th>
                   <SortTh column="receive_day" label="進貨日期" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">廠商名稱</th>
                   <SortTh column="total" label="合計" className="text-right" />
                   <th className="text-right py-3 px-4 font-semibold">已付</th>
-                  <th className="text-right py-3 px-4 font-semibold">未付</th>
+                  <SortTh column="amt_unpaid" label="未付" className="text-right" />
                   <th className="text-left py-3 px-4 font-semibold">狀態</th>
                   <th className="text-left py-3 px-4 font-semibold">操作</th>
                 </tr>
@@ -241,12 +244,14 @@ export function PurchasesClient({
                     <td className="py-3 px-4">
                       <span
                         className={
-                          row.status === 'valid'
-                            ? 'inline-flex rounded-md bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800'
-                            : 'inline-flex rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground'
+                          row.status === 'void'
+                            ? 'inline-flex rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground'
+                            : unpaid > 0
+                              ? 'inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
+                              : 'inline-flex rounded-md bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800'
                         }
                       >
-                        {row.status === 'valid' ? '有效' : '已作廢'}
+                        {row.status === 'void' ? '取消' : unpaid > 0 ? '進行中' : '完成'}
                       </span>
                     </td>
                     <td className="py-3 px-4 flex items-center gap-1">

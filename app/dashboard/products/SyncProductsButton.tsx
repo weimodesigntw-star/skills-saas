@@ -39,8 +39,8 @@ export function SyncProductsButton({ lastSyncedAt, lastSyncedCount }: SyncProduc
         toast.info(`已部分同步 ${data.synced} 筆，請再按一次繼續（共已處理 ${data.total} 筆）`);
         router.refresh();
       } else {
-        const label = data.since ? '增量' : '首次增量（等同全量）';
-        toast.success(`${label}商品同步完成：${data.synced} 筆`);
+        const label = data.since ? '同步新增/異動' : '首次同步全部';
+        toast.success(`${label}完成：${data.synced} 筆`);
         router.refresh();
       }
     } catch {
@@ -54,10 +54,10 @@ export function SyncProductsButton({ lastSyncedAt, lastSyncedCount }: SyncProduc
     <div className="flex items-center gap-2">
       <Button variant="outline" onClick={() => handleSync('incremental')} disabled={syncing}>
         <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-        {syncing ? '同步中...' : '同步商品'}
+        {syncing ? '同步中...' : '同步新增/異動'}
       </Button>
       <Button variant="ghost" size="sm" onClick={() => handleSync('full')} disabled={syncing}>
-        全量
+        重新同步全部
       </Button>
       {lastSyncedAt && (
         <span className="text-xs text-muted-foreground">

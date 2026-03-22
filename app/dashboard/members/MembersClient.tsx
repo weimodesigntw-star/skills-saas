@@ -210,7 +210,7 @@ export function MembersClient({
         <Button onClick={handleSearch}>查詢</Button>
         <Button variant="outline" onClick={handleEasyStoreSync} disabled={syncing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? '同步中...' : '從 EasyStore 同步'}
+          {syncing ? '同步中...' : '同步新增/異動會員'}
         </Button>
         {lastSyncedAt && (
           <span className="text-xs text-muted-foreground self-center">

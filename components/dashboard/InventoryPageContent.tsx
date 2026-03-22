@@ -7,6 +7,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +28,7 @@ import {
   type InventoryItem,
   type StockHistoryRecord,
 } from '@/app/actions/inventory';
+import { cn } from '@/lib/utils';
 import { fetchPosCategories } from '@/app/actions/pos';
 import {
   ArrowLeft,
@@ -312,17 +314,24 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                         <td className="p-3 font-medium">{item.name}</td>
                         <td className="p-3 text-muted-foreground">{item.category_name ?? '—'}</td>
                         <td className="p-3 font-mono text-muted-foreground">{item.barcode ?? '—'}</td>
-                        <td
-                          className={
-                            item.is_low_stock
-                              ? 'p-3 text-right text-destructive font-semibold tabular-nums'
-                              : 'p-3 text-right tabular-nums'
-                          }
-                        >
-                          {item.stock}
+                        <td className="p-3 text-right tabular-nums">
+                          <span className="inline-flex items-center justify-end gap-2 flex-wrap w-full">
+                            <span className={cn(item.stock <= 5 && 'text-red-600 font-semibold')}>
+                              {item.stock}
+                            </span>
+                            {item.stock === 0 ? (
+                              <Badge variant="outline" className="border-red-600 text-red-600 text-xs shrink-0">
+                                缺貨
+                              </Badge>
+                            ) : null}
+                          </span>
                         </td>
                         <td className="p-3">
-                          {item.is_low_stock ? (
+                          {item.stock === 0 ? (
+                            <Badge variant="outline" className="border-red-600 text-red-600">
+                              缺貨
+                            </Badge>
+                          ) : item.is_low_stock ? (
                             <span className="inline-flex items-center gap-1 text-destructive font-medium">
                               <AlertTriangle className="h-4 w-4" />
                               低庫存
