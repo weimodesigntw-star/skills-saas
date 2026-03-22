@@ -1,4 +1,9 @@
 -- F-002：可依「低庫存」篩選（stock < low_stock_threshold），供 getProducts 使用
+-- 先確認門檻欄位（舊庫可能僅有預設 schema）
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS low_stock_threshold integer DEFAULT 5;
+
+-- Generated column：須有 low_stock_threshold
 ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS is_low_stock boolean
   GENERATED ALWAYS AS (stock < low_stock_threshold) STORED;
