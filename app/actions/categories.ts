@@ -596,6 +596,8 @@ export async function deleteCategory(id: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to delete category: ${error.message}`);
   }
-  
+
   revalidatePath('/dashboard/categories');
+  revalidatePath('/dashboard/products');
+  revalidatePath('/dashboard/pos');
 }

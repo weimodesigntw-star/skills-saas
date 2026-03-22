@@ -53,7 +53,13 @@ export async function fetchPosCategories(): Promise<{ id: string; name: string; 
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
-  const { data } = await supabase.from('categories').select('id, name, parent_id').eq('user_id', user.id).order('sort_order');
+  /** 商品／POS 分類 tabs 只顯示頂層，避免子分類與父分類重複一排 */
+  const { data } = await supabase
+    .from('categories')
+    .select('id, name, parent_id')
+    .eq('user_id', user.id)
+    .is('parent_id', null)
+    .order('sort_order');
   return (data ?? []).map((r) => ({ id: r.id, name: r.name, parent_id: r.parent_id ?? null }));
 }
 
