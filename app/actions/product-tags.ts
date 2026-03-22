@@ -2,6 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
+import {
+  type ProductTagManageDimension,
+  isProductTagDimension,
+} from '@/lib/constants/product-tags';
 
 export type ProductTag = {
   id: string;
@@ -243,4 +247,173 @@ export async function getTagsBatchForProducts(
   }
 
   return out;
+}
+
+/**
+ * 新增標籤（維度建立後不可改，僅能改名／改色）
+ */
+export async function createProductTag(
+  name: string,
+  color: string,
+  dimension: ProductTagManageDimension
+): Promise<{ success?: true; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) return { error: '標籤名稱不能為空' };
+  if (!isProductTagDimension(dimension)) return { error: '無效的維度' };
+
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: '請先登入' };
+
+  const { data: dup } = await supabase
+    .from('product_tags')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('name', trimmed)
+    .maybeSingle();
+
+  if (dup) return { error: `標籤「${trimmed}」已存在` };
+
+  const { data: maxRow } = await supabase
+    .from('product_tags')
+    .select('sort_order')
+    .eq('user_id', user.id)
+    .eq('dimension', dimension)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const sort_order = (maxRow?.sort_order ?? 0) + 1;
+  const hex = color.trim() || '#6b7280';
+
+  const { error } = await supabase.from('product_tags').insert({
+    user_id: user.id,
+    name: trimmed,
+    color: hex,
+    dimension,
+    sort_order,
+  });
+
+  if (error) {
+    if (error.code === '23505') return { error: `標籤「${trimmed}」已存在` };
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/product-tags');
+  revalidatePath('/dashboard/products');
+  return { success: true };
+}
+
+/**
+ * 更新標籤（僅改名／改色，維度不可變）
+ */
+export async function updateProductTag(
+  tagId: string,
+  name: string,
+  color: string
+): Promise<{ success?: true; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) return { error: '標籤名稱不能為空' };
+
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: '請先登入' };
+
+  const { data: owned } = await supabase
+    .from('product_tags')
+    .select('id')
+    .eq('id', tagId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!owned) return { error: '找不到標籤或無權限' };
+
+  const { data: dup } = await supabase
+    .from('product_tags')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('name', trimmed)
+    .neq('id', tagId)
+    .maybeSingle();
+
+  if (dup) return { error: `標籤「${trimmed}」已存在` };
+
+  const hex = color.trim() || '#6b7280';
+
+  const { error } = await supabase
+    .from('product_tags')
+    .update({ name: trimmed, color: hex })
+    .eq('id', tagId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    if (error.code === '23505') return { error: `標籤「${trimmed}」已存在` };
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/product-tags');
+  revalidatePath('/dashboard/products');
+  return { success: true };
+}
+
+/**
+ * 刪除標籤。若有商品使用且未傳 force，回傳 usageCount 供前端顯示防呆。
+ * force=true 時會先刪除 product_tag_map 再刪標籤。
+ */
+export async function deleteProductTag(
+  tagId: string,
+  options?: { force?: boolean }
+): Promise<{ success?: true; error?: string; usageCount?: number }> {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: '請先登入' };
+
+  const { data: tag } = await supabase
+    .from('product_tags')
+    .select('id, name')
+    .eq('id', tagId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!tag) return { error: '找不到標籤或無權限' };
+
+  const { count, error: countErr } = await supabase
+    .from('product_tag_map')
+    .select('*', { count: 'exact', head: true })
+    .eq('tag_id', tagId);
+
+  if (countErr) return { error: countErr.message };
+
+  const n = count ?? 0;
+  if (n > 0 && !options?.force) {
+    return {
+      error: `此標籤正被 ${n} 個商品使用，無法直接刪除`,
+      usageCount: n,
+    };
+  }
+
+  if (n > 0 && options?.force) {
+    const { error: mapErr } = await supabase.from('product_tag_map').delete().eq('tag_id', tagId);
+    if (mapErr) return { error: mapErr.message };
+  }
+
+  const { error: delErr } = await supabase
+    .from('product_tags')
+    .delete()
+    .eq('id', tagId)
+    .eq('user_id', user.id);
+
+  if (delErr) {
+    return { error: delErr.message };
+  }
+
+  revalidatePath('/dashboard/product-tags');
+  revalidatePath('/dashboard/products');
+  return { success: true };
 }

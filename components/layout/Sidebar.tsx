@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Receipt,
   CreditCard,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,7 @@ const navGroups = [
     label: '設定',
     items: [
       { href: '/dashboard/categories', label: '分類管理', icon: FolderTree },
+      { href: '/dashboard/product-tags', label: '標籤管理', icon: Tag },
       { href: '/dashboard/pos/sequences', label: '字軌設定', icon: Hash },
       { href: '/dashboard/specifications', label: '規格', icon: FileText },
     ],
