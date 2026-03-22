@@ -53,7 +53,8 @@ export function WriteoffForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchMembers({ pageSize: 500 }).then((r) =>
+    // 依 total_spent 排序時，低消費客戶可能落在 500 名外；沖帳須能選到所有會員
+    fetchMembers({ pageSize: 10000 }).then((r) =>
       setMembers((r.members as { id: string; name: string; client_code: string | null }[]) ?? [])
     );
   }, []);
@@ -212,6 +213,7 @@ export function WriteoffForm() {
               }}
               placeholder="搜尋客戶"
               allLabel="請選擇客戶"
+              maxVisibleOptions={10000}
             />
           </div>
         </div>

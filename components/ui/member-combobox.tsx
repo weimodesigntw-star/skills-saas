@@ -16,7 +16,15 @@ interface MemberComboboxProps {
   onChange: (value: string) => void;
   placeholder?: string;
   allLabel?: string;
+  /**
+   * 下拉最多顯示幾筆（無搜尋字／有搜尋字皆套用）。
+   * 預設 500 與多數頁面 fetchMembers({ pageSize: 500 }) 一致；
+   * 沖帳頁需載入更多會員時請加大並搭配較大的 fetchMembers pageSize。
+   */
+  maxVisibleOptions?: number;
 }
+
+const DEFAULT_MAX_VISIBLE = 500;
 
 export function MemberCombobox({
   members,
@@ -24,20 +32,22 @@ export function MemberCombobox({
   onChange,
   placeholder = '搜尋客戶...',
   allLabel = '全部',
+  maxVisibleOptions = DEFAULT_MAX_VISIBLE,
 }: MemberComboboxProps) {
   const [q, setQ] = useState('');
   const selected = members.find((m) => m.id === value) ?? null;
+  const cap = Math.max(1, maxVisibleOptions);
 
   const filtered = useMemo(() => {
     const keyword = q.trim().toLowerCase();
-    if (!keyword) return members.slice(0, 200);
+    if (!keyword) return members.slice(0, cap);
     return members
       .filter((m) => {
         const label = m.client_code ? `${m.name} ${m.client_code}` : m.name;
         return label.toLowerCase().includes(keyword);
       })
-      .slice(0, 200);
-  }, [members, q]);
+      .slice(0, cap);
+  }, [members, q, cap]);
 
   return (
     <div className="flex items-center gap-2">
