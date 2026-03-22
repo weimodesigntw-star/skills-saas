@@ -1,20 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Eye, Pencil, Trash2, RefreshCw, ArrowDown, ArrowUp } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Eye,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   fetchCustomerOrders,
+  fetchCustomerOrderById,
   deleteCustomerOrder,
 } from '@/app/actions/customer-orders';
 import { toast } from '@/components/ui/toast';
 import { ClipboardList } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /** F-007：預交日區間（與 fetchCustomerOrders 的 advance_date 一致） */
 function ymdLocal(d: Date): string {
@@ -100,6 +113,11 @@ export function OrdersClient({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  /** O-003 */
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [orderDetails, setOrderDetails] = useState<
+    Record<string, Awaited<ReturnType<typeof fetchCustomerOrderById>> | 'loading' | undefined>
+  >({});
 
   useEffect(() => {
     setOrders(initialOrders);
@@ -170,6 +188,23 @@ export function OrdersClient({
   }
 
   /** F-007 */
+  async function toggleExpandRow(orderId: string) {
+    if (expandedIds.has(orderId)) {
+      setExpandedIds((prev) => {
+        const n = new Set(prev);
+        n.delete(orderId);
+        return n;
+      });
+      return;
+    }
+    setExpandedIds((prev) => new Set(prev).add(orderId));
+    if (orderDetails[orderId] === 'loading') return;
+    if (orderDetails[orderId] != null && orderDetails[orderId] !== 'loading') return;
+    setOrderDetails((prev) => ({ ...prev, [orderId]: 'loading' }));
+    const o = await fetchCustomerOrderById(orderId);
+    setOrderDetails((prev) => ({ ...prev, [orderId]: o }));
+  }
+
   function applyDatePreset(preset: 'today' | 'week' | 'month') {
     const { from, to } = orderDatePresetRange(preset);
     setDateFrom(from);
@@ -406,6 +441,7 @@ export function OrdersClient({
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
+                  <th className="w-8 py-3 px-1" aria-hidden />
                   <SortTh column="order_code" label="訂單號碼" className="text-left" />
                   <SortTh column="advance_date" label="預交日期" className="text-left" />
                   <th className="text-left py-3 px-4 font-semibold">客戶名稱</th>
@@ -419,15 +455,32 @@ export function OrdersClient({
               <tbody>
                 {orders.map((row) => {
                   const overdue = isCustomerOrderOverdue(row);
+                  const expanded = expandedIds.has(row.id);
+                  const detail = orderDetails[row.id];
                   return (
+                    <Fragment key={row.id}>
                     <tr
-                      key={row.id}
                       className={
                         overdue
                           ? 'border-t bg-amber-50/80 dark:bg-amber-950/25 border-l-4 border-l-amber-600'
                           : 'border-t'
                       }
                     >
+                      <td className="py-3 px-1 align-middle">
+                        <button
+                          type="button"
+                          className="p-1 rounded-md hover:bg-muted"
+                          onClick={() => toggleExpandRow(row.id)}
+                          aria-expanded={expanded}
+                          aria-label={expanded ? '收合明細' : '展開出貨進度'}
+                        >
+                          {expanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </td>
                       <td className="py-3 px-4 font-medium">{row.order_code}</td>
                       <td className="py-3 px-4">
                         <span className={overdue ? 'font-semibold text-amber-800 dark:text-amber-200' : undefined}>
@@ -466,6 +519,62 @@ export function OrdersClient({
                         </Button>
                       </td>
                     </tr>
+                    {expanded && (
+                      <tr className="border-t bg-muted/20">
+                        <td colSpan={9} className="p-4">
+                          {detail === 'loading' || detail === undefined ? (
+                            <div className="space-y-2 py-2">
+                              <Skeleton className="h-8 w-full" />
+                              <Skeleton className="h-8 w-full max-w-md" />
+                            </div>
+                          ) : !detail ? (
+                            <p className="text-sm text-muted-foreground">無法載入明細</p>
+                          ) : (
+                            <div className="space-y-3 text-sm">
+                              <p className="font-medium text-foreground">訂單明細與出貨進度</p>
+                              <div className="overflow-x-auto rounded-md border">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b bg-muted/40">
+                                      <th className="text-left py-2 px-3">品名</th>
+                                      <th className="text-right py-2 px-3">數量</th>
+                                      <th className="text-right py-2 px-3">已出</th>
+                                      <th className="py-2 px-3 min-w-[140px]">進度</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(detail.items ?? []).map((it: any) => {
+                                      const qty = Number(it.qty) || 0;
+                                      const shipped = Number(it.shipped_qty ?? 0);
+                                      const pct = qty > 0 ? Math.min(100, Math.round((shipped / qty) * 100)) : 0;
+                                      return (
+                                        <tr key={it.id} className="border-t">
+                                          <td className="py-2 px-3">{it.product_name ?? '—'}</td>
+                                          <td className="py-2 px-3 text-right tabular-nums">{qty}</td>
+                                          <td className="py-2 px-3 text-right tabular-nums">{shipped}</td>
+                                          <td className="py-2 px-3">
+                                            <div className="flex items-center gap-2">
+                                              <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                                                <div
+                                                  className="h-full bg-primary transition-all"
+                                                  style={{ width: `${pct}%` }}
+                                                />
+                                              </div>
+                                              <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

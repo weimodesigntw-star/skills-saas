@@ -147,6 +147,28 @@ export async function getProducts(options?: ProductQueryOptions) {
   };
 }
 
+/** O-002：批次上架／下架 */
+export async function batchUpdateProductStatus(ids: string[], isActive: boolean) {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: '請先登入' };
+  if (!ids?.length) return { error: '未選擇商品' };
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length > 200) return { error: '單次最多 200 筆' };
+
+  const { error } = await supabase
+    .from('products')
+    .update({ is_active: isActive })
+    .eq('user_id', user.id)
+    .in('id', unique);
+
+  if (error) return { error: error.message || '更新失敗' };
+  revalidatePath('/dashboard/products');
+  return { success: true as const, updated: unique.length };
+}
+
 /**
  * Get a single product by ID
  */

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
 import { MemberDialogWrapper } from './MemberDialogWrapper';
+import { MemberSpendSparkline, type SparkPoint } from './MemberSpendSparkline';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,21 @@ export default async function MemberDetailPage({ params }: PageProps) {
         })
       : '—';
 
+  /** V-005：最近 6 筆，時間由早到晚 */
+  const sparkData: SparkPoint[] = (() => {
+    const last6 = orders.slice(0, 6);
+    const chronological = [...last6].reverse();
+    return chronological.map((o) => ({
+      label: o.created_at
+        ? new Date(o.created_at).toLocaleDateString('zh-TW', {
+            month: '2-digit',
+            day: '2-digit',
+          })
+        : '—',
+      amount: Number(o.total_amount) || 0,
+    }));
+  })();
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <Link
@@ -102,6 +118,7 @@ export default async function MemberDetailPage({ params }: PageProps) {
             <p className="text-sm text-muted-foreground">加入日期</p>
             <p className="font-medium">{createdDate}</p>
           </div>
+          <MemberSpendSparkline data={sparkData} />
         </CardContent>
       </Card>
 

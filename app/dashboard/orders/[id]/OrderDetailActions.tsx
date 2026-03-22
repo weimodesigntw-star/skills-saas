@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Copy } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { deleteCustomerOrder } from '@/app/actions/customer-orders';
 import { toast } from '@/components/ui/toast';
@@ -33,7 +33,13 @@ export function OrderDetailActions({ orderId }: OrderDetailActionsProps) {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 flex-wrap">
+      <Button variant="outline" size="sm" asChild>
+        <Link href={`/dashboard/orders/new?cloneFrom=${orderId}`}>
+          <Copy className="h-4 w-4 mr-1" />
+          複製訂單
+        </Link>
+      </Button>
       <Button variant="outline" size="sm" asChild>
         <Link href={`/dashboard/orders/${orderId}/edit`}>
           <Pencil className="h-4 w-4 mr-1" />

@@ -12,6 +12,7 @@ import { getVendors } from '@/app/actions/vendors';
 import { toast } from '@/components/ui/toast';
 import { CreditCard } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
+import { VendorCombobox } from '@/components/ui/vendor-combobox';
 
 type WriteoffRow = {
   id: string;
@@ -53,6 +54,10 @@ export function PayablesClient({
     getVendors().then(setVendors);
   }, []);
 
+  useEffect(() => {
+    setVendorId(searchParams.get('vendorId') ?? '');
+  }, [searchParams]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   function buildParams(overrides?: { page?: number }) {
@@ -81,16 +86,13 @@ export function PayablesClient({
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <select
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
+        <VendorCombobox
+          vendors={vendors}
           value={vendorId}
-          onChange={(e) => setVendorId(e.target.value)}
-        >
-          <option value="">全部廠商</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>{v.vendor_name}（{v.vendor_code}）</option>
-          ))}
-        </select>
+          onChange={setVendorId}
+          placeholder="搜尋廠商"
+          allLabel="全部廠商"
+        />
         <Input type="date" className="w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         <Button variant="outline" onClick={() => router.push(`/dashboard/payables?${buildParams({ page: 1 })}`)}>

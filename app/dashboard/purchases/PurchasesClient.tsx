@@ -15,6 +15,7 @@ import { ShoppingCart } from 'lucide-react';
 import { formatNTD } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { PayPurchaseDialog } from '@/components/purchases/PayPurchaseDialog';
+import { VendorCombobox } from '@/components/ui/vendor-combobox';
 
 type PurchaseRow = {
   id: string;
@@ -68,6 +69,10 @@ export function PurchasesClient({
   useEffect(() => {
     getVendors().then(setVendors);
   }, []);
+
+  useEffect(() => {
+    setVendorId(searchParams.get('vendorId') ?? '');
+  }, [searchParams]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -164,16 +169,13 @@ export function PurchasesClient({
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <select
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[160px]"
+        <VendorCombobox
+          vendors={vendors}
           value={vendorId}
-          onChange={(e) => setVendorId(e.target.value)}
-        >
-          <option value="">全部廠商</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>{v.vendor_name}（{v.vendor_code}）</option>
-          ))}
-        </select>
+          onChange={setVendorId}
+          placeholder="搜尋廠商"
+          allLabel="全部廠商"
+        />
         <select
           className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[120px]"
           value={statusFilter}
