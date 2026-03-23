@@ -8,6 +8,7 @@ type MemberOption = {
   id: string;
   name: string;
   client_code: string | null;
+  phone?: string | null;
 };
 
 interface MemberComboboxProps {
@@ -43,8 +44,9 @@ export function MemberCombobox({
     if (!keyword) return members.slice(0, cap);
     return members
       .filter((m) => {
-        const label = m.client_code ? `${m.name} ${m.client_code}` : m.name;
-        return label.toLowerCase().includes(keyword);
+        const nameCode = m.client_code ? `${m.name} ${m.client_code}` : m.name;
+        const phone = m.phone ?? '';
+        return nameCode.toLowerCase().includes(keyword) || phone.includes(keyword);
       })
       .slice(0, cap);
   }, [members, q, cap]);
