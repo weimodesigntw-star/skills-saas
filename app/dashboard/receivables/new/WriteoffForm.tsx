@@ -86,40 +86,55 @@ export function WriteoffForm() {
           outstanding: o.amt_outstanding,
         }));
 
-  const loadPending = () => {
+  const loadPending = async () => {
     if (!memberId) {
       toast.error('請先選擇客戶');
       return;
     }
     setLoadingPending(true);
-    if (writeoffSource === 'shipment') {
-      fetchPendingShipmentsByMember(memberId).then((list) => {
-        setPendingShipments(list);
-        setPendingOrders([]);
-        const amounts: Record<string, number> = {};
-        const ids = new Set<string>();
-        list.forEach((s) => {
-          amounts[s.id] = s.amt_outstanding;
-          ids.add(s.id);
-        });
-        setWriteoffAmounts(amounts);
-        setSelectedIds(ids);
-        setLoadingPending(false);
-      });
-    } else {
-      fetchPendingCustomerOrdersByMember(memberId).then((list) => {
-        setPendingOrders(list);
-        setPendingShipments([]);
-        const amounts: Record<string, number> = {};
-        const ids = new Set<string>();
-        list.forEach((o) => {
-          amounts[o.id] = o.amt_outstanding;
-          ids.add(o.id);
-        });
-        setWriteoffAmounts(amounts);
-        setSelectedIds(ids);
-        setLoadingPending(false);
-      });
+    try {
+      const maxAttempts = 3;
+      let attempt = 0;
+      let done = false;
+      while (attempt < maxAttempts && !done) {
+        attempt += 1;
+        try {
+          if (writeoffSource === 'shipment') {
+            const list = await fetchPendingShipmentsByMember(memberId);
+            setPendingShipments(list);
+            setPendingOrders([]);
+            const amounts: Record<string, number> = {};
+            const ids = new Set<string>();
+            list.forEach((s) => {
+              amounts[s.id] = s.amt_outstanding;
+              ids.add(s.id);
+            });
+            setWriteoffAmounts(amounts);
+            setSelectedIds(ids);
+          } else {
+            const list = await fetchPendingCustomerOrdersByMember(memberId);
+            setPendingOrders(list);
+            setPendingShipments([]);
+            const amounts: Record<string, number> = {};
+            const ids = new Set<string>();
+            list.forEach((o) => {
+              amounts[o.id] = o.amt_outstanding;
+              ids.add(o.id);
+            });
+            setWriteoffAmounts(amounts);
+            setSelectedIds(ids);
+          }
+          done = true;
+        } catch {
+          if (attempt >= maxAttempts) throw new Error('FETCH_PENDING_FAILED');
+          // 新部署 cold start 常見短暫 503，等一下再重試
+          await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+        }
+      }
+    } catch {
+      toast.error('查詢待收失敗，請稍後再試');
+    } finally {
+      setLoadingPending(false);
     }
   };
 
