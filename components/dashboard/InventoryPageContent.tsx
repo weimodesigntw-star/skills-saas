@@ -34,6 +34,7 @@ import {
   ArrowLeft,
   Search,
   Package,
+  ShoppingCart,
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
@@ -60,6 +61,7 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
   /** S-004 預設：庫存由低到高 */
   const [sortBy, setSortBy] = useState<InventorySortKey>('stock');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustProduct, setAdjustProduct] = useState<InventoryItem | null>(null);
@@ -95,6 +97,10 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
   useEffect(() => {
     loadInventory();
   }, [loadInventory]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, categoryId, search, lowStockOnly]);
 
   useEffect(() => {
     fetchPosCategories().then((list) =>
@@ -205,6 +211,26 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
     );
   }
 
+  const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
+  const someSelected = items.some((i) => selectedIds.has(i.id));
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  }
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex items-center gap-4 mb-6">
@@ -281,6 +307,22 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
         <CardHeader>
           <CardTitle>庫存列表</CardTitle>
         </CardHeader>
+        {selectedIds.size > 0 && (
+          <div className="mx-6 mb-4 flex items-center gap-3 rounded-md bg-muted px-4 py-2">
+            <span className="text-sm text-muted-foreground">
+              已選 <strong>{selectedIds.size}</strong> 項
+            </span>
+            <Button size="sm" asChild>
+              <Link href={`/dashboard/purchases/new?ids=${[...selectedIds].join(',')}`}>
+                <ShoppingCart className="h-4 w-4 mr-1" />
+                建立採購單
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              取消選取
+            </Button>
+          </div>
+        )}
         <CardContent>
           {loading ? (
             <div className="space-y-2">
@@ -300,6 +342,17 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
+                      <th className="p-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someSelected && !allSelected;
+                          }}
+                          onChange={toggleAll}
+                          className="cursor-pointer"
+                        />
+                      </th>
                       <SortInvTh column="name" label="商品名稱" className="text-left" />
                       <th className="text-left p-3 font-medium">分類</th>
                       <SortInvTh column="barcode" label="條碼" className="text-left" />
@@ -311,6 +364,14 @@ export function InventoryPageContent({ backHref }: InventoryPageContentProps) {
                   <tbody>
                     {items.map((item) => (
                       <tr key={item.id} className="border-t hover:bg-muted/30">
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(item.id)}
+                            onChange={() => toggleOne(item.id)}
+                            className="cursor-pointer"
+                          />
+                        </td>
                         <td className="p-3 font-medium">{item.name}</td>
                         <td className="p-3 text-muted-foreground">{item.category_name ?? '—'}</td>
                         <td className="p-3 font-mono text-muted-foreground">{item.barcode ?? '—'}</td>
