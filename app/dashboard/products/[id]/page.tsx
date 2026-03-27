@@ -81,6 +81,10 @@ interface Product {
   stock: number;
   low_stock_threshold: number;
   image_url: string | null;
+  physical_stock?: number;
+  reserved_stock?: number;
+  channel_stock_easystore?: number;
+  available_stock?: number;
   category_id: string | null;
   tax_type: 'taxable' | 'tax_free' | 'zero_rate';
   is_active: boolean;
@@ -430,7 +434,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Cost */}
                   <FormField
                     control={form.control}
@@ -447,26 +451,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                           />
                         </FormControl>
                         <FormDescription>進貨成本（可選）</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Stock */}
-                  <FormField
-                    control={form.control}
-                    name="stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>庫存 *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            disabled={isSaving}
-                            {...field}
-                          />
-                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -492,6 +476,71 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                       </FormItem>
                     )}
                   />
+                </div>
+
+                {/* Advanced Inventory Section */}
+                <div className="bg-muted/30 p-5 rounded-xl border space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold flex items-center gap-2">
+                        多維度庫存管理
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1">主帳與外部通路專用的庫存分配對帳區</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="stock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-bold text-primary">實體庫存 (主帳) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              disabled={isSaving}
+                              className="bg-background font-semibold"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription className="text-[11px] text-muted-foreground/80 mt-1">盤點進貨 👉 改實體庫存</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="flex flex-col justify-end">
+                      <div className="bg-background rounded-md border p-2.5 flex flex-col justify-center shadow-sm h-[40px]">
+                        <div className="flex justify-between items-center w-full">
+                          <span className="text-xs text-muted-foreground font-medium">可用庫存</span>
+                          <span className="text-base font-bold text-green-600">{product.available_stock ?? '-'}</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/80 mt-1.5 px-0.5 leading-snug">怕超賣 👉 看可用庫存</p>
+                    </div>
+                    
+                    <div className="flex flex-col justify-end">
+                      <div className="bg-background rounded-md border p-2.5 flex flex-col justify-center shadow-sm h-[40px]">
+                        <div className="flex justify-between items-center w-full">
+                          <span className="text-xs text-muted-foreground font-medium">保留 (未出貨)</span>
+                          <span className="text-base font-bold text-orange-500">{product.reserved_stock ?? '-'}</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/80 mt-1.5 px-0.5 leading-snug">理貨包貨 👉 保留庫存會自動卡位</p>
+                    </div>
+                    
+                    <div className="flex flex-col justify-end">
+                      <div className="bg-background rounded-md border p-2.5 flex flex-col justify-center shadow-sm h-[40px]">
+                        <div className="flex justify-between items-center w-full">
+                          <span className="text-xs text-muted-foreground font-medium">通路 (EasyStore)</span>
+                          <span className="text-base font-bold text-blue-600">{product.channel_stock_easystore ?? '-'}</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/80 mt-1.5 px-0.5 leading-snug">對帳官網 👉 檢查通路庫存有沒有異常</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

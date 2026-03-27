@@ -9,7 +9,7 @@ type EasyStoreProduct = Record<string, any>;
 function toProductRow(p: EasyStoreProduct, userId: string) {
   const variants: any[] = p.variants ?? [];
   const firstVariant = variants[0] ?? {};
-  const stock = Number(
+  const channelStock = Number(
     p.inventory_quantity ?? firstVariant.inventory_quantity ?? firstVariant.inventory ?? p.inventory ?? 0
   );
   const price = Number(p.price ?? firstVariant.price ?? 0);
@@ -24,7 +24,7 @@ function toProductRow(p: EasyStoreProduct, userId: string) {
     name: p.name ?? p.title ?? '(未命名商品)',
     ...(imageUrl ? { image_url: imageUrl } : {}),
     price,
-    stock,
+    channel_stock_easystore: channelStock,
     is_active: isActive,
     updated_at: new Date().toISOString(),
   };

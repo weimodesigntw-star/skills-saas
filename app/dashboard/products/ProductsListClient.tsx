@@ -43,6 +43,10 @@ export type ProductRow = {
   categories?: { name: string } | null;
   /** INT-C：列表標籤 chips */
   tagChips?: ProductTagChipRow[];
+  physical_stock?: number;
+  reserved_stock?: number;
+  channel_stock_easystore?: number;
+  available_stock?: number;
 };
 
 function productsListHref(opts: {
@@ -456,10 +460,11 @@ export function ProductsListClient({
                     />
                     <ProductSortHeaderLink
                       column="stock"
-                      label="庫存"
+                      label="庫存 (實/可/留/通)"
                       sortCol={sortCol}
                       sortDirection={sortDirection}
                       href={productSortHref('stock')}
+                      thClassName="min-w-[140px]"
                     />
                     <th className="text-left p-4 font-semibold text-sm">分類</th>
                     <th className="text-left p-4 font-semibold text-sm min-w-[140px]">標籤</th>
@@ -517,16 +522,23 @@ export function ProductsListClient({
                       <td className="p-4 text-sm font-mono">{product.barcode || '-'}</td>
                       <td className="p-4 text-sm font-medium">{formatNTD(product.price)}</td>
                       <td className="p-4 text-sm">
-                        <span className="inline-flex items-center gap-2 flex-wrap">
-                          <span className={cn(product.stock <= 5 && 'text-red-600 font-semibold')}>
-                            {product.stock}
+                        <div className="flex flex-col gap-1.5">
+                          <span className="inline-flex items-center gap-2 flex-wrap">
+                            <span className={cn(product.stock <= 5 ? 'text-red-600 font-bold' : 'font-medium', 'text-base', 'flex items-center gap-1')}>
+                              <Package className="h-3.5 w-3.5" /> 實 {product.stock}
+                            </span>
+                            {product.stock === 0 ? (
+                              <Badge variant="outline" className="border-red-600 text-red-600 px-1 py-0 h-4 text-[10px]">缺貨</Badge>
+                            ) : null}
                           </span>
-                          {product.stock === 0 ? (
-                            <Badge variant="outline" className="border-red-600 text-red-600 text-xs">
-                              缺貨
-                            </Badge>
-                          ) : null}
-                        </span>
+                          {(product.available_stock !== undefined) && (
+                            <div className="text-[11px] text-muted-foreground grid grid-cols-3 gap-1 min-w-[110px]">
+                              <span title="可用庫存">可: <span className="text-green-600 font-medium">{product.available_stock}</span></span>
+                              <span title="保留庫存">留: <span className="text-orange-500 font-medium">{product.reserved_stock}</span></span>
+                              <span title="通路庫存">通: <span className="text-blue-600 font-medium">{product.channel_stock_easystore}</span></span>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-sm">{product.categories?.name || '-'}</td>
                       <td className="p-4 text-sm align-top">

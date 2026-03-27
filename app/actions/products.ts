@@ -65,6 +65,10 @@ export interface Product {
   low_stock_threshold: number;
   image_url: string | null;
   is_active: boolean;
+  physical_stock?: number;
+  reserved_stock?: number;
+  channel_stock_easystore?: number;
+  available_stock?: number;
   /** F-002：migration 048 產生欄，舊 DB 未跑 migration 時可能為 undefined */
   is_low_stock?: boolean;
   tax_type: 'taxable' | 'tax_free' | 'zero_rate';

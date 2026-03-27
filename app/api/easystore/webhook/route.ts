@@ -11,12 +11,13 @@ function timingSafeEqual(a: Buffer, b: Buffer) {
 }
 
 type EasyStoreProduct = Record<string, any>;
+type OrderLineItem = { product_id: string | null; qty: number; shipped_qty: number };
 
 /** 與 sync-products 一致：不寫入 product_code / barcode，避免 unique 衝突 */
 function toProductRow(p: EasyStoreProduct, userId: string) {
   const variants: any[] = p.variants ?? [];
   const firstVariant = variants[0] ?? {};
-  const stock = Number(
+  const channelStock = Number(
     p.inventory_quantity ?? firstVariant.inventory_quantity ?? firstVariant.inventory ?? p.inventory ?? 0
   );
   const price = Number(p.price ?? firstVariant.price ?? 0);
@@ -31,7 +32,7 @@ function toProductRow(p: EasyStoreProduct, userId: string) {
     name: p.name ?? p.title ?? '(未命名商品)',
     ...(imageUrl ? { image_url: imageUrl } : {}),
     price,
-    stock,
+    channel_stock_easystore: channelStock,
     is_active: isActive,
     updated_at: new Date().toISOString(),
   };
@@ -75,6 +76,54 @@ async function buildSkuToProductIdMapWebhook(
     }
   }
   return map;
+}
+
+function normalizeReserveMap(items: OrderLineItem[]) {
+  const map = new Map<string, number>();
+  for (const item of items) {
+    if (!item.product_id) continue;
+    const qty = Math.max(0, Number(item.qty || 0) - Math.max(0, Number(item.shipped_qty || 0)));
+    if (qty <= 0) continue;
+    map.set(item.product_id, (map.get(item.product_id) ?? 0) + qty);
+  }
+  return map;
+}
+
+async function adjustDeltaReserve(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  prevItems: OrderLineItem[],
+  nextItems: OrderLineItem[],
+  notePrefix: string
+) {
+  const prevMap = normalizeReserveMap(prevItems);
+  const nextMap = normalizeReserveMap(nextItems);
+  const keys = new Set<string>([...prevMap.keys(), ...nextMap.keys()]);
+
+  for (const pid of keys) {
+    const prev = prevMap.get(pid) ?? 0;
+    const next = nextMap.get(pid) ?? 0;
+    const delta = Math.floor(next - prev);
+    if (delta === 0) continue;
+    const type = delta > 0 ? 'reserve' : 'release';
+    const qty = Math.abs(delta);
+    const { error } = await supabase.rpc('adjust_inventory', {
+      p_product_id: pid,
+      p_user_id: userId,
+      p_type: type,
+      p_qty: qty,
+      p_note: `${notePrefix}${type === 'reserve' ? '保留' : '釋放'}（${qty}）`,
+    });
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('[EasyStore webhook] adjust_inventory reserve delta failed', {
+        pid,
+        type,
+        qty,
+        error: error.message,
+      });
+    }
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -123,6 +172,35 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = integration.user_id as string;
+  const eventHeaderId =
+    req.headers.get('x-easystore-event-id') ||
+    req.headers.get('x-easystore-webhook-id') ||
+    req.headers.get('x-request-id') ||
+    '';
+  const eventKey = eventHeaderId.trim()
+    ? `${shop}:${topic}:${eventHeaderId.trim()}`
+    : `${shop}:${topic}:${crypto.createHash('sha256').update(body).digest('hex')}`;
+  const { data: eventRow, error: eventErr } = await supabase
+    .from('easystore_webhook_events')
+    .insert({
+      user_id: userId,
+      shop,
+      topic,
+      event_key: eventKey,
+    })
+    .select('id')
+    .maybeSingle();
+  if (eventErr) {
+    if ((eventErr as { code?: string }).code === '23505') {
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+    // eslint-disable-next-line no-console
+    console.error('[EasyStore webhook] idempotency write failed', eventErr);
+    return NextResponse.json({ error: 'Webhook idempotency write failed' }, { status: 500 });
+  }
+  if (!eventRow?.id) {
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
 
   function mapOrderStatus(financialStatus: string | null | undefined, fulfillmentStatus: string | null | undefined) {
     const f = String(financialStatus ?? '').toLowerCase();
@@ -143,6 +221,7 @@ export async function POST(req: NextRequest) {
   if (topic === 'orders/create' || topic === 'orders/update') {
     const orderTotal = Number(data.total_price ?? data.total_amount ?? 0) || 0;
     const subtotal = Number(data.subtotal_price ?? orderTotal) || orderTotal;
+    const easystoreOrderId = String(data.id);
 
     let memberId: string | null = null;
     if (data.customer?.id) {
@@ -155,12 +234,32 @@ export async function POST(req: NextRequest) {
       memberId = member?.id ?? null;
     }
 
+    const { data: prevOrder } = await supabase
+      .from('customer_orders')
+      .select('id, status')
+      .eq('user_id', userId)
+      .eq('easystore_order_id', easystoreOrderId)
+      .maybeSingle();
+    let prevItems: OrderLineItem[] = [];
+    if (prevOrder?.id) {
+      const { data: oldRows } = await supabase
+        .from('customer_order_items')
+        .select('product_id, qty, shipped_qty')
+        .eq('order_id', prevOrder.id);
+      prevItems = (oldRows ?? []).map((r) => ({
+        product_id: (r as { product_id?: string | null }).product_id ?? null,
+        qty: Number((r as { qty?: number }).qty ?? 0),
+        shipped_qty: Number((r as { shipped_qty?: number }).shipped_qty ?? 0),
+      }));
+    }
+
+    const nextStatus = mapOrderStatus(data.financial_status, data.fulfillment_status);
     const { data: upserted, error: orderUpsertErr } = await supabase
       .from('customer_orders')
       .upsert(
         {
           user_id: userId,
-          easystore_order_id: String(data.id),
+          easystore_order_id: easystoreOrderId,
           order_code: String(data.number ?? data.id),
           advance_date: data.created_at ?? null,
           member_id: memberId,
@@ -172,7 +271,7 @@ export async function POST(req: NextRequest) {
           total: orderTotal,
           sales_channel: 'EasyStore',
           note: data.note ?? null,
-          status: mapOrderStatus(data.financial_status, data.fulfillment_status),
+          status: nextStatus,
         },
         { onConflict: 'user_id,easystore_order_id' }
       )
@@ -190,14 +289,14 @@ export async function POST(req: NextRequest) {
         .from('customer_orders')
         .select('id')
         .eq('user_id', userId)
-        .eq('easystore_order_id', String(data.id))
+        .eq('easystore_order_id', easystoreOrderId)
         .maybeSingle();
       orderUuid = found?.id;
     }
 
     // ES-003：同步明細並依 SKU 對應 product_id
     const lineItems: any[] = data.line_items ?? [];
-    if (orderUuid && lineItems.length > 0) {
+    if (orderUuid) {
       const skus = lineItems.map((li: any) => li.sku).filter(Boolean).map((s: any) => String(s).trim());
       const skuMap = await buildSkuToProductIdMapWebhook(supabase, userId, skus);
 
@@ -224,25 +323,103 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      const { error: itemsErr } = await supabase.from('customer_order_items').insert(rows);
+      const { error: itemsErr } = rows.length
+        ? await supabase.from('customer_order_items').insert(rows)
+        : { error: null };
       if (itemsErr) {
         // eslint-disable-next-line no-console
         console.error('[EasyStore webhook] customer_order_items insert', itemsErr);
+      } else {
+        const nextItemsRaw: OrderLineItem[] = rows.map((r) => ({
+          product_id: (r.product_id as string | null) ?? null,
+          qty: Number(r.qty ?? 0),
+          shipped_qty: Number(r.shipped_qty ?? 0),
+        }));
+        const prevStatus = String((prevOrder as { status?: string } | null)?.status ?? '').toLowerCase();
+        const prevReserveItems = prevStatus === 'cancelled' || prevStatus === 'shipped' ? [] : prevItems;
+        const nextReserveItems = nextStatus === 'cancelled' || nextStatus === 'shipped' ? [] : nextItemsRaw;
+        await adjustDeltaReserve(
+          supabase,
+          userId,
+          prevReserveItems,
+          nextReserveItems,
+          `EasyStore 訂單 ${String(data.number ?? data.id)} `
+        );
       }
     }
   }
 
   if (topic === 'orders/cancel') {
+    const orderId = String(data.id);
+    const { data: existing } = await supabase
+      .from('customer_orders')
+      .select('id, order_code')
+      .eq('user_id', userId)
+      .eq('easystore_order_id', orderId)
+      .maybeSingle();
+    if (existing?.id) {
+      const { data: items } = await supabase
+        .from('customer_order_items')
+        .select('product_id, qty, shipped_qty')
+        .eq('order_id', existing.id);
+      await adjustDeltaReserve(
+        supabase,
+        userId,
+        (items ?? []).map((r) => ({
+          product_id: (r as { product_id?: string | null }).product_id ?? null,
+          qty: Number((r as { qty?: number }).qty ?? 0),
+          shipped_qty: Number((r as { shipped_qty?: number }).shipped_qty ?? 0),
+        })),
+        [],
+        `EasyStore 訂單取消 ${String((existing as { order_code?: string }).order_code ?? orderId)} `
+      );
+    }
     await supabase
       .from('customer_orders')
       .update({ status: 'cancelled' })
       .eq('user_id', userId)
-      .eq('easystore_order_id', String(data.id));
+      .eq('easystore_order_id', orderId);
   }
 
   if (topic === 'orders/fulfillment_create') {
     const oid = fulfillmentOrderId(data);
     if (oid) {
+      const { data: existing } = await supabase
+        .from('customer_orders')
+        .select('id, order_code')
+        .eq('user_id', userId)
+        .eq('easystore_order_id', oid)
+        .maybeSingle();
+      if (existing?.id) {
+        const { data: items } = await supabase
+          .from('customer_order_items')
+          .select('id, product_id, qty, shipped_qty')
+          .eq('order_id', existing.id);
+        for (const item of items ?? []) {
+          const productId = (item as { product_id?: string | null }).product_id;
+          if (!productId) continue;
+          const qty = Number((item as { qty?: number }).qty ?? 0);
+          const shipped = Number((item as { shipped_qty?: number }).shipped_qty ?? 0);
+          const delta = Math.max(0, Math.floor(qty - shipped));
+          if (delta <= 0) continue;
+          const { error: rpcErr } = await supabase.rpc('adjust_inventory', {
+            p_product_id: productId,
+            p_user_id: userId,
+            p_type: 'ship',
+            p_qty: delta,
+            p_note: `EasyStore 出貨 ${String((existing as { order_code?: string }).order_code ?? oid)}`,
+          });
+          if (rpcErr) {
+            // eslint-disable-next-line no-console
+            console.error('[EasyStore webhook] ship adjust failed', rpcErr);
+            continue;
+          }
+          await supabase
+            .from('customer_order_items')
+            .update({ shipped_qty: qty })
+            .eq('id', (item as { id: string }).id);
+        }
+      }
       await supabase
         .from('customer_orders')
         .update({ status: 'shipped' })
@@ -255,7 +432,29 @@ export async function POST(req: NextRequest) {
     const raw = data.product ?? data;
     if (raw?.id) {
       const row = toProductRow(raw, userId);
-      await supabase.from('products').upsert(row, { onConflict: 'user_id,easystore_product_id' });
+      const { data: upserted, error: upsertErr } = await supabase
+        .from('products')
+        .upsert(row, { onConflict: 'user_id,easystore_product_id' })
+        .select('id, available_stock, channel_stock_easystore, name, easystore_product_id')
+        .maybeSingle();
+      if (upsertErr) {
+        // eslint-disable-next-line no-console
+        console.error('[EasyStore webhook] products upsert', upsertErr);
+      } else if (upserted) {
+        const available = Number((upserted as { available_stock?: number }).available_stock ?? 0);
+        const channel = Number((upserted as { channel_stock_easystore?: number }).channel_stock_easystore ?? 0);
+        if (channel > available) {
+          // eslint-disable-next-line no-console
+          console.warn('[EasyStore webhook] Oversell Risk', {
+            user_id: userId,
+            product_id: (upserted as { id?: string }).id,
+            easystore_product_id: (upserted as { easystore_product_id?: string }).easystore_product_id,
+            product_name: (upserted as { name?: string }).name,
+            available_stock: available,
+            channel_stock_easystore: channel,
+          });
+        }
+      }
     }
   }
 

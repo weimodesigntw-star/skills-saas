@@ -56,6 +56,64 @@ async function refreshMemberStats(memberId: string | null, supabase: SupabaseCli
   }
 }
 
+type ReserveItem = {
+  product_id: string | null;
+  qty: number;
+  shipped_qty?: number | null;
+  product_name?: string | null;
+};
+
+async function runAdjustInventory(
+  supabase: SupabaseClient,
+  userId: string,
+  productId: string,
+  type: 'reserve' | 'release' | 'ship',
+  qty: number,
+  note: string
+) {
+  const amount = Math.max(0, Math.floor(Number(qty) || 0));
+  if (amount <= 0) return { ok: true as const };
+  const { error } = await supabase.rpc('adjust_inventory', {
+    p_product_id: productId,
+    p_user_id: userId,
+    p_type: type,
+    p_qty: amount,
+    p_note: note,
+  });
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const };
+}
+
+async function applyReserveForItems(
+  supabase: SupabaseClient,
+  userId: string,
+  items: ReserveItem[],
+  note: string
+) {
+  for (const item of items) {
+    if (!item.product_id) continue;
+    const qty = Math.max(0, Number(item.qty) - Math.max(0, Number(item.shipped_qty ?? 0)));
+    const res = await runAdjustInventory(supabase, userId, item.product_id, 'reserve', qty, note);
+    if (!res.ok) return res;
+  }
+  return { ok: true as const };
+}
+
+async function applyReleaseForItems(
+  supabase: SupabaseClient,
+  userId: string,
+  items: ReserveItem[],
+  note: string
+) {
+  for (const item of items) {
+    if (!item.product_id) continue;
+    const qty = Math.max(0, Number(item.qty) - Math.max(0, Number(item.shipped_qty ?? 0)));
+    const res = await runAdjustInventory(supabase, userId, item.product_id, 'release', qty, note);
+    if (!res.ok) return res;
+  }
+  return { ok: true as const };
+}
+
 export async function getOrderCodePreview(): Promise<string | null> {
   const supabase = createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -201,6 +259,31 @@ export async function updateCustomerOrderStatus(id: string, status: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '請先登入' };
 
+  const { data: order, error: orderErr } = await supabase
+    .from('customer_orders')
+    .select('id, order_code, status')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (orderErr || !order) return { error: '找不到訂單' };
+
+  const prevStatus = String((order as { status?: string }).status ?? '').toLowerCase();
+  const nextStatus = String(status ?? '').toLowerCase();
+
+  if (nextStatus === 'cancelled' && prevStatus !== 'cancelled') {
+    const { data: items } = await supabase
+      .from('customer_order_items')
+      .select('product_id, qty, shipped_qty')
+      .eq('order_id', id);
+    const releaseRes = await applyReleaseForItems(
+      supabase,
+      user.id,
+      (items ?? []) as ReserveItem[],
+      `訂單取消釋放保留（${(order as { order_code?: string }).order_code ?? id}）`
+    );
+    if (!releaseRes.ok) return { error: releaseRes.error || '釋放保留庫存失敗' };
+  }
+
   const { error } = await supabase
     .from('customer_orders')
     .update({ status })
@@ -250,10 +333,10 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
   if (delta > 0 && (item as { product_id?: string | null }).product_id) {
     const pid = (item as { product_id: string }).product_id;
     const orderCode = (order as { order_code?: string }).order_code ?? '';
-    const { error: rpcErr } = await supabase.rpc('adjust_stock', {
+    const { error: rpcErr } = await supabase.rpc('adjust_inventory', {
       p_product_id: pid,
       p_user_id: user.id,
-      p_type: 'loss',
+      p_type: 'ship',
       p_qty: Math.floor(delta),
       p_note: `客戶訂單出貨${orderCode ? `（${orderCode}）` : ''}`,
     });
@@ -352,6 +435,17 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
 
   if (itemsError) return { error: '建立明細失敗' };
 
+  const reserveRes = await applyReserveForItems(
+    supabase,
+    user.id,
+    itemsToInsert,
+    `新建訂單保留庫存（${orderCode}）`
+  );
+  if (!reserveRes.ok) {
+    await supabase.from('customer_orders').delete().eq('id', order.id).eq('user_id', user.id);
+    return { error: reserveRes.error || '保留庫存失敗，已回滾訂單' };
+  }
+
   await refreshMemberStats(values.member_id || null, supabase);
 
   revalidatePath('/dashboard/orders');
@@ -364,40 +458,8 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '請先登入' };
 
-  const { data: existing } = await supabase
-    .from('customer_orders')
-    .select('member_id')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .maybeSingle();
-  const prevMemberId = (existing as { member_id?: string | null } | null)?.member_id ?? null;
-
   const { subtotal, tax_amount, total } = calcTotals(values);
-
-  const { error: updateError } = await supabase
-    .from('customer_orders')
-    .update({
-      advance_date: values.advance_date || null,
-      undertaker: values.undertaker?.trim() || null,
-      member_id: values.member_id || null,
-      currency: values.currency,
-      tax_type: values.tax_type,
-      taxrate: values.taxrate,
-      subtotal,
-      tax_amount,
-      total,
-      sales_channel: values.sales_channel,
-      note: values.note?.trim() || null,
-      status: values.status ?? 'pending',
-    })
-    .eq('id', id)
-    .eq('user_id', user.id);
-
-  if (updateError) return { error: '更新訂單失敗' };
-
-  await supabase.from('customer_order_items').delete().eq('order_id', id);
   const itemsToInsert = values.items.map((item) => ({
-    order_id: id,
     product_id: item.product_id || null,
     product_code: item.product_code || null,
     product_name: item.product_name,
@@ -409,17 +471,34 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
     subtotal: calcItemSubtotal(item),
     note: item.note?.trim() || null,
   }));
-  const { error: itemsError } = await supabase
-    .from('customer_order_items')
-    .insert(itemsToInsert);
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('update_customer_order_atomic', {
+    p_user_id: user.id,
+    p_order_id: id,
+    p_advance_date: values.advance_date || null,
+    p_undertaker: values.undertaker?.trim() || null,
+    p_member_id: values.member_id || null,
+    p_currency: values.currency,
+    p_tax_type: values.tax_type,
+    p_taxrate: values.taxrate,
+    p_subtotal: subtotal,
+    p_tax_amount: tax_amount,
+    p_total: total,
+    p_sales_channel: values.sales_channel,
+    p_note: values.note?.trim() || null,
+    p_status: values.status ?? 'pending',
+    p_items: itemsToInsert,
+  });
+  if (rpcErr) return { error: rpcErr.message || '更新訂單失敗' };
 
-  if (itemsError) return { error: '更新明細失敗' };
-
+  const prevMemberId = ((rpcRes as { prev_member_id?: string | null } | null)?.prev_member_id ?? null) as string | null;
+  const nextMemberId = ((rpcRes as { member_id?: string | null } | null)?.member_id ?? values.member_id ?? null) as string | null;
   await refreshMemberStats(prevMemberId, supabase);
-  await refreshMemberStats(values.member_id || null, supabase);
+  await refreshMemberStats(nextMemberId, supabase);
 
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${id}`);
+  revalidatePath('/dashboard/inventory');
+  revalidatePath('/dashboard/pos/inventory');
   revalidatePath('/dashboard/members');
   return { success: true };
 }
@@ -431,11 +510,24 @@ export async function deleteCustomerOrder(id: string) {
 
   const { data: existing } = await supabase
     .from('customer_orders')
-    .select('member_id')
+    .select('member_id, order_code')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
   const memberId = (existing as { member_id?: string | null } | null)?.member_id ?? null;
+  const orderCode = (existing as { order_code?: string | null } | null)?.order_code ?? id;
+
+  const { data: items } = await supabase
+    .from('customer_order_items')
+    .select('product_id, qty, shipped_qty')
+    .eq('order_id', id);
+  const releaseRes = await applyReleaseForItems(
+    supabase,
+    user.id,
+    (items ?? []) as ReserveItem[],
+    `刪除訂單釋放保留（${orderCode}）`
+  );
+  if (!releaseRes.ok) return { error: releaseRes.error || '釋放保留庫存失敗' };
 
   const { error } = await supabase
     .from('customer_orders')

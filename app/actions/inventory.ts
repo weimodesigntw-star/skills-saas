@@ -1,6 +1,6 @@
 /**
  * 庫存 Server Actions
- * 依賴 migration 018 stock_adjustments、019 adjust_stock RPC
+ * 依賴 migration 018 stock_adjustments、050 adjust_inventory RPC
  */
 
 'use server';
@@ -135,7 +135,7 @@ export async function adjustStock(
   if (qtyNum < 0 && type !== 'manual') return { error: '數量需為正整數' };
   if (type === 'manual' && qtyNum < 0) return { error: '手動設定庫存不可為負' };
 
-  const { data: result, error } = await supabase.rpc('adjust_stock', {
+  const { data: result, error } = await supabase.rpc('adjust_inventory', {
     p_product_id: productId,
     p_user_id: user.id,
     p_type: type,
@@ -144,7 +144,8 @@ export async function adjustStock(
   });
 
   if (error) return { error: error.message };
-  return { qtyAfter: Number(result) };
+  const physical = Number((result as { physical_stock?: number } | null)?.physical_stock ?? 0);
+  return { qtyAfter: physical };
 }
 
 export type StockHistoryRecord = {
