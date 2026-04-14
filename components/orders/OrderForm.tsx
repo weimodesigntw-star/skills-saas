@@ -154,7 +154,7 @@ export function OrderForm({
     form.setValue(`items.${pickerRowIndex}.product_id`, product.id);
     form.setValue(`items.${pickerRowIndex}.product_code`, product.product_code ?? '');
     form.setValue(`items.${pickerRowIndex}.product_name`, product.name);
-    form.setValue(`items.${pickerRowIndex}.unit_price`, product.price);
+    form.setValue(`items.${pickerRowIndex}.unit_price`, Math.round(Number(product.price) || 0));
     setPickerRowIndex(null);
   };
 

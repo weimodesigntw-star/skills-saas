@@ -138,8 +138,8 @@ function OrderItemRow({
       <td className="py-1 px-2">
         <Input
           type="number"
-          step="0.01"
-          min="0.01"
+          step="1"
+          min="1"
           className="h-8 text-right"
           {...control.register(`items.${index}.qty`)}
         />
@@ -159,7 +159,7 @@ function OrderItemRow({
       <td className="py-1 px-2">
         <Input
           type="number"
-          step="0.01"
+          step="1"
           min="0"
           className="h-8 text-right"
           {...control.register(`items.${index}.unit_price`)}
