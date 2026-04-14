@@ -9,6 +9,11 @@ import { formatNTD } from '@/lib/constants';
 
 type FormValues = CustomerOrderFormValues;
 
+function normalizeIntegerInput(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.round(num) : fallback;
+}
+
 interface OrderItemsTableProps {
   onOpenProductPicker: (rowIndex: number) => void;
   showShippedQty?: boolean;
@@ -141,7 +146,11 @@ function OrderItemRow({
           step="1"
           min="1"
           className="h-8 text-right"
-          {...control.register(`items.${index}.qty`)}
+          {...control.register(`items.${index}.qty`, {
+            onChange: (e) => {
+              e.target.value = String(normalizeIntegerInput(e.target.valueAsNumber, 1));
+            },
+          })}
         />
       </td>
       {showShippedQty && (
@@ -152,7 +161,11 @@ function OrderItemRow({
             min="0"
             max={Number(qty) || 0}
             className={`h-8 w-20 text-right ml-auto ${isOverShipped ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-            {...control.register(`items.${index}.shipped_qty`)}
+            {...control.register(`items.${index}.shipped_qty`, {
+              onChange: (e) => {
+                e.target.value = String(normalizeIntegerInput(e.target.valueAsNumber, 0));
+              },
+            })}
           />
         </td>
       )}
@@ -162,7 +175,11 @@ function OrderItemRow({
           step="1"
           min="0"
           className="h-8 text-right"
-          {...control.register(`items.${index}.unit_price`)}
+          {...control.register(`items.${index}.unit_price`, {
+            onChange: (e) => {
+              e.target.value = String(normalizeIntegerInput(e.target.valueAsNumber, 0));
+            },
+          })}
         />
       </td>
       <td className="py-1 px-2">
@@ -172,7 +189,11 @@ function OrderItemRow({
           min="0"
           max="100"
           className="h-8 text-right"
-          {...control.register(`items.${index}.discount_pct`)}
+          {...control.register(`items.${index}.discount_pct`, {
+            onChange: (e) => {
+              e.target.value = String(normalizeIntegerInput(e.target.valueAsNumber, 100));
+            },
+          })}
         />
       </td>
       <td className="py-1 px-2 text-right font-medium">{formatNTD(subtotal)}</td>
