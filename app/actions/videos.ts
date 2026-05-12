@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { parseVideoUrl, getYouTubeThumbnail } from '@/lib/video-utils';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * Video type from database
@@ -35,8 +36,8 @@ export interface Video {
 export async function getVideosList() {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -44,7 +45,7 @@ export async function getVideosList() {
   let result = await supabase
     .from('videos')
     .select('*, video_categories(name)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
@@ -53,7 +54,7 @@ export async function getVideosList() {
     result = await supabase
       .from('videos')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
   }
@@ -79,8 +80,8 @@ export async function getVideosList() {
 export async function getVideoById(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -89,7 +90,7 @@ export async function getVideoById(id: string) {
     .from('videos')
     .select('*, video_categories(name)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (result.error) {
@@ -97,7 +98,7 @@ export async function getVideoById(id: string) {
       .from('videos')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .maybeSingle();
   }
 
@@ -124,15 +125,15 @@ export async function getVideoById(id: string) {
 export async function searchVideos(query: string, excludeId?: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
   let queryBuilder = supabase
     .from('videos')
     .select('id, title, category_id, is_published, published_at, video_categories(name)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .ilike('title', `%${query}%`)
     .limit(10);
 
@@ -146,7 +147,7 @@ export async function searchVideos(query: string, excludeId?: string) {
     let fallbackBuilder = supabase
       .from('videos')
       .select('id, title, is_published, published_at')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .ilike('title', `%${query}%`)
       .limit(10);
 
@@ -175,8 +176,8 @@ export async function searchVideos(query: string, excludeId?: string) {
 export async function getRelatedVideos(videoId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -184,7 +185,7 @@ export async function getRelatedVideos(videoId: string) {
     .from('video_related')
     .select('related_video_id, videos!video_related_related_video_id_fkey(id, title, category_id, published_at, video_categories(name))')
     .eq('video_id', videoId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true });
 
   if (error) {
@@ -207,8 +208,8 @@ export async function getRelatedVideos(videoId: string) {
 export async function addRelatedVideo(videoId: string, relatedVideoId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -217,7 +218,7 @@ export async function addRelatedVideo(videoId: string, relatedVideoId: string) {
     .insert({
       video_id: videoId,
       related_video_id: relatedVideoId,
-      user_id: user.id,
+      user_id: ownerId,
     });
 
   if (error) {
@@ -236,8 +237,8 @@ export async function addRelatedVideo(videoId: string, relatedVideoId: string) {
 export async function removeRelatedVideo(videoId: string, relatedVideoId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -246,7 +247,7 @@ export async function removeRelatedVideo(videoId: string, relatedVideoId: string
     .delete()
     .eq('video_id', videoId)
     .eq('related_video_id', relatedVideoId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to remove related video: ${error.message}`);
@@ -328,8 +329,8 @@ async function deleteThumbnail(imageUrl: string) {
 export async function createVideo(formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -352,7 +353,7 @@ export async function createVideo(formData: FormData) {
   const { platform, embedId } = parseVideoUrl(video_url || '');
 
   const insertData: Record<string, any> = {
-    user_id: user.id,
+    user_id: ownerId,
     title: title.trim(),
     description: description || '',
     video_url: video_url || '',
@@ -388,7 +389,7 @@ export async function createVideo(formData: FormData) {
     const basicResult = await supabase
       .from('videos')
       .insert({
-        user_id: user.id,
+        user_id: ownerId,
         title: title.trim(),
         description: description || '',
         video_url: video_url || '',
@@ -410,7 +411,7 @@ export async function createVideo(formData: FormData) {
   // Upload custom thumbnail if provided
   if (imageFile && imageFile.size > 0) {
     try {
-      const imageUrl = await uploadThumbnail(user.id, data.id, imageFile);
+      const imageUrl = await uploadThumbnail(ownerId, data.id, imageFile);
       const { data: updated, error: updateError } = await supabase
         .from('videos')
         .update({ thumbnail_url: imageUrl })
@@ -443,8 +444,8 @@ export async function createVideo(formData: FormData) {
 export async function updateVideo(id: string, formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -452,7 +453,7 @@ export async function updateVideo(id: string, formData: FormData) {
     .from('videos')
     .select('id, is_published, thumbnail_url')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!existing) {
@@ -515,7 +516,7 @@ export async function updateVideo(id: string, formData: FormData) {
       await deleteThumbnail(existing.thumbnail_url);
     }
     try {
-      const imageUrl = await uploadThumbnail(user.id, id, imageFile);
+      const imageUrl = await uploadThumbnail(ownerId, id, imageFile);
       updateData.thumbnail_url = imageUrl;
     } catch (err) {
       console.error('Thumbnail upload failed:', err);
@@ -526,7 +527,7 @@ export async function updateVideo(id: string, formData: FormData) {
     .from('videos')
     .update(updateData)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select('*')
     .single();
 
@@ -546,7 +547,7 @@ export async function updateVideo(id: string, formData: FormData) {
       .from('videos')
       .update(basicData)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .select('*')
       .single();
   }
@@ -571,8 +572,8 @@ export async function updateVideo(id: string, formData: FormData) {
 export async function deleteVideo(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -580,7 +581,7 @@ export async function deleteVideo(id: string) {
     .from('videos')
     .select('thumbnail_url')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (existing?.thumbnail_url && !existing.thumbnail_url.includes('img.youtube.com')) {
@@ -591,7 +592,7 @@ export async function deleteVideo(id: string) {
     .from('videos')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete video: ${error.message}`);

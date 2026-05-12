@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { ReceivableWriteoffFormValues } from '@/lib/schemas/receivable-writeoff';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /** 沖帳列表列（含首筆明細單號：出貨單號或訂單號，存於 ship_code 欄） */
 export type WriteoffListRow = {
@@ -39,10 +40,8 @@ export async function fetchWriteoffs(params?: {
   sortDir?: string;
 }) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { writeoffs: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { writeoffs: [], total: 0, page: 1, pageSize: 20 };
 
   const { memberId, dateFrom, dateTo, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
@@ -57,7 +56,7 @@ export async function fetchWriteoffs(params?: {
     .select('*, members(id, name, client_code), receivable_writeoff_items(ship_code, customer_order_id)', {
       count: 'exact',
     })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order(sortCol, { ascending })
     .range(from, from + pageSize - 1);
 
@@ -104,16 +103,14 @@ export async function fetchWriteoffs(params?: {
 
 export async function fetchWriteoffById(id: string) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data: writeoff, error: wError } = await supabase
     .from('receivable_writeoffs')
     .select('*, members(id, name, client_code)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (wError || !writeoff) return null;
@@ -129,15 +126,13 @@ export async function fetchWriteoffById(id: string) {
 
 export async function fetchPendingShipmentsByMember(memberId: string) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data } = await supabase
     .from('shipments')
     .select('id, ship_code, ship_date, total, amt_recd, amt_outstanding')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('member_id', memberId)
     .eq('status', 'valid')
     .gt('amt_outstanding', 0)
@@ -156,15 +151,13 @@ export async function fetchPendingShipmentsByMember(memberId: string) {
 /** 待收客戶訂單（total - amt_recd > 0） */
 export async function fetchPendingCustomerOrdersByMember(memberId: string) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data, error } = await supabase
     .from('customer_orders')
     .select('id, order_code, advance_date, total, amt_recd')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('member_id', memberId)
     .neq('status', 'cancelled')
     .order('advance_date', { ascending: false });
@@ -190,10 +183,8 @@ export async function fetchPendingCustomerOrdersByMember(memberId: string) {
 
 export async function createWriteoff(values: ReceivableWriteoffFormValues) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const p_items = values.items.map((i) => {
     if (i.customer_order_id && String(i.customer_order_id).trim()) {
@@ -203,7 +194,7 @@ export async function createWriteoff(values: ReceivableWriteoffFormValues) {
   });
 
   const { data, error } = await supabase.rpc('execute_receivable_writeoff', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_member_id: values.member_id,
     p_writeoff_date: values.writeoff_date,
     p_items,
@@ -226,16 +217,14 @@ export async function createWriteoff(values: ReceivableWriteoffFormValues) {
 
 export async function deleteWriteoff(id: string) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: writeoff, error: fetchError } = await supabase
     .from('receivable_writeoffs')
     .select('id, created_at')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (fetchError || !writeoff) return { error: '找不到沖帳單' };
@@ -289,7 +278,7 @@ export async function deleteWriteoff(id: string) {
     .from('receivable_writeoffs')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (deleteError) return { error: '刪除失敗' };
   revalidatePath('/dashboard/receivables');

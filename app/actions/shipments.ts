@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { ShipmentFormValues } from '@/lib/schemas/shipment';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export async function fetchShipments(params?: {
   status?: string;
@@ -13,8 +14,8 @@ export async function fetchShipments(params?: {
   pageSize?: number;
 }) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { shipments: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { shipments: [], total: 0, page: 1, pageSize: 20 };
 
   const { status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
@@ -22,7 +23,7 @@ export async function fetchShipments(params?: {
   let query = supabase
     .from('shipments')
     .select('*, members(id, name, client_code)', { count: 'exact' })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
     .range(from, from + pageSize - 1);
 
@@ -38,14 +39,14 @@ export async function fetchShipments(params?: {
 
 export async function fetchShipmentById(id: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data: shipment, error: shipError } = await supabase
     .from('shipments')
     .select('*, members(id, name, client_code)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (shipError || !shipment) return null;
@@ -64,8 +65,8 @@ export async function createShipmentFromOrder(
   formValues: { ship_date?: string; depot_id?: string; note?: string; items: { order_item_id: string; product_id: string; qty: number; unit_price: number }[] }
 ) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const p_items = formValues.items.map((i) => ({
     order_item_id: i.order_item_id,
@@ -78,7 +79,7 @@ export async function createShipmentFromOrder(
   const p_note = formValues.note?.trim() || null;
 
   const { data, error } = await supabase.rpc('create_shipment_from_order', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_order_id: orderId,
     p_ship_date: p_ship_date,
     p_depot_id: p_depot_id,
@@ -99,11 +100,11 @@ export async function createShipmentFromOrder(
 
 export async function createShipmentManual(values: ShipmentFormValues) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: shipCodeData, error: codeError } = await supabase.rpc('generate_ship_code', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_prefix: 'BA202',
   });
   if (codeError || shipCodeData == null) return { error: '產生出貨單號失敗' };
@@ -120,7 +121,7 @@ export async function createShipmentManual(values: ShipmentFormValues) {
   const { data: shipment, error: shipError } = await supabase
     .from('shipments')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       ship_code: shipCode,
       ship_date: values.ship_date || null,
       depot_id: values.depot_id || null,
@@ -163,14 +164,14 @@ export async function receivePayment(
   note?: string
 ) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: row, error: fetchError } = await supabase
     .from('shipments')
     .select('amt_recd, amt_outstanding')
     .eq('id', shipmentId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (fetchError || !row) return { error: '找不到出貨單' };
@@ -187,7 +188,7 @@ export async function receivePayment(
     .from('shipments')
     .update({ amt_recd: newRecd, amt_outstanding: newOut })
     .eq('id', shipmentId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (updateError) return { error: '更新失敗' };
   revalidatePath('/dashboard/shipments');
@@ -197,14 +198,14 @@ export async function receivePayment(
 
 export async function voidShipment(shipmentId: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: shipment, error: fetchError } = await supabase
     .from('shipments')
     .select('id, status, source_order_id')
     .eq('id', shipmentId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (fetchError || !shipment) return { error: '找不到出貨單' };
@@ -234,12 +235,12 @@ export async function voidShipment(shipmentId: string) {
     .from('shipments')
     .update({ status: 'void' })
     .eq('id', shipmentId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (updateError) return { error: '作廢失敗' };
 
   if (shipment.source_order_id) {
-    await supabase.from('customer_orders').update({ status: 'pending' }).eq('id', shipment.source_order_id).eq('user_id', user.id);
+    await supabase.from('customer_orders').update({ status: 'pending' }).eq('id', shipment.source_order_id).eq('user_id', ownerId);
   }
 
   revalidatePath('/dashboard/shipments');

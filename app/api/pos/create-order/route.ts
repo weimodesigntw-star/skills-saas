@@ -7,13 +7,14 @@
 
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import { revalidatePath } from 'next/cache';
 
 export async function POST(request: Request) {
   try {
     const supabase = createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { user, ownerId } = await getAuthAndWorkspace(supabase);
+    if (!ownerId || !user) {
       return NextResponse.json({ error: '未登入' }, { status: 401 });
     }
 
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
     const { data: order, error: orderErr } = await supabase
       .from('orders')
       .insert({
-        user_id: user.id,
+        user_id: ownerId,
         order_no: orderNum,
         order_number: orderNum,
         status: 'paid',

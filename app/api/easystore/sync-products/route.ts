@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { extractEasyStoreProductImageUrl } from '@/lib/easystore/extract-product-image-url';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 
@@ -40,16 +41,14 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
   const { data: integration, error: integErr } = await admin
     .from('easystore_integrations')
     .select('shop, access_token')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (integErr) return NextResponse.json({ error: integErr.message }, { status: 500 });
@@ -65,7 +64,7 @@ export async function POST(req: NextRequest) {
     const { data: syncState, error: syncStateErr } = await admin
       .from('easystore_sync_state')
       .select('last_synced_at')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .eq('resource', 'products')
       .maybeSingle();
     if (syncStateErr) {
@@ -112,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (products.length === 0) break;
     totalFetched += products.length;
 
-    const rows = products.map((p) => toProductRow(p, user.id));
+    const rows = products.map((p) => toProductRow(p, ownerId));
     const { error: upsertErr } = await admin
       .from('products')
       .upsert(rows, { onConflict: 'user_id,easystore_product_id' });
@@ -135,7 +134,7 @@ export async function POST(req: NextRequest) {
   if (!partial || synced > 0) {
     const { error: upsertStateErr } = await admin.from('easystore_sync_state').upsert(
       {
-        user_id: user.id,
+        user_id: ownerId,
         resource: 'products',
         last_synced_at: syncStartedAt,
         synced_count: synced,

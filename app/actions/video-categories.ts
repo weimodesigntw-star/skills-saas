@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export interface VideoCategory {
   id: string;
@@ -18,15 +19,15 @@ export interface VideoCategory {
 export async function getVideoCategories() {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
   const { data, error } = await supabase
     .from('video_categories')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
 
@@ -45,8 +46,8 @@ export async function getVideoCategories() {
 export async function createVideoCategory(name: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -57,7 +58,7 @@ export async function createVideoCategory(name: string) {
   const { data, error } = await supabase
     .from('video_categories')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       name: name.trim(),
     })
     .select()
@@ -80,8 +81,8 @@ export async function createVideoCategory(name: string) {
 export async function updateVideoCategory(id: string, name: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -93,7 +94,7 @@ export async function updateVideoCategory(id: string, name: string) {
     .from('video_categories')
     .update({ name: name.trim() })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single();
 
@@ -111,8 +112,8 @@ export async function updateVideoCategory(id: string, name: string) {
 export async function deleteVideoCategory(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -120,7 +121,7 @@ export async function deleteVideoCategory(id: string) {
     .from('video_categories')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete category: ${error.message}`);

@@ -1,5 +1,6 @@
 import { fetchMembers } from '@/app/actions/customer-members';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MembersClient } from './MembersClient';
 import { Users } from 'lucide-react';
@@ -21,9 +22,9 @@ interface PageProps {
 
 export default async function MembersPage({ searchParams }: PageProps) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { ownerId } = await getAuthAndWorkspace(supabase);
 
-  if (!user) {
+  if (!ownerId) {
     return (
       <div className="container mx-auto py-8 px-4">
         <EmptyState
@@ -54,7 +55,7 @@ export default async function MembersPage({ searchParams }: PageProps) {
   const { data: customersSyncState } = await supabase
     .from('easystore_sync_state')
     .select('last_synced_at, synced_count')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('resource', 'customers')
     .maybeSingle();
 

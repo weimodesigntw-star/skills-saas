@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { getProductIdsWithAllTags } from '@/app/actions/product-tags';
 import { z } from 'zod';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * Product validation schema
@@ -89,8 +90,8 @@ export interface Product {
 export async function getProducts(options?: ProductQueryOptions) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -128,7 +129,7 @@ export async function getProducts(options?: ProductQueryOptions) {
       `,
       { count: 'exact' }
     )
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order(sortCol, { ascending });
 
   if (tagRestrictedIds !== null) {
@@ -177,10 +178,8 @@ export async function getProducts(options?: ProductQueryOptions) {
 /** O-002：批次上架／下架 */
 export async function batchUpdateProductStatus(ids: string[], isActive: boolean) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
   if (!ids?.length) return { error: '未選擇商品' };
   const unique = [...new Set(ids)].filter(Boolean);
   if (unique.length > 200) return { error: '單次最多 200 筆' };
@@ -188,7 +187,7 @@ export async function batchUpdateProductStatus(ids: string[], isActive: boolean)
   const { error } = await supabase
     .from('products')
     .update({ is_active: isActive })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .in('id', unique);
 
   if (error) return { error: error.message || '更新失敗' };
@@ -202,8 +201,8 @@ export async function batchUpdateProductStatus(ids: string[], isActive: boolean)
 export async function getProduct(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -216,7 +215,7 @@ export async function getProduct(id: string) {
       `
     )
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (error) {
@@ -236,8 +235,8 @@ export async function getProduct(id: string) {
 export async function createProduct(formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -282,7 +281,7 @@ export async function createProduct(formData: FormData) {
       .from('products')
       .select('id')
       .eq('barcode', validated.barcode)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .maybeSingle();
 
     if (existingBarcode) {
@@ -302,7 +301,7 @@ export async function createProduct(formData: FormData) {
       .replace(/\.[^.]+$/, '')
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       .slice(0, 50) || 'image';
-    const filename = `${user.id}/${timestamp}-${safeName}.${ext}`;
+    const filename = `${ownerId}/${timestamp}-${safeName}.${ext}`;
 
     const { data, error: uploadError } = await adminClient.storage
       .from('product-images')
@@ -327,7 +326,7 @@ export async function createProduct(formData: FormData) {
   const { data, error } = await supabase
     .from('products')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       name: validated.name,
       description: validated.description || null,
       barcode: validated.barcode || null,
@@ -365,8 +364,8 @@ export async function createProduct(formData: FormData) {
 export async function updateProduct(id: string, formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -375,7 +374,7 @@ export async function updateProduct(id: string, formData: FormData) {
     .from('products')
     .select('id, image_url')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!existing) {
@@ -424,7 +423,7 @@ export async function updateProduct(id: string, formData: FormData) {
       .from('products')
       .select('id')
       .eq('barcode', validated.barcode)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .neq('id', id)
       .maybeSingle();
 
@@ -469,7 +468,7 @@ export async function updateProduct(id: string, formData: FormData) {
       .replace(/\.[^.]+$/, '')
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       .slice(0, 50) || 'image';
-    const filename = `${user.id}/${timestamp}-${safeName}.${ext}`;
+    const filename = `${ownerId}/${timestamp}-${safeName}.${ext}`;
 
     const { data, error: uploadError } = await adminClient.storage
       .from('product-images')
@@ -514,7 +513,7 @@ export async function updateProduct(id: string, formData: FormData) {
       depot_id: depot_id || null,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single();
 
@@ -533,8 +532,8 @@ export async function updateProduct(id: string, formData: FormData) {
 export async function deleteProduct(id: string, hardDelete = false) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -544,7 +543,7 @@ export async function deleteProduct(id: string, hardDelete = false) {
       .from('products')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', ownerId);
 
     if (error) {
       throw new Error(`Failed to delete product: ${error.message}`);
@@ -555,7 +554,7 @@ export async function deleteProduct(id: string, hardDelete = false) {
       .from('products')
       .update({ is_active: false })
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', ownerId);
 
     if (error) {
       throw new Error(`Failed to delete product: ${error.message}`);

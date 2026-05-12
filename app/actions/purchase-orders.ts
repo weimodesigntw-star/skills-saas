@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { PurchaseOrderFormValues } from '@/lib/schemas/purchase-order';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 const PURCHASE_SORT_COLUMNS = ['receive_day', 'total', 'amt_unpaid', 'created_at'] as const;
 
@@ -18,8 +19,8 @@ export async function fetchPurchaseOrders(params?: {
   sortDir?: string;
 }) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { purchases: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { purchases: [], total: 0, page: 1, pageSize: 20 };
 
   const { vendorId, status, dateFrom, dateTo, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
@@ -32,7 +33,7 @@ export async function fetchPurchaseOrders(params?: {
   let query = supabase
     .from('purchase_orders')
     .select('*, vendors(id, vendor_code, vendor_name)', { count: 'exact' })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order(sortCol, { ascending })
     .range(from, from + pageSize - 1);
 
@@ -58,14 +59,14 @@ export async function fetchPurchaseOrders(params?: {
 
 export async function fetchPurchaseOrderById(id: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data: purchase, error } = await supabase
     .from('purchase_orders')
     .select('*, vendors(id, vendor_code, vendor_name)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (error || !purchase) return null;
@@ -81,10 +82,10 @@ export async function fetchPurchaseOrderById(id: string) {
 
 export async function getPurchaseCodePreview(): Promise<string | null> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
   const { data, error } = await supabase.rpc('generate_purchase_code', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_prefix: 'CA202',
   });
   if (error || data == null) return null;
@@ -93,8 +94,8 @@ export async function getPurchaseCodePreview(): Promise<string | null> {
 
 export async function createPurchaseOrder(values: PurchaseOrderFormValues) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const vendorId = values.vendor_id || null;
   let vendorName = '';
@@ -113,7 +114,7 @@ export async function createPurchaseOrder(values: PurchaseOrderFormValues) {
   }));
 
   const { data, error } = await supabase.rpc('create_purchase_order', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_vendor_id: vendorId,
     p_vendor_name: vendorName,
     p_receive_day: values.receive_day || null,
@@ -135,14 +136,14 @@ export async function createPurchaseOrder(values: PurchaseOrderFormValues) {
 
 export async function payPurchaseOrder(id: string, amt: number) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: row, error: fetchError } = await supabase
     .from('purchase_orders')
     .select('amt_paid, amt_unpaid')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (fetchError || !row) return { error: '找不到採購單' };
@@ -156,7 +157,7 @@ export async function payPurchaseOrder(id: string, amt: number) {
     .from('purchase_orders')
     .update({ amt_paid: newPaid, amt_unpaid: newUnpaid })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (updateError) return { error: '更新失敗' };
   revalidatePath('/dashboard/purchases');
@@ -166,14 +167,14 @@ export async function payPurchaseOrder(id: string, amt: number) {
 
 export async function voidPurchaseOrder(id: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: purchase, error: fetchError } = await supabase
     .from('purchase_orders')
     .select('id, status')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (fetchError || !purchase) return { error: '找不到採購單' };
@@ -198,7 +199,7 @@ export async function voidPurchaseOrder(id: string) {
     .from('purchase_orders')
     .update({ status: 'void' })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (updateError) return { error: '作廢失敗' };
   revalidatePath('/dashboard/purchases');
@@ -226,7 +227,7 @@ export async function getPurchasePrefillFromProductIds(productIds: string[]): Pr
   const { data } = await supabase
     .from('products')
     .select('id, name, product_code, unit_name, purchase_price, stock, low_stock_threshold')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .in('id', unique);
 
   const map = new Map((data ?? []).map((p) => [p.id as string, p]));
@@ -256,12 +257,12 @@ export async function getPurchasePrefillLowStock(maxLines = 60): Promise<Purchas
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!ownerId) return [];
 
   const { data } = await supabase
     .from('products')
     .select('id, name, product_code, unit_name, purchase_price, stock, low_stock_threshold')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .limit(500);
 
   const low = (data ?? []).filter((p) => {

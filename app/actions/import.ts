@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /** ERP 產品資料列（Excel 標題對應，使用 ASCII key） */
 export type ImportProductRow = {
@@ -45,8 +46,8 @@ export type ImportResult = {
 /** 批次匯入產品 */
 export async function importProducts(rows: ImportProductRow[]): Promise<ImportResult | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   let success = 0;
   let failed = 0;
@@ -117,7 +118,7 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
     const { data: existingCats } = await supabase
       .from('categories')
       .select('id, name')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .in('name', categoryNames);
 
     existingCats?.forEach((c) => {
@@ -126,7 +127,7 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
 
     const missingNames = categoryNames.filter((n) => !categoryMap.has(n));
     if (missingNames.length > 0) {
-      const toInsert = missingNames.map((name) => ({ user_id: user.id, name }));
+      const toInsert = missingNames.map((name) => ({ user_id: ownerId, name }));
       const { data: inserted, error: catError } = await supabase
         .from('categories')
         .insert(toInsert)
@@ -150,7 +151,7 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
     const categoryId = row.categoryName ? categoryMap.get(row.categoryName) ?? null : null;
 
     const payload = {
-      user_id: user.id,
+      user_id: ownerId,
       name: row.name,
       product_code: row.productCode || null,
       description,
@@ -209,8 +210,8 @@ export async function importProducts(rows: ImportProductRow[]): Promise<ImportRe
 /** 批次匯入會員 */
 export async function importMembers(rows: ImportMemberRow[]): Promise<ImportResult | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   let success = 0;
   let failed = 0;
@@ -228,7 +229,7 @@ export async function importMembers(rows: ImportMemberRow[]): Promise<ImportResu
     const isActive = disable !== '1';
 
     const payload = {
-      user_id: user.id,
+      user_id: ownerId,
       name,
       client_code: clientCode || null,
       client_cat: (row.客戶類別 ?? '').toString().trim() || null,
@@ -246,7 +247,7 @@ export async function importMembers(rows: ImportMemberRow[]): Promise<ImportResu
       const { data: existing } = await supabase
         .from('members')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('client_code', clientCode)
         .maybeSingle();
       if (existing?.id) {

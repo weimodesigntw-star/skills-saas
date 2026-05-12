@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export interface NewsCategory {
   id: string;
@@ -18,15 +19,15 @@ export interface NewsCategory {
 export async function getNewsCategories() {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
   const { data, error } = await supabase
     .from('news_categories')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
 
@@ -45,8 +46,8 @@ export async function getNewsCategories() {
 export async function createNewsCategory(name: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -57,7 +58,7 @@ export async function createNewsCategory(name: string) {
   const { data, error } = await supabase
     .from('news_categories')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       name: name.trim(),
     })
     .select()
@@ -81,8 +82,8 @@ export async function createNewsCategory(name: string) {
 export async function updateNewsCategory(id: string, name: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -94,7 +95,7 @@ export async function updateNewsCategory(id: string, name: string) {
     .from('news_categories')
     .update({ name: name.trim() })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single();
 
@@ -112,8 +113,8 @@ export async function updateNewsCategory(id: string, name: string) {
 export async function deleteNewsCategory(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -121,7 +122,7 @@ export async function deleteNewsCategory(id: string) {
     .from('news_categories')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete category: ${error.message}`);

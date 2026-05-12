@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { AIGenerationRequestSchema, AIGenerationResponseSchema } from '@/lib/validations/spec';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * POST /api/specifications/ai/generate
@@ -25,9 +26,9 @@ import { createServerClient } from '@/lib/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const { ownerId } = await getAuthAndWorkspace(supabase);
+
+    if (!ownerId) {
       return NextResponse.json(
         { error: 'Unauthorized', details: '請先登入' },
         { status: 401 }
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // 記錄生成日誌（即使失敗也記錄）
     await supabase.from('ai_generation_logs').insert({
-      user_id: user.id,
+      user_id: ownerId,
       input_type: validatedInput.input_type,
       input_text: validatedInput.input_text,
       input_image_url: validatedInput.input_image_url,

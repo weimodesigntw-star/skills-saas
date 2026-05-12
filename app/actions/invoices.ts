@@ -12,6 +12,7 @@
 
 import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import { getNextInvoiceNumber as getNextFromLegacy, parseInvoiceNumber } from '@/lib/einvoice/track-number';
 import {
   buildInvoicePayload,
@@ -107,8 +108,8 @@ export async function createInvoice(
     const validatedInfo = InvoiceInfoSchema.parse(invoiceInfo);
 
     // 取得當前使用者
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { ownerId } = await getAuthAndWorkspace(supabase);
+    if (!ownerId) {
       return { success: false, error: '未授權' };
     }
 
@@ -117,7 +118,7 @@ export async function createInvoice(
       .from('orders')
       .select('*')
       .eq('id', orderId)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .single();
 
     if (orderError || !order) {
@@ -139,7 +140,7 @@ export async function createInvoice(
     // 取得下一個發票號碼
     let invoiceNumber: string;
     try {
-      invoiceNumber = await getNextFromLegacy(user.id);
+      invoiceNumber = await getNextFromLegacy(ownerId);
     } catch (error) {
       const msg = error instanceof Error ? error.message : '未知錯誤';
       return { success: false, error: `取得癹票號碼失敗: ${msg}` };
@@ -191,7 +192,7 @@ export async function createInvoice(
       .from('invoices')
       .insert({
         order_id: orderId,
-        user_id: user.id,
+        user_id: ownerId,
         invoice_number: invoiceNumber,
         invoice_date: now.toISOString().split('T')[0],
         invoice_type: validatedInfo.type || 'B2C',
@@ -242,8 +243,8 @@ export async function voidInvoice(
 
   try {
     // 取得當前使用者
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { ownerId } = await getAuthAndWorkspace(supabase);
+    if (!ownerId) {
       return { success: false, error: '未授權' };
     }
 
@@ -252,7 +253,7 @@ export async function voidInvoice(
       .from('invoices')
       .select('*')
       .eq('id', invoiceId)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .single();
 
     if (invoiceError || !invoice) {
@@ -363,15 +364,15 @@ export async function fetchInvoices(params: {
   const supabase = createServerClient();
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { ownerId } = await getAuthAndWorkspace(supabase);
+    if (!ownerId) {
       return { invoices: [], total: 0, page, pageSize, error: '未授權' };
     }
 
     let query = supabase
       .from('invoices')
       .select('*, orders!order_id(order_number)', { count: 'exact' })
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .order('invoice_date', { ascending: false })
       .range(from, to);
 
@@ -443,8 +444,8 @@ export async function getInvoiceDetail(invoiceId: string): Promise<{
 
   try {
     // 取得當前使用者
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { ownerId } = await getAuthAndWorkspace(supabase);
+    if (!ownerId) {
       return { error: '未授權' };
     }
 
@@ -453,7 +454,7 @@ export async function getInvoiceDetail(invoiceId: string): Promise<{
       .from('invoices')
       .select('*')
       .eq('id', invoiceId)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .single();
 
     if (invoiceError || !invoice) {
@@ -467,7 +468,7 @@ export async function getInvoiceDetail(invoiceId: string): Promise<{
       .from('orders')
       .select('*')
       .eq('id', invoiceRecord.order_id)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .single();
 
     if (orderError || !order) {
@@ -507,14 +508,14 @@ export async function getInvoiceDetail(invoiceId: string): Promise<{
 /** 依訂單 ID 取得該訂單的發票（若已開立） */
 export async function getInvoiceByOrderId(orderId: string): Promise<InvoiceRow | null> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data } = await supabase
     .from('invoices')
     .select('*')
     .eq('order_id', orderId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -532,8 +533,8 @@ export async function issueInvoice(
   buyerInfo?: { buyerName?: string; buyerTaxId?: string }
 ): Promise<{ invoice: InvoiceRow; warning?: string } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '未登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '未登入' };
 
   const sequences = await fetchInvoiceSequences();
   const active = sequences.find((s) => s.is_active);
@@ -548,7 +549,7 @@ export async function issueInvoice(
     .from('orders')
     .select('*')
     .eq('id', orderId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (orderError || !order) return { error: '訂單不存在' };
@@ -564,7 +565,7 @@ export async function issueInvoice(
     .from('invoices')
     .insert({
       order_id: orderId,
-      user_id: user.id,
+      user_id: ownerId,
       invoice_number: invoiceNumber,
       invoice_date: dateStr,
       invoice_type: 'B2C',
@@ -585,7 +586,7 @@ export async function issueInvoice(
     .from('orders')
     .update({ invoice_number: invoiceNumber })
     .eq('id', orderId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   const hasEcpay = !!(process.env.ECPAY_MERCHANT_ID && process.env.ECPAY_HASH_KEY && process.env.ECPAY_HASH_IV);
 

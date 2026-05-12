@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 
@@ -98,16 +99,14 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
   const { data: integration, error: integErr } = await admin
     .from('easystore_integrations')
     .select('shop, access_token')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (integErr) {
@@ -125,7 +124,7 @@ export async function POST(req: NextRequest) {
     const { data: syncState } = await admin
       .from('easystore_sync_state')
       .select('last_synced_at')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .eq('resource', 'orders')
       .maybeSingle();
     sinceDate = (syncState?.last_synced_at as string | null) ?? null;
@@ -204,7 +203,7 @@ export async function POST(req: NextRequest) {
         if (li.sku != null && String(li.sku).trim()) skusInBatch.push(String(li.sku).trim());
       }
     }
-    const skuToProductId = await buildSkuToProductIdMap(admin, user.id, skusInBatch);
+    const skuToProductId = await buildSkuToProductIdMap(admin, ownerId, skusInBatch);
 
     // 先準備要 upsert 的 customer_orders 以及 items
     const orderRows: any[] = [];
@@ -223,7 +222,7 @@ export async function POST(req: NextRequest) {
         const { data: member } = await admin
           .from('members')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('user_id', ownerId)
           .eq('easystore_customer_id', String(customerId))
           .maybeSingle();
         memberId = member?.id ?? null;
@@ -231,7 +230,7 @@ export async function POST(req: NextRequest) {
       }
 
       orderRows.push({
-        user_id: user.id,
+        user_id: ownerId,
         easystore_order_id: easystoreOrderId,
         order_code: o.number ?? String(o.id),
         advance_date: o.created_at ?? o.processed_at ?? null,
@@ -314,7 +313,7 @@ export async function POST(req: NextRequest) {
     const { data: existingOrders } = await admin
       .from('customer_orders')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .in('easystore_order_id', easystoreIdsInBatch);
 
     const orderIdsToClear = (existingOrders ?? []).map((o) => o.id);
@@ -340,13 +339,13 @@ export async function POST(req: NextRequest) {
     synced += batch.length;
   }
 
-  await recalcMemberStatsForMemberIds(admin, user.id, Array.from(touchedMemberIds));
+  await recalcMemberStatsForMemberIds(admin, ownerId, Array.from(touchedMemberIds));
 
   await admin
     .from('easystore_sync_state')
     .upsert(
       {
-        user_id: user.id,
+        user_id: ownerId,
         resource: 'orders',
         last_synced_at: syncStartedAt,
         synced_count: synced,

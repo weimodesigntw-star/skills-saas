@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { SpecificationSchema, Specification, SpecificationQuery } from '@/lib/validations/spec';
 import { z } from 'zod';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * Get specifications for the current user with optional filters
@@ -11,15 +12,15 @@ import { z } from 'zod';
 export async function getSpecifications(filters?: Partial<SpecificationQuery>) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
   let query = supabase
     .from('specifications')
     .select('*')
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   // Apply filters
   if (filters?.status) {
@@ -64,8 +65,8 @@ export async function getSpecifications(filters?: Partial<SpecificationQuery>) {
 export async function getSpecification(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -73,7 +74,7 @@ export async function getSpecification(id: string) {
     .from('specifications')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (error) {
@@ -93,8 +94,8 @@ export async function getSpecification(id: string) {
 export async function createSpecification(input: any) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -104,7 +105,7 @@ export async function createSpecification(input: any) {
   const { data, error } = await supabase
     .from('specifications')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       title: validated.title,
       description: validated.description,
       category: validated.category,
@@ -130,8 +131,8 @@ export async function createSpecification(input: any) {
 export async function updateSpecification(id: string, input: any) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -140,7 +141,7 @@ export async function updateSpecification(id: string, input: any) {
     .from('specifications')
     .select('id')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!existing) {
@@ -163,7 +164,7 @@ export async function updateSpecification(id: string, input: any) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single();
 
@@ -182,8 +183,8 @@ export async function updateSpecification(id: string, input: any) {
 export async function deleteSpecification(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -191,7 +192,7 @@ export async function deleteSpecification(id: string) {
     .from('specifications')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete specification: ${error.message}`);
@@ -212,8 +213,8 @@ export async function generateSpecWithAI(
   existingSpecs?: string[]
 ): Promise<{ specs: SpecSuggestion[] } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? process.env.GEMINI_API_KEY;
   if (!apiKey) return { error: '未設定 Google AI API Key' };
@@ -259,8 +260,8 @@ export async function createSpecificationSimple(
   category?: string
 ): Promise<{ id: string } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: 'Unauthorized' };
 
   if (!name.trim()) return { error: '規格名稱不可為空' };
   if (!Array.isArray(options) || options.length === 0) return { error: '至少需一個選項' };
@@ -283,7 +284,7 @@ export async function createSpecificationSimple(
   const { data, error } = await supabase
     .from('specifications')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       title: name.trim(),
       description: null,
       category: category || null,

@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export type ProductSalesLine = {
   order_code: string;
@@ -15,10 +16,8 @@ export type ProductSalesLine = {
 /** INT-009：商品關聯的客戶訂單明細（近 N 筆） */
 export async function fetchProductSalesHistory(productId: string, limit = 30): Promise<ProductSalesLine[]> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data, error } = await supabase
     .from('customer_order_items')
@@ -32,7 +31,7 @@ export async function fetchProductSalesHistory(productId: string, limit = 30): P
     `
     )
     .eq('product_id', productId)
-    .eq('customer_orders.user_id', user.id)
+    .eq('customer_orders.user_id', ownerId)
     .order('created_at', { ascending: false })
     .limit(limit);
 

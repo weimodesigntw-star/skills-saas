@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ImportDialog } from '@/components/import/ImportDialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import { SyncProductsButton } from './SyncProductsButton';
 import {
   ProductsListClient,
@@ -66,11 +67,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   try {
     const supabase = createServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { ownerId } = await getAuthAndWorkspace(supabase);
 
-    if (user) {
+    if (ownerId) {
       isAuthenticated = true;
       productCategories = await fetchPosCategories();
       allTagsForFilter = await listProductTags();
@@ -97,7 +96,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       const { data: syncState } = await supabase
         .from('easystore_sync_state')
         .select('last_synced_at,synced_count')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('resource', 'products')
         .maybeSingle();
       lastSyncedAt = (syncState?.last_synced_at as string | null) ?? null;

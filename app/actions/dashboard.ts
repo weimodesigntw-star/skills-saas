@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /** 與 get_daily_revenue RPC（Asia/Taipei MM/DD）對齊的標籤 */
 function formatMmDdTaipei(iso: string): string {
@@ -29,8 +30,8 @@ function lastNDaysMmDdLabelsTaipei(n: number): string[] {
 
 export async function fetchDashboardStats() {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -42,7 +43,7 @@ export async function fetchDashboardStats() {
   const { data: todayOrders } = await supabase
     .from('orders')
     .select('total_amount')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('status', 'paid')
     .gte('created_at', todayISO);
 
@@ -50,7 +51,7 @@ export async function fetchDashboardStats() {
   const { data: monthOrders } = await supabase
     .from('orders')
     .select('total_amount')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('status', 'paid')
     .gte('created_at', monthStart);
 
@@ -58,26 +59,26 @@ export async function fetchDashboardStats() {
   const { data: todayCustomerOrders } = await supabase
     .from('customer_orders')
     .select('total')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .gte('created_at', todayISO);
 
   // 客戶訂單（customer_orders）本月統計
   const { data: monthCustomerOrders } = await supabase
     .from('customer_orders')
     .select('total')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .gte('created_at', monthStart);
 
   // 低庫存商品數（stock <= 5）
   const { count: lowStockCount } = await supabase
     .from('products')
     .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .lte('stock', 5);
 
   // 近 7 日每日營收（RPC：僅 POS orders）
   const { data: dailyRevenueRpc } = await supabase.rpc('get_daily_revenue', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_days: 7,
   });
 
@@ -86,7 +87,7 @@ export async function fetchDashboardStats() {
   const { data: coDailyRows } = await supabase
     .from('customer_orders')
     .select('created_at, total')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .gte('created_at', windowStart);
 
   const labelsOrder = lastNDaysMmDdLabelsTaipei(7);
@@ -111,7 +112,7 @@ export async function fetchDashboardStats() {
 
   // 熱賣商品 Top 5（近 30 日）（RPC）
   const { data: topProducts } = await supabase.rpc('get_top_products', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_days: 30,
     p_limit: 5,
   });

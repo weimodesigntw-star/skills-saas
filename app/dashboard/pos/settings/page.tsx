@@ -100,12 +100,11 @@ export default function SettingsPage() {
     supabase.auth.getUser().then(({ data }) => {
       setEasyStoreUserId(data.user?.id ?? null);
 
-      // 查 DB 確認是否已連結 EasyStore
+      // 查 DB 確認是否已連結 EasyStore（依靠 workspace RLS 自動 filter 出當前 workspace 的紀錄）
       if (data.user?.id) {
         supabase
           .from('easystore_integrations')
           .select('shop')
-          .eq('user_id', data.user.id)
           .maybeSingle()
           .then(({ data: integration }) => {
             if (integration?.shop) {

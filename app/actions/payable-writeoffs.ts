@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { PayableWriteoffFormValues } from '@/lib/schemas/payable-writeoff';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export async function fetchPayableWriteoffs(params?: {
   vendorId?: string;
@@ -12,8 +13,8 @@ export async function fetchPayableWriteoffs(params?: {
   pageSize?: number;
 }) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { writeoffs: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { writeoffs: [], total: 0, page: 1, pageSize: 20 };
 
   const { vendorId, dateFrom, dateTo, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
@@ -21,7 +22,7 @@ export async function fetchPayableWriteoffs(params?: {
   let query = supabase
     .from('payable_writeoffs')
     .select('*, vendors(id, vendor_code, vendor_name)', { count: 'exact' })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
     .range(from, from + pageSize - 1);
 
@@ -36,14 +37,14 @@ export async function fetchPayableWriteoffs(params?: {
 
 export async function fetchPayableWriteoffById(id: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data: writeoff, error } = await supabase
     .from('payable_writeoffs')
     .select('*, vendors(id, vendor_code, vendor_name)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (error || !writeoff) return null;
@@ -59,13 +60,13 @@ export async function fetchPayableWriteoffById(id: string) {
 
 export async function fetchPendingPurchasesByVendor(vendorId: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data } = await supabase
     .from('purchase_orders')
     .select('id, receive_code, receive_day, total, amt_paid, amt_unpaid')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('vendor_id', vendorId)
     .eq('status', 'valid')
     .gt('amt_unpaid', 0)
@@ -83,8 +84,8 @@ export async function fetchPendingPurchasesByVendor(vendorId: string) {
 
 export async function createPayableWriteoff(values: PayableWriteoffFormValues) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const p_items = values.items.map((i) => ({
     purchase_id: i.purchase_id,
@@ -92,7 +93,7 @@ export async function createPayableWriteoff(values: PayableWriteoffFormValues) {
   }));
 
   const { data, error } = await supabase.rpc('execute_payable_writeoff', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_vendor_id: values.vendor_id,
     p_writeoff_date: values.writeoff_date,
     p_items,

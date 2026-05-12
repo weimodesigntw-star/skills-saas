@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 
 /** ES-005：用 access_token 呼叫 EasyStore 驗證連線（store.json 為主，部分商店仍為 shop.json） */
 export async function GET() {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
   const { data: integration, error: integErr } = await admin
     .from('easystore_integrations')
     .select('shop, access_token')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (integErr) {

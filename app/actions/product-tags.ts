@@ -6,6 +6,7 @@ import {
   type ProductTagManageDimension,
   isProductTagDimension,
 } from '@/lib/constants/product-tags';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export type ProductTag = {
   id: string;
@@ -20,15 +21,13 @@ export type ProductTag = {
  */
 export async function listProductTags(): Promise<ProductTag[]> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data, error } = await supabase
     .from('product_tags')
     .select('id, name, color, dimension, sort_order')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true });
 
   if (error) {
@@ -43,16 +42,14 @@ export async function listProductTags(): Promise<ProductTag[]> {
  */
 export async function getProductTagIds(productId: string): Promise<string[]> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) throw new Error('Unauthorized');
 
   const { data: product } = await supabase
     .from('products')
     .select('id')
     .eq('id', productId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!product) throw new Error('Product not found');
@@ -77,15 +74,13 @@ export async function getProductTagsForProduct(productId: string): Promise<Produ
   if (ids.length === 0) return [];
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) throw new Error('Unauthorized');
 
   const { data, error } = await supabase
     .from('product_tags')
     .select('id, name, color, dimension, sort_order')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .in('id', ids)
     .order('sort_order', { ascending: true });
 
@@ -101,16 +96,14 @@ export async function getProductTagsForProduct(productId: string): Promise<Produ
  */
 export async function setProductTags(productId: string, tagIds: string[]): Promise<void> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) throw new Error('Unauthorized');
 
   const { data: product } = await supabase
     .from('products')
     .select('id')
     .eq('id', productId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!product) throw new Error('Product not found');
@@ -121,7 +114,7 @@ export async function setProductTags(productId: string, tagIds: string[]): Promi
     const { data: tags, error: tagErr } = await supabase
       .from('product_tags')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .in('id', unique);
 
     if (tagErr) throw new Error(tagErr.message);
@@ -161,10 +154,8 @@ export async function getProductIdsWithAllTags(tagIds: string[]): Promise<string
   if (unique.length === 0) return [];
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data: rows, error } = await supabase
     .from('product_tag_map')
@@ -200,10 +191,8 @@ export async function getTagsBatchForProducts(
   if (productIds.length === 0) return {};
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return {};
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return {};
 
   const { data: maps, error: mapErr } = await supabase
     .from('product_tag_map')
@@ -220,7 +209,7 @@ export async function getTagsBatchForProducts(
   const { data: tags, error: tagErr } = await supabase
     .from('product_tags')
     .select('id, name, color, sort_order')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .in('id', allTagIds);
 
   if (tagErr) {
@@ -262,15 +251,13 @@ export async function createProductTag(
   if (!isProductTagDimension(dimension)) return { error: '無效的維度' };
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: dup } = await supabase
     .from('product_tags')
     .select('id')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('name', trimmed)
     .maybeSingle();
 
@@ -279,7 +266,7 @@ export async function createProductTag(
   const { data: maxRow } = await supabase
     .from('product_tags')
     .select('sort_order')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('dimension', dimension)
     .order('sort_order', { ascending: false })
     .limit(1)
@@ -289,7 +276,7 @@ export async function createProductTag(
   const hex = color.trim() || '#6b7280';
 
   const { error } = await supabase.from('product_tags').insert({
-    user_id: user.id,
+    user_id: ownerId,
     name: trimmed,
     color: hex,
     dimension,
@@ -318,16 +305,14 @@ export async function updateProductTag(
   if (!trimmed) return { error: '標籤名稱不能為空' };
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: owned } = await supabase
     .from('product_tags')
     .select('id')
     .eq('id', tagId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!owned) return { error: '找不到標籤或無權限' };
@@ -335,7 +320,7 @@ export async function updateProductTag(
   const { data: dup } = await supabase
     .from('product_tags')
     .select('id')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('name', trimmed)
     .neq('id', tagId)
     .maybeSingle();
@@ -348,7 +333,7 @@ export async function updateProductTag(
     .from('product_tags')
     .update({ name: trimmed, color: hex })
     .eq('id', tagId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     if (error.code === '23505') return { error: `標籤「${trimmed}」已存在` };
@@ -369,16 +354,14 @@ export async function deleteProductTag(
   options?: { force?: boolean }
 ): Promise<{ success?: true; error?: string; usageCount?: number }> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: tag } = await supabase
     .from('product_tags')
     .select('id, name')
     .eq('id', tagId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!tag) return { error: '找不到標籤或無權限' };
@@ -407,7 +390,7 @@ export async function deleteProductTag(
     .from('product_tags')
     .delete()
     .eq('id', tagId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (delErr) {
     return { error: delErr.message };

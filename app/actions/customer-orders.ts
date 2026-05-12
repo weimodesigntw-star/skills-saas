@@ -4,20 +4,19 @@ import { createServerClient } from '@/lib/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import type { CustomerOrderFormValues } from '@/lib/schemas/customer-order';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /** INT-006：依 customer_orders 重算單一會員 total_spent / order_count（RLS 下使用） */
 async function refreshMemberStats(memberId: string | null, supabase: SupabaseClient) {
   if (!memberId) return;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return;
 
   const { data: orders, error } = await supabase
     .from('customer_orders')
     .select('total')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('member_id', memberId);
 
   if (error) {
@@ -41,7 +40,7 @@ async function refreshMemberStats(memberId: string | null, supabase: SupabaseCli
       order_count: count,
       visit_count: count,
     })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('id', memberId);
 
   if (updErr && isMissingOrderCountColumn(updErr)) {
@@ -51,7 +50,7 @@ async function refreshMemberStats(memberId: string | null, supabase: SupabaseCli
         total_spent: Number(total.toFixed(2)),
         visit_count: count,
       })
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .eq('id', memberId));
   }
 }
@@ -116,10 +115,10 @@ async function applyReleaseForItems(
 
 export async function getOrderCodePreview(): Promise<string | null> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
   const { data, error } = await supabase.rpc('generate_order_code', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_prefix: 'BA201',
   });
   if (error || data == null) return null;
@@ -142,8 +141,8 @@ export async function fetchCustomerOrders(params?: {
   sortDir?: string;
 }) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { orders: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { orders: [], total: 0, page: 1, pageSize: 20 };
 
   const { q, status, dateFrom, dateTo, memberId, page = 1, pageSize = 20 } = params ?? {};
   const from = (page - 1) * pageSize;
@@ -162,7 +161,7 @@ export async function fetchCustomerOrders(params?: {
     `,
       { count: 'exact' }
     )
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order(sortBy, { ascending })
     .range(from, from + pageSize - 1);
 
@@ -201,7 +200,7 @@ export async function fetchCustomerOrders(params?: {
       const { data: matchedMembers, error: memberErr } = await supabase
         .from('members')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .ilike('name', `%${term}%`)
         .limit(2000);
 
@@ -233,14 +232,14 @@ export async function fetchCustomerOrders(params?: {
 
 export async function fetchCustomerOrderById(id: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data: order, error: orderError } = await supabase
     .from('customer_orders')
     .select('*, members(id, name, client_code)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (orderError || !order) return null;
@@ -256,14 +255,14 @@ export async function fetchCustomerOrderById(id: string) {
 
 export async function updateCustomerOrderStatus(id: string, status: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: order, error: orderErr } = await supabase
     .from('customer_orders')
     .select('id, order_code, status')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
   if (orderErr || !order) return { error: '找不到訂單' };
 
@@ -277,7 +276,7 @@ export async function updateCustomerOrderStatus(id: string, status: string) {
       .eq('order_id', id);
     const releaseRes = await applyReleaseForItems(
       supabase,
-      user.id,
+      ownerId,
       (items ?? []) as ReserveItem[],
       `訂單取消釋放保留（${(order as { order_code?: string }).order_code ?? id}）`
     );
@@ -288,7 +287,7 @@ export async function updateCustomerOrderStatus(id: string, status: string) {
     .from('customer_orders')
     .update({ status })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) return { error: '更新失敗' };
   revalidatePath('/dashboard/orders');
@@ -297,8 +296,8 @@ export async function updateCustomerOrderStatus(id: string, status: string) {
 
 export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQty: number) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: item, error: itemErr } = await supabase
     .from('customer_order_items')
@@ -312,7 +311,7 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
     .from('customer_orders')
     .select('id, order_code')
     .eq('id', item.order_id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (orderErr || !order) return { error: '無權限' };
@@ -335,7 +334,7 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
     const orderCode = (order as { order_code?: string }).order_code ?? '';
     const { error: rpcErr } = await supabase.rpc('adjust_inventory', {
       p_product_id: pid,
-      p_user_id: user.id,
+      p_user_id: ownerId,
       p_type: 'ship',
       p_qty: Math.floor(delta),
       p_note: `客戶訂單出貨${orderCode ? `（${orderCode}）` : ''}`,
@@ -380,11 +379,11 @@ function calcTotals(values: CustomerOrderFormValues) {
 
 export async function createCustomerOrder(values: CustomerOrderFormValues) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: codeData, error: codeError } = await supabase.rpc('generate_order_code', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_prefix: 'BA201',
   });
   if (codeError || codeData == null) return { error: '產生訂單號失敗' };
@@ -395,7 +394,7 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
   const { data: order, error: orderError } = await supabase
     .from('customer_orders')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       order_code: orderCode,
       advance_date: values.advance_date || null,
       undertaker: values.undertaker?.trim() || null,
@@ -437,12 +436,12 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
 
   const reserveRes = await applyReserveForItems(
     supabase,
-    user.id,
+    ownerId,
     itemsToInsert,
     `新建訂單保留庫存（${orderCode}）`
   );
   if (!reserveRes.ok) {
-    await supabase.from('customer_orders').delete().eq('id', order.id).eq('user_id', user.id);
+    await supabase.from('customer_orders').delete().eq('id', order.id).eq('user_id', ownerId);
     return { error: reserveRes.error || '保留庫存失敗，已回滾訂單' };
   }
 
@@ -455,8 +454,8 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
 
 export async function updateCustomerOrder(id: string, values: CustomerOrderFormValues) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { subtotal, tax_amount, total } = calcTotals(values);
   const itemsToInsert = values.items.map((item) => ({
@@ -472,7 +471,7 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
     note: item.note?.trim() || null,
   }));
   const { data: rpcRes, error: rpcErr } = await supabase.rpc('update_customer_order_atomic', {
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_order_id: id,
     p_advance_date: values.advance_date || null,
     p_undertaker: values.undertaker?.trim() || null,
@@ -505,14 +504,14 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
 
 export async function deleteCustomerOrder(id: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { data: existing } = await supabase
     .from('customer_orders')
     .select('member_id, order_code')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
   const memberId = (existing as { member_id?: string | null } | null)?.member_id ?? null;
   const orderCode = (existing as { order_code?: string | null } | null)?.order_code ?? id;
@@ -523,7 +522,7 @@ export async function deleteCustomerOrder(id: string) {
     .eq('order_id', id);
   const releaseRes = await applyReleaseForItems(
     supabase,
-    user.id,
+    ownerId,
     (items ?? []) as ReserveItem[],
     `刪除訂單釋放保留（${orderCode}）`
   );
@@ -533,7 +532,7 @@ export async function deleteCustomerOrder(id: string) {
     .from('customer_orders')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) return { error: '刪除失敗' };
 

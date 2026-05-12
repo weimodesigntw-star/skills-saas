@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * Content block type for structured content
@@ -44,8 +45,8 @@ export interface NewsArticle {
 export async function getNewsList() {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -53,7 +54,7 @@ export async function getNewsList() {
   let result = await supabase
     .from('news')
     .select('*, news_categories(name)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
@@ -62,7 +63,7 @@ export async function getNewsList() {
     result = await supabase
       .from('news')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
   }
@@ -89,8 +90,8 @@ export async function getNewsList() {
 export async function getNewsById(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -99,7 +100,7 @@ export async function getNewsById(id: string) {
     .from('news')
     .select('*, news_categories(name)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (result.error) {
@@ -107,7 +108,7 @@ export async function getNewsById(id: string) {
       .from('news')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .maybeSingle();
   }
 
@@ -135,8 +136,8 @@ export async function getNewsById(id: string) {
 export async function searchNews(query: string, excludeId?: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -144,7 +145,7 @@ export async function searchNews(query: string, excludeId?: string) {
   let queryBuilder = supabase
     .from('news')
     .select('id, title, category_id, is_published, published_at, news_categories(name)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .ilike('title', `%${query}%`)
     .limit(10);
 
@@ -159,7 +160,7 @@ export async function searchNews(query: string, excludeId?: string) {
     let fallbackBuilder = supabase
       .from('news')
       .select('id, title, is_published, published_at')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .ilike('title', `%${query}%`)
       .limit(10);
 
@@ -188,8 +189,8 @@ export async function searchNews(query: string, excludeId?: string) {
 export async function getRelatedNews(newsId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -197,7 +198,7 @@ export async function getRelatedNews(newsId: string) {
     .from('news_related')
     .select('related_news_id, news!news_related_related_news_id_fkey(id, title, category_id, published_at, news_categories(name))')
     .eq('news_id', newsId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true });
 
   if (error) {
@@ -221,8 +222,8 @@ export async function getRelatedNews(newsId: string) {
 export async function addRelatedNews(newsId: string, relatedNewsId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -231,7 +232,7 @@ export async function addRelatedNews(newsId: string, relatedNewsId: string) {
     .insert({
       news_id: newsId,
       related_news_id: relatedNewsId,
-      user_id: user.id,
+      user_id: ownerId,
     });
 
   if (error) {
@@ -250,8 +251,8 @@ export async function addRelatedNews(newsId: string, relatedNewsId: string) {
 export async function removeRelatedNews(newsId: string, relatedNewsId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -260,7 +261,7 @@ export async function removeRelatedNews(newsId: string, relatedNewsId: string) {
     .delete()
     .eq('news_id', newsId)
     .eq('related_news_id', relatedNewsId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to remove related news: ${error.message}`);
@@ -326,12 +327,12 @@ async function uploadNewsImage(userId: string, newsId: string, imageFile: File):
 export async function uploadContentBlockImage(newsId: string, imageFile: File): Promise<string> {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
-  return uploadNewsImage(user.id, newsId, imageFile);
+  return uploadNewsImage(ownerId, newsId, imageFile);
 }
 
 /**
@@ -356,8 +357,8 @@ async function deleteNewsImage(imageUrl: string) {
 export async function createNews(formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -384,7 +385,7 @@ export async function createNews(formData: FormData) {
 
   // Build insert data - include enhanced fields only if they have values
   const insertData: Record<string, any> = {
-    user_id: user.id,
+    user_id: ownerId,
     title: title.trim(),
     content: content || '',
     is_published,
@@ -414,7 +415,7 @@ export async function createNews(formData: FormData) {
     const basicResult = await supabase
       .from('news')
       .insert({
-        user_id: user.id,
+        user_id: ownerId,
         title: title.trim(),
         content: content || '',
         is_published,
@@ -433,7 +434,7 @@ export async function createNews(formData: FormData) {
   // Upload cover image if provided
   if (imageFile && imageFile.size > 0) {
     try {
-      const imageUrl = await uploadNewsImage(user.id, data.id, imageFile);
+      const imageUrl = await uploadNewsImage(ownerId, data.id, imageFile);
       const { data: updated, error: updateError } = await supabase
         .from('news')
         .update({ cover_image_url: imageUrl })
@@ -468,8 +469,8 @@ export async function createNews(formData: FormData) {
 export async function updateNews(id: string, formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -477,7 +478,7 @@ export async function updateNews(id: string, formData: FormData) {
     .from('news')
     .select('id, is_published, cover_image_url')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!existing) {
@@ -535,7 +536,7 @@ export async function updateNews(id: string, formData: FormData) {
       await deleteNewsImage(existing.cover_image_url);
     }
     try {
-      const imageUrl = await uploadNewsImage(user.id, id, imageFile);
+      const imageUrl = await uploadNewsImage(ownerId, id, imageFile);
       updateData.cover_image_url = imageUrl;
     } catch (err) {
       console.error('Image upload failed:', err);
@@ -547,7 +548,7 @@ export async function updateNews(id: string, formData: FormData) {
     .from('news')
     .update(updateData)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select('*')
     .single();
 
@@ -565,7 +566,7 @@ export async function updateNews(id: string, formData: FormData) {
       .from('news')
       .update(basicData)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .select('*')
       .single();
   }
@@ -591,8 +592,8 @@ export async function updateNews(id: string, formData: FormData) {
 export async function deleteNews(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -600,7 +601,7 @@ export async function deleteNews(id: string) {
     .from('news')
     .select('cover_image_url')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (existing?.cover_image_url) {
@@ -611,7 +612,7 @@ export async function deleteNews(id: string) {
     .from('news')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete news: ${error.message}`);

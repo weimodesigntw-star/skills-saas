@@ -1,12 +1,13 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { ownerId } = await getAuthAndWorkspace(supabase);
 
-    if (!user) {
+    if (!ownerId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('categories')
       .select('id, name')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .order('name');
 
     if (error) {

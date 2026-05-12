@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 
@@ -16,18 +17,16 @@ function isMissingColumn(error: unknown) {
 
 export async function POST() {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { ownerId } = await getAuthAndWorkspace(supabase);
 
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
 
   const { data: members, error: memberErr } = await admin
     .from('members')
     .select('id')
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (memberErr) {
     return NextResponse.json({ error: memberErr.message }, { status: 500 });
@@ -41,7 +40,7 @@ export async function POST() {
   const { data: orders, error: orderErr } = await admin
     .from('customer_orders')
     .select('member_id,total')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .not('member_id', 'is', null);
 
   if (orderErr) {
@@ -66,7 +65,7 @@ export async function POST() {
       const s = stats[id] ?? { total: 0, count: 0 };
       return {
         id,
-        user_id: user.id,
+        user_id: ownerId,
         total_spent: Number(s.total.toFixed(2)),
         order_count: s.count,
         visit_count: s.count,

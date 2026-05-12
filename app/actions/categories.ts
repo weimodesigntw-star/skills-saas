@@ -9,6 +9,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { Category, TreeNode } from '@/lib/types/category';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * 獲取用戶分類（樹狀結構）
@@ -16,9 +17,9 @@ import { Category, TreeNode } from '@/lib/types/category';
 export async function getUserCategories(): Promise<TreeNode[]> {
   const supabase = createServerClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const { ownerId } = await getAuthAndWorkspace(supabase);
   
-  if (!user) {
+  if (!ownerId) {
     // 未登入用戶沒有自己的分類
     return [];
   }
@@ -27,7 +28,7 @@ export async function getUserCategories(): Promise<TreeNode[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true });
   
   if (error) {
@@ -65,13 +66,13 @@ export async function getPublicCategories(): Promise<TreeNode[]> {
  */
 export async function getCategoriesFlatForSelect(): Promise<{ id: string; name: string }[]> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data, error } = await supabase
     .from('categories')
     .select('id, name')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true });
 
   if (error) throw new Error(`Failed to fetch categories: ${error.message}`);
@@ -130,12 +131,12 @@ export async function updateCategoryOrder(
 ): Promise<void> {
   const supabase = createServerClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
   
-  console.log('[Update Category Order]', { activeId, overId, position, userId: user.id });
+  console.log('[Update Category Order]', { activeId, overId, position, userId: ownerId });
   
   // ============================================
   // 1. 權限檢查：獲取被移動的節點 (Active)
@@ -161,7 +162,7 @@ export async function updateCategoryOrder(
   }
   
   // 確保 activeId 屬於當前用戶
-  if (activeItem.user_id !== user.id) {
+  if (activeItem.user_id !== ownerId) {
     throw new Error('Unauthorized: You can only move your own categories');
   }
   
@@ -203,7 +204,7 @@ export async function updateCategoryOrder(
   let siblingsQuery = supabase
     .from('categories')
     .select('id, sort_order, user_id, name')
-    .or(`user_id.eq.${user.id},user_id.is.null`) // 查自己 + 公共
+    .or(`user_id.eq.${ownerId},user_id.is.null`) // 查自己 + 公共
     .neq('id', activeId); // 排除自己，避免計算干擾
   
   // 根據 parent_id 是否為 null 使用不同的查詢方式
@@ -367,7 +368,7 @@ export async function updateCategoryOrder(
       updated_at: new Date().toISOString(),
     })
     .eq('id', activeId)
-    .eq('user_id', user.id); // 權限檢查：再次確認 activeId 屬於當前用戶
+    .eq('user_id', ownerId); // 權限檢查：再次確認 activeId 屬於當前用戶
   
   if (updateError) {
     console.error('[Update Category Order] Update error:', updateError);
@@ -378,7 +379,7 @@ export async function updateCategoryOrder(
   // 7. 更新 path（可選，用於快速查詢）
   // ============================================
   try {
-    await updateCategoryPath(activeId, targetParentId, supabase, user.id);
+    await updateCategoryPath(activeId, targetParentId, supabase, ownerId);
   } catch (pathError) {
     console.error('[Update Category Order] Path update error:', pathError);
     // Path 更新失敗不應該阻止整個操作
@@ -503,8 +504,8 @@ export async function createCategory(
 ): Promise<Category> {
   const supabase = createServerClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
   
@@ -513,7 +514,7 @@ export async function createCategory(
     .from('categories')
     .select('sort_order')
     .eq('parent_id', parentId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: false })
     .limit(1);
   
@@ -522,7 +523,7 @@ export async function createCategory(
   const { data, error } = await supabase
     .from('categories')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       name,
       description,
       parent_id: parentId,
@@ -549,8 +550,8 @@ export async function updateCategory(
 ): Promise<void> {
   const supabase = createServerClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
   
@@ -562,7 +563,7 @@ export async function updateCategory(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
   
   if (error) {
     throw new Error(`Failed to update category: ${error.message}`);
@@ -582,15 +583,15 @@ export async function updateCategory(
 export async function deleteCategory(id: string): Promise<void> {
   const supabase = createServerClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
   
   // 使用 RPC 函數進行級聯刪除（事務安全）
   const { error } = await supabase.rpc('delete_category_cascade', {
     category_id: id,
-    user_id_param: user.id,
+    user_id_param: ownerId,
   });
   
   if (error) {

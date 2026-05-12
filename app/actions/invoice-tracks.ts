@@ -8,6 +8,7 @@
  */
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import {
   getUserInvoiceTracks as getTracksFromLib,
   addInvoiceTrack as addTrackFromLib,
@@ -21,19 +22,14 @@ import {
  */
 export async function getUserTracks(): Promise<InvoiceTrackNumber[]> {
   try {
-    // Get the authenticated user's ID from the server
     const supabase = createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { ownerId } = await getAuthAndWorkspace(supabase);
 
-    if (authError || !user) {
+    if (!ownerId) {
       throw new Error('未授權的請求');
     }
 
-    // Fetch tracks for this user
-    const tracks = await getTracksFromLib(user.id);
+    const tracks = await getTracksFromLib(ownerId);
     return tracks;
   } catch (error) {
     if (error instanceof Error) {
@@ -54,16 +50,13 @@ export async function addTrack(
 ): Promise<InvoiceTrackNumber> {
   try {
     const supabase = createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { ownerId } = await getAuthAndWorkspace(supabase);
 
-    if (authError || !user) {
+    if (!ownerId) {
       throw new Error('未授權的請求');
     }
 
-    const track = await addTrackFromLib(user.id, prefix, yearMonth, startNumber, endNumber);
+    const track = await addTrackFromLib(ownerId, prefix, yearMonth, startNumber, endNumber);
     return track;
   } catch (error) {
     if (error instanceof Error) {
@@ -79,12 +72,9 @@ export async function addTrack(
 export async function activateTrack(trackId: string): Promise<void> {
   try {
     const supabase = createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { ownerId } = await getAuthAndWorkspace(supabase);
 
-    if (authError || !user) {
+    if (!ownerId) {
       throw new Error('未授權的請求');
     }
 
@@ -103,12 +93,9 @@ export async function activateTrack(trackId: string): Promise<void> {
 export async function deactivateTrack(trackId: string): Promise<void> {
   try {
     const supabase = createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { ownerId } = await getAuthAndWorkspace(supabase);
 
-    if (authError || !user) {
+    if (!ownerId) {
       throw new Error('未授權的請求');
     }
 

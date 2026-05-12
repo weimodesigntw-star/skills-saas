@@ -6,6 +6,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export interface InvoiceSequence {
   id: string;
@@ -45,13 +46,13 @@ function rowToSequence(row: Record<string, unknown>): InvoiceSequence {
  */
 export async function fetchInvoiceSequences(): Promise<InvoiceSequence[]> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data, error } = await supabase
     .from('invoice_track_numbers')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -68,8 +69,8 @@ export async function createInvoiceSequence(
   data: InvoiceSequenceInput
 ): Promise<{ id: string } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '未登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '未登入' };
 
   const { track_prefix, year_month, start_number, end_number } = data;
   if (!track_prefix?.trim()) return { error: '請輸入字軌前綴' };
@@ -81,7 +82,7 @@ export async function createInvoiceSequence(
   const { data: row, error } = await supabase
     .from('invoice_track_numbers')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       track_prefix: track_prefix.trim().toUpperCase(),
       year_month: year_month.trim(),
       start_number,
@@ -107,14 +108,14 @@ export async function updateInvoiceSequence(
   data: Partial<InvoiceSequenceInput> & { is_active?: boolean; current_number?: number }
 ): Promise<{ ok: true } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '未登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '未登入' };
 
   const { data: existing } = await supabase
     .from('invoice_track_numbers')
     .select('id')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (!existing) return { error: '字軌不存在或無權限' };
@@ -123,7 +124,7 @@ export async function updateInvoiceSequence(
     await supabase
       .from('invoice_track_numbers')
       .update({ is_active: false })
-      .eq('user_id', user.id);
+      .eq('user_id', ownerId);
   }
 
   const updates: Record<string, unknown> = {};
@@ -138,7 +139,7 @@ export async function updateInvoiceSequence(
     .from('invoice_track_numbers')
     .update(updates)
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) return { error: error.message };
   return { ok: true };
@@ -149,14 +150,14 @@ export async function updateInvoiceSequence(
  */
 export async function deleteInvoiceSequence(id: string): Promise<{ ok: true } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '未登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '未登入' };
 
   const { data: seq } = await supabase
     .from('invoice_track_numbers')
     .select('id')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (!seq) return { error: '字軌不存在或無權限' };
@@ -165,7 +166,7 @@ export async function deleteInvoiceSequence(id: string): Promise<{ ok: true } | 
     .from('invoice_track_numbers')
     .select('track_prefix')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (trackRow) {
@@ -173,7 +174,7 @@ export async function deleteInvoiceSequence(id: string): Promise<{ ok: true } | 
     const { data: used } = await supabase
       .from('invoices')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .like('invoice_number', `${prefix}%`)
       .limit(1)
       .maybeSingle();
@@ -184,7 +185,7 @@ export async function deleteInvoiceSequence(id: string): Promise<{ ok: true } | 
     .from('invoice_track_numbers')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) return { error: error.message };
   return { ok: true };
@@ -196,14 +197,14 @@ export async function deleteInvoiceSequence(id: string): Promise<{ ok: true } | 
  */
 export async function getNextInvoiceNumber(sequenceId: string): Promise<{ number: string } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '未登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '未登入' };
 
   const { data: seq } = await supabase
     .from('invoice_track_numbers')
     .select('id')
     .eq('id', sequenceId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (!seq) return { error: '字軌不存在或無權限' };

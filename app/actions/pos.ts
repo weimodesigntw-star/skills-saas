@@ -8,6 +8,7 @@
 
 import { createServerClient } from '@/lib/supabase/server';
 import type { Product, Order, OrderItem } from '@/lib/types/pos';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export type OrderStatus = 'pending' | 'paid' | 'refunded' | 'voided';
 
@@ -31,13 +32,13 @@ export interface FetchOrdersResult {
  */
 export async function fetchProductByBarcode(barcode: string): Promise<Product | null> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data, error } = await supabase
     .from('products')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('barcode', barcode)
     .eq('is_active', true)
     .maybeSingle();
@@ -51,13 +52,13 @@ export async function fetchProductByBarcode(barcode: string): Promise<Product | 
  */
 export async function fetchPosCategories(): Promise<{ id: string; name: string; parent_id: string | null }[]> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
   /** 商品／POS 分類 tabs 只顯示頂層，避免子分類與父分類重複一排 */
   const { data } = await supabase
     .from('categories')
     .select('id, name, parent_id')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .is('parent_id', null)
     .order('sort_order');
   return (data ?? []).map((r) => ({ id: r.id, name: r.name, parent_id: r.parent_id ?? null }));
@@ -68,13 +69,13 @@ export async function fetchPosCategories(): Promise<{ id: string; name: string; 
  */
 export async function fetchPosProducts(categoryId?: string | null, search?: string): Promise<Product[]> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   let query = supabase
     .from('products')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('is_active', true)
     .order('name')
     .limit(100);
@@ -105,8 +106,8 @@ export async function fetchPosProducts(categoryId?: string | null, search?: stri
  */
 export async function fetchOrders(params: FetchOrdersParams = {}): Promise<FetchOrdersResult> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { orders: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { orders: [], total: 0, page: 1, pageSize: 20 };
 
   const { status, dateFrom, dateTo, page = 1, pageSize = 20 } = params;
   const from = (page - 1) * pageSize;
@@ -115,7 +116,7 @@ export async function fetchOrders(params: FetchOrdersParams = {}): Promise<Fetch
   let query = supabase
     .from('orders')
     .select('*', { count: 'exact' })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false });
 
   if (status) {
@@ -165,14 +166,14 @@ export async function fetchOrders(params: FetchOrdersParams = {}): Promise<Fetch
  */
 export async function fetchOrderById(orderId: string): Promise<{ order: Order; items: OrderItem[] } | null> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data: orderRow, error: orderError } = await supabase
     .from('orders')
     .select('*')
     .eq('id', orderId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   if (orderError || !orderRow) return null;

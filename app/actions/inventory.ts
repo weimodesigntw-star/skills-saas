@@ -6,6 +6,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 const LOW_STOCK_THRESHOLD = 5;
 const DEFAULT_PAGE_SIZE = 20;
@@ -43,8 +44,8 @@ export async function fetchInventory(
   params: FetchInventoryParams = {}
 ): Promise<FetchInventoryResult> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE };
 
   const { categoryId, lowStockOnly, search, page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
   const from = (page - 1) * pageSize;
@@ -59,7 +60,7 @@ export async function fetchInventory(
     .select('id, name, category_id, barcode, stock, low_stock_threshold, categories(name)', {
       count: 'exact',
     })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order(sortColumn, { ascending });
 
   if (categoryId && categoryId !== 'all') {
@@ -125,8 +126,8 @@ export async function adjustStock(
   data: AdjustStockParams
 ): Promise<{ qtyAfter: number } | { error: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '未登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '未登入' };
 
   const { productId, type, qty, note } = data;
   if (!productId || !type) return { error: '缺少商品或類型' };
@@ -137,7 +138,7 @@ export async function adjustStock(
 
   const { data: result, error } = await supabase.rpc('adjust_inventory', {
     p_product_id: productId,
-    p_user_id: user.id,
+    p_user_id: ownerId,
     p_type: type,
     p_qty: qtyNum,
     p_note: note || null,
@@ -175,8 +176,8 @@ export async function fetchStockHistory(
   params: FetchStockHistoryParams = {}
 ): Promise<FetchStockHistoryResult> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { records: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { records: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE };
 
   const { productId, page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
   const from = (page - 1) * pageSize;
@@ -185,7 +186,7 @@ export async function fetchStockHistory(
   let query = supabase
     .from('stock_adjustments')
     .select('id, product_id, type, qty_change, qty_after, note, created_at', { count: 'exact' })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
     .range(from, to);
 

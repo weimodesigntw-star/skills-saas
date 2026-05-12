@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export type ReportSource = 'POS' | 'EasyStore';
 
@@ -65,10 +66,8 @@ export async function fetchShipmentReport(params: {
   memberId?: string;
 }) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [] as ShipmentReportRow[];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [] as ShipmentReportRow[];
 
   let posQuery = supabase
     .from('shipment_items')
@@ -82,7 +81,7 @@ export async function fetchShipmentReport(params: {
       )
     `
     )
-    .eq('shipments.user_id', user.id)
+    .eq('shipments.user_id', ownerId)
     .eq('shipments.status', 'valid')
     .order('ship_date', { foreignTable: 'shipments', ascending: false });
 
@@ -104,7 +103,7 @@ export async function fetchShipmentReport(params: {
       )
     `
     )
-    .eq('customer_orders.user_id', user.id)
+    .eq('customer_orders.user_id', ownerId)
     .neq('customer_orders.status', 'cancelled')
     .order('advance_date', { foreignTable: 'customer_orders', ascending: false });
 
@@ -156,10 +155,8 @@ export async function fetchProfitReport(params: {
   memberId?: string;
 }) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [] as ProfitReportRow[];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [] as ProfitReportRow[];
 
   let posQuery = supabase
     .from('shipment_items')
@@ -173,7 +170,7 @@ export async function fetchProfitReport(params: {
       )
     `
     )
-    .eq('shipments.user_id', user.id)
+    .eq('shipments.user_id', ownerId)
     .eq('shipments.status', 'valid')
     .order('ship_date', { foreignTable: 'shipments', ascending: false });
 
@@ -196,7 +193,7 @@ export async function fetchProfitReport(params: {
       )
     `
     )
-    .eq('customer_orders.user_id', user.id)
+    .eq('customer_orders.user_id', ownerId)
     .neq('customer_orders.status', 'cancelled')
     .order('advance_date', { foreignTable: 'customer_orders', ascending: false });
 
@@ -246,10 +243,8 @@ export async function fetchReceivableReport(params: {
   memberId?: string;
 }) {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [] as ReceivableReportRow[];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [] as ReceivableReportRow[];
 
   let shipQuery = supabase
     .from('shipments')
@@ -259,7 +254,7 @@ export async function fetchReceivableReport(params: {
       members(name, client_code)
     `
     )
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('status', 'valid')
     .order('ship_date', { ascending: false });
 
@@ -272,7 +267,7 @@ export async function fetchReceivableReport(params: {
   let coQuery = supabase
     .from('customer_orders')
     .select(`id, order_code, advance_date, total, amt_recd, members(name, client_code)`)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .neq('status', 'cancelled')
     .order('advance_date', { ascending: false });
 

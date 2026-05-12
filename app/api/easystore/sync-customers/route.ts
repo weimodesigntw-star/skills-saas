@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 
@@ -16,16 +17,16 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServerClient();
 
-  // 取得當前登入 user
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // 取得當前登入 user 對應的 workspace owner
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // 取得 EasyStore integration（用 admin client 避免 RLS / NULL user_id 問題）
   const admin = createAdminClient();
   const { data: integration, error: integErr } = await admin
     .from('easystore_integrations')
     .select('shop, access_token')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (integErr) {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     const { data: syncState } = await admin
       .from('easystore_sync_state')
       .select('last_synced_at')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
       .eq('resource', 'customers')
       .maybeSingle();
     sinceDate = (syncState?.last_synced_at as string | null) ?? null;
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   const records = allCustomers.map((c) => {
     const fallbackName = `${c.first_name || ''} ${c.last_name || ''}`.trim();
     const record: Record<string, any> = {
-      user_id: user.id,
+      user_id: ownerId,
       easystore_customer_id: String(c.id),
       name: (c.name ?? c.full_name ?? fallbackName) || '(未命名)',
       email: c.email ?? null,
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
     .from('easystore_sync_state')
     .upsert(
       {
-        user_id: user.id,
+        user_id: ownerId,
         resource: 'customers',
         last_synced_at: syncStartedAt,
         synced_count: synced,

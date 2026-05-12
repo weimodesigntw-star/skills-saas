@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 /**
  * Gallery type from database
@@ -37,15 +38,15 @@ export interface GalleryPhoto {
 export async function getGalleries() {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
   const { data, error } = await supabase
     .from('galleries')
     .select('*, gallery_photos(count)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
@@ -68,8 +69,8 @@ export async function getGalleries() {
 export async function getGalleryWithPhotos(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -77,7 +78,7 @@ export async function getGalleryWithPhotos(id: string) {
     .from('galleries')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (error) {
@@ -93,7 +94,7 @@ export async function getGalleryWithPhotos(id: string) {
     .from('gallery_photos')
     .select('*')
     .eq('gallery_id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
@@ -113,8 +114,8 @@ export async function getGalleryWithPhotos(id: string) {
 export async function createGallery(formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -128,7 +129,7 @@ export async function createGallery(formData: FormData) {
   const { data, error } = await supabase
     .from('galleries')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       title: title.trim(),
       description: description || null,
     })
@@ -149,8 +150,8 @@ export async function createGallery(formData: FormData) {
 export async function updateGallery(id: string, formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -168,7 +169,7 @@ export async function updateGallery(id: string, formData: FormData) {
       description: description || null,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single();
 
@@ -187,8 +188,8 @@ export async function updateGallery(id: string, formData: FormData) {
 export async function deleteGallery(id: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -196,7 +197,7 @@ export async function deleteGallery(id: string) {
     .from('galleries')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete gallery: ${error.message}`);
@@ -211,8 +212,8 @@ export async function deleteGallery(id: string) {
 export async function uploadGalleryPhoto(galleryId: string, formData: FormData) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -221,7 +222,7 @@ export async function uploadGalleryPhoto(galleryId: string, formData: FormData) 
     .from('galleries')
     .select('id')
     .eq('id', galleryId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!gallery) {
@@ -243,7 +244,7 @@ export async function uploadGalleryPhoto(galleryId: string, formData: FormData) 
     .replace(/\.[^.]+$/, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 50) || 'photo';
-  const filename = `${user.id}/${galleryId}/${timestamp}-${safeName}.${ext}`;
+  const filename = `${ownerId}/${galleryId}/${timestamp}-${safeName}.${ext}`;
 
   const { data: uploadData, error: uploadError } = await adminClient.storage
     .from('galleries')
@@ -267,7 +268,7 @@ export async function uploadGalleryPhoto(galleryId: string, formData: FormData) 
     .from('gallery_photos')
     .insert({
       gallery_id: galleryId,
-      user_id: user.id,
+      user_id: ownerId,
       image_url: imageUrl,
       caption: caption || null,
     })
@@ -303,8 +304,8 @@ export async function uploadGalleryPhoto(galleryId: string, formData: FormData) 
 export async function deleteGalleryPhoto(photoId: string) {
   const supabase = createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) {
     throw new Error('Unauthorized');
   }
 
@@ -313,7 +314,7 @@ export async function deleteGalleryPhoto(photoId: string) {
     .from('gallery_photos')
     .select('id, gallery_id, image_url')
     .eq('id', photoId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle();
 
   if (!photo) {
@@ -337,7 +338,7 @@ export async function deleteGalleryPhoto(photoId: string) {
     .from('gallery_photos')
     .delete()
     .eq('id', photoId)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) {
     throw new Error(`Failed to delete photo: ${error.message}`);

@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { MemberFormValues } from '@/lib/schemas/member';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 
 export interface CustomerMember {
   id: string;
@@ -40,8 +41,8 @@ export async function fetchMembers(params: {
   sortDir?: string;
 }) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { members: [], total: 0, page: 1, pageSize: 20 };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { members: [], total: 0, page: 1, pageSize: 20 };
 
   const { search, page = 1, pageSize = 20 } = params;
   const from = (page - 1) * pageSize;
@@ -54,7 +55,7 @@ export async function fetchMembers(params: {
   let query = supabase
     .from('members')
     .select('*', { count: 'exact' })
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order(sortBy, { ascending })
     .range(from, from + pageSize - 1);
 
@@ -76,14 +77,14 @@ export async function fetchMembers(params: {
 
 export async function fetchMemberById(id: string): Promise<CustomerMember | null> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return null;
 
   const { data } = await supabase
     .from('members')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single();
 
   return (data as CustomerMember) ?? null;
@@ -92,13 +93,13 @@ export async function fetchMemberById(id: string): Promise<CustomerMember | null
 /** INT-007：會員的客戶訂單（customer_orders），供詳細頁歷史與連結 */
 export async function fetchMemberOrders(memberId: string) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return [];
 
   const { data } = await supabase
     .from('customer_orders')
     .select('id, order_code, total, status, advance_date, created_at')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('member_id', memberId)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -115,11 +116,11 @@ export async function fetchMemberOrders(memberId: string) {
 
 export async function createMember(values: MemberFormValues): Promise<{ success?: true; error?: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { error } = await supabase.from('members').insert({
-    user_id: user.id,
+    user_id: ownerId,
     name: values.name,
     phone: values.phone?.trim() || null,
     email: values.email?.trim() || null,
@@ -141,8 +142,8 @@ export async function createMember(values: MemberFormValues): Promise<{ success?
 
 export async function updateMember(id: string, values: MemberFormValues): Promise<{ success?: true; error?: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { error } = await supabase
     .from('members')
@@ -161,7 +162,7 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
       client_cat: values.client_cat?.trim() || null,
     })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) return { error: '更新失敗，請稍後再試' };
   revalidatePath('/dashboard/members');
@@ -171,14 +172,14 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
 
 export async function deleteMember(id: string): Promise<{ success?: true; error?: string }> {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '請先登入' };
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId) return { error: '請先登入' };
 
   const { error } = await supabase
     .from('members')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', ownerId);
 
   if (error) return { error: '刪除失敗，請稍後再試' };
   revalidatePath('/dashboard/members');

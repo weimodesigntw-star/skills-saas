@@ -1,5 +1,6 @@
 import { fetchCustomerOrders } from '@/app/actions/customer-orders';
 import { createServerClient } from '@/lib/supabase/server';
+import { getAuthAndWorkspace } from '@/lib/workspace';
 import { EmptyState } from '@/components/ui/empty-state';
 import { OrdersClient } from './OrdersClient';
 import { ClipboardList } from 'lucide-react';
@@ -26,9 +27,9 @@ export default async function OrdersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { ownerId } = await getAuthAndWorkspace(supabase);
 
-  if (!user) {
+  if (!ownerId) {
     return (
       <div className="container mx-auto py-8 px-4">
         <EmptyState
@@ -64,7 +65,7 @@ export default async function OrdersPage({
   const { data: syncState } = await supabase
     .from('easystore_sync_state')
     .select('last_synced_at, synced_count')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('resource', 'orders')
     .maybeSingle();
 
