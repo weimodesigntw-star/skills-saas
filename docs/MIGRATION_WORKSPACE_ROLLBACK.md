@@ -2,7 +2,7 @@
 
 如果 `052/053/054` 三個 migration 在 production 出問題，照下面順序在 Supabase SQL Editor 跑 rollback SQL，**逆序**還原。
 
-> ⚠️ 真的要 rollback 之前，先確認問題不能用「正向修補 migration」解決（例如補一條 policy、加一張漏掉的表）。一旦 rollback，所有納入 workspace 的資料會回到「只有 owner 自己看得到」的狀態，weimoyounga 會立刻失去存取權。
+> ⚠️ 真的要 rollback 之前，先確認問題不能用「正向修補 migration」解決（例如補一條 policy、加一張漏掉的表）。一旦 rollback，所有納入 workspace 的資料會回到「只有 owner 自己看得到」的狀態，所有 member（weimodesigntw / weimoyounga）會立刻失去存取權，owner weimojay@gmail.com 仍可正常使用。
 
 ---
 
@@ -149,7 +149,7 @@ DROP TABLE IF EXISTS public.workspace_members;
 
 ```sql
 DELETE FROM public.workspace_members
-WHERE owner_id = (SELECT id FROM auth.users WHERE email = 'weimodesigntw@gmail.com')
+WHERE owner_id = (SELECT id FROM auth.users WHERE email = 'weimojay@gmail.com')
   AND member_id = (SELECT id FROM auth.users WHERE email = 'weimoyounga@gmail.com');
 ```
 
@@ -158,7 +158,7 @@ WHERE owner_id = (SELECT id FROM auth.users WHERE email = 'weimodesigntw@gmail.c
 ```sql
 INSERT INTO public.workspace_members (owner_id, member_id)
 SELECT
-  (SELECT id FROM auth.users WHERE email = 'weimodesigntw@gmail.com'),
+  (SELECT id FROM auth.users WHERE email = 'weimojay@gmail.com'),
   (SELECT id FROM auth.users WHERE email = 'weimoyounga@gmail.com')
 ON CONFLICT DO NOTHING;
 ```
