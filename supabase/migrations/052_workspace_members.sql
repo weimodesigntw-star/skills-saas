@@ -13,8 +13,8 @@
 --
 -- 注意：
 --   - 此 migration 不影響 profiles 與 shopping_carts（兩者保持個人化）。
---   - 第二位成員 weimoyounga@gmail.com 必須先在 Supabase Auth 註冊，否則對應
---     INSERT 會自動跳過（不會報錯），日後可重跑這段補上。
+--   - 任一成員若尚未在 Supabase Auth 註冊，對應 INSERT 會自動跳過（不會報錯），
+--     日後可重跑這段補上。
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -44,8 +44,8 @@ CREATE POLICY "members can read own mappings"
 -- 2. Helper: resolve_workspace_owner()
 -- ---------------------------------------------------------------------------
 -- 回傳當前 auth.uid() 所屬 workspace 的 owner_id。
---   - 若在 workspace_members 找到對應 mapping，回傳 owner_id
---   - 否則 fallback 回 auth.uid()（新用戶自成 workspace；向後相容）
+-- - 若在 workspace_members 找到對應 mapping，回傳 owner_id
+-- - 否則 fallback 回 auth.uid()（新用戶自成 workspace；向後相容）
 CREATE OR REPLACE FUNCTION public.resolve_workspace_owner() RETURNS uuid
 LANGUAGE sql
 STABLE
@@ -84,24 +84,23 @@ GRANT EXECUTE ON FUNCTION public.can_access_workspace(uuid) TO authenticated;
 -- ---------------------------------------------------------------------------
 -- 4. 初始 workspace mapping
 -- ---------------------------------------------------------------------------
--- Owner：weimodesigntw@gmail.com（既有資料的擁有者）
--- Member：weimoyounga@gmail.com（新加入的協作者）
+-- Owner：weimojay@gmail.com（業務資料實際擁有人）
+-- Members：weimojay 自己 + weimodesigntw@gmail.com + weimoyounga@gmail.com
 --
--- 用 email 動態查 UID，避免 hardcode 寫死。第二筆需要 weimoyounga 已註冊。
-
-INSERT INTO public.workspace_members (owner_id, member_id)
-SELECT id, id
-FROM auth.users
-WHERE email = 'weimodesigntw@gmail.com'
-ON CONFLICT DO NOTHING;
+-- 用 email 動態查 UID，避免 hardcode 寫死。任一帳號尚未在 Supabase Auth 註冊時，
+-- 對應的 row 會自動跳過（不會報錯），日後可重跑這段補上。
 
 INSERT INTO public.workspace_members (owner_id, member_id)
 SELECT
-  (SELECT id FROM auth.users WHERE email = 'weimodesigntw@gmail.com'),
-  (SELECT id FROM auth.users WHERE email = 'weimoyounga@gmail.com')
-WHERE
-  EXISTS (SELECT 1 FROM auth.users WHERE email = 'weimodesigntw@gmail.com')
-  AND EXISTS (SELECT 1 FROM auth.users WHERE email = 'weimoyounga@gmail.com')
+  (SELECT id FROM auth.users WHERE email = 'weimojay@gmail.com'),
+  m.id
+FROM auth.users m
+WHERE m.email IN (
+  'weimojay@gmail.com',
+  'weimodesigntw@gmail.com',
+  'weimoyounga@gmail.com'
+)
+  AND EXISTS (SELECT 1 FROM auth.users WHERE email = 'weimojay@gmail.com')
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
