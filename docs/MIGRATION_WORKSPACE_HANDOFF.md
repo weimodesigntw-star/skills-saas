@@ -5,7 +5,7 @@
 
 ## 任務總覽
 
-讓 `weimoyounga@gmail.com` 與 `weimodesigntw@gmail.com` 共用同一份業務資料。
+讓 `weimojay@gmail.com`（workspace owner）、`weimodesigntw@gmail.com`、`weimoyounga@gmail.com` 共用同一份業務資料。
 作法是新增 `workspace_members` 對映表 + 改寫所有業務表 RLS policy + 加 `BEFORE INSERT` trigger，自動把寫入的 `user_id` 改成 workspace owner。
 
 **Application code 完全不需要動**（已驗證 `middleware.ts`、`app/dashboard/layout.tsx` 都沒有 admin 判斷邏輯）。
@@ -23,11 +23,11 @@
 ### Step 0：前置確認
 
 ```sql
--- 0.1 確認兩個帳號都已註冊
+-- 0.1 確認三個帳號都已註冊
 SELECT id, email, created_at
 FROM auth.users
-WHERE email IN ('weimodesigntw@gmail.com', 'weimoyounga@gmail.com');
--- 期望：兩列。若 weimoyounga 缺，請用戶先到 Supabase Auth → Users → Add user 建立。
+WHERE email IN ('weimojay@gmail.com', 'weimodesigntw@gmail.com', 'weimoyounga@gmail.com');
+-- 期望：三列。若任一帳號缺，請用戶先到 Supabase Auth → Users → Add user 建立。
 
 -- 0.2 確認 codebase 上 052/053/054 中提到的可疑表是否實際存在於 DB
 SELECT
@@ -79,13 +79,13 @@ SELECT
 FROM public.workspace_members
 JOIN auth.users wo ON wo.id = owner_id
 JOIN auth.users wm ON wm.id = member_id;
--- 期望：兩列。owner 自己 + (weimodesigntw, weimoyounga)
+-- 期望：三列。owner 自己 (weimojay, weimojay) + (weimojay, weimodesigntw) + (weimojay, weimoyounga)
 
 -- 3.2 helper 函數驗證
 -- 用 service role 跑（auth.uid() 為 NULL，會 fallback 為 NULL）
 SELECT public.resolve_workspace_owner();           -- NULL (service role)
 SELECT public.can_access_workspace(
-  (SELECT id FROM auth.users WHERE email = 'weimodesigntw@gmail.com')
+  (SELECT id FROM auth.users WHERE email = 'weimojay@gmail.com')
 );                                                  -- FALSE (service role)
 
 -- 3.3 確認所有目標表都掛上 trigger
@@ -119,12 +119,12 @@ ORDER BY tablename;
 
 ### Step 4：用兩個帳號實測（最關鍵）
 
-從前端網站，分別用 `weimodesigntw` 與 `weimoyounga` 登入，每人各做：
+從前端網站，分別用 `weimojay`、`weimodesigntw`、`weimoyounga` 登入，每人各做：
 
 1. 訪問 `/dashboard/orders` — 是否看到同一份訂單列表
 2. 訪問 `/dashboard/products` — 是否看到同一份商品列表
 3. 訪問 `/dashboard/members` — 是否看到同一份會員列表
-4. weimoyounga 新建一筆訂單 → 切回 weimodesigntw 是否看得到、且該訂單的 `user_id` 應為 weimodesigntw 的 UID
+4. weimoyounga 新建一筆訂單 → 切回 weimojay（或 weimodesigntw）是否看得到、且該訂單的 `user_id` 應為 weimojay 的 UID
 
 ```sql
 -- weimoyounga 建單後跑這條確認 user_id 被自動 map
@@ -133,7 +133,7 @@ FROM public.customer_orders
 WHERE created_at > NOW() - INTERVAL '5 minutes'
 ORDER BY created_at DESC
 LIMIT 5;
--- 期望：user_id = weimodesigntw 的 UID（即使是 weimoyounga 建的）
+-- 期望：user_id = weimojay 的 UID（即使是 weimoyounga 建的）
 ```
 
 ### Step 5：合併到 main
