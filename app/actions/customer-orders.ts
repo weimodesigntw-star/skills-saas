@@ -62,6 +62,12 @@ type ReserveItem = {
   product_name?: string | null;
 };
 
+type ShippingStatusItem = {
+  qty?: number | null;
+  shipped_qty?: number | null;
+  cancelled?: boolean | null;
+};
+
 async function runAdjustInventory(
   supabase: SupabaseClient,
   userId: string,
@@ -227,7 +233,37 @@ export async function fetchCustomerOrders(params?: {
 
   const { data, count, error } = await query;
   if (error) return { orders: [], total: 0, page, pageSize };
-  return { orders: data ?? [], total: count ?? 0, page, pageSize };
+
+  const orders = data ?? [];
+  const orderIds = orders.map((order) => order.id).filter(Boolean);
+  if (orderIds.length === 0) return { orders, total: count ?? 0, page, pageSize };
+
+  const { data: items } = await supabase
+    .from('customer_order_items')
+    .select('order_id, qty, shipped_qty')
+    .in('order_id', orderIds);
+  const itemsByOrder = new Map<string, { qty: number; shipped_qty?: number | null; cancelled: false }[]>();
+  for (const item of items ?? []) {
+    const orderId = String((item as { order_id?: string }).order_id ?? '');
+    if (!orderId) continue;
+    const rows = itemsByOrder.get(orderId) ?? [];
+    rows.push({
+      qty: Number((item as { qty?: number }).qty ?? 0),
+      shipped_qty: Number((item as { shipped_qty?: number | null }).shipped_qty ?? 0),
+      cancelled: false,
+    });
+    itemsByOrder.set(orderId, rows);
+  }
+
+  const normalizedOrders = orders.map((order) => {
+    const currentStatus = String((order as { status?: string | null }).status ?? '');
+    if (currentStatus === 'cancelled') return order;
+    const orderItems = itemsByOrder.get(String(order.id)) ?? [];
+    if (orderItems.length === 0) return order;
+    return { ...order, status: calcShippingStatus(orderItems) };
+  });
+
+  return { orders: normalizedOrders, total: count ?? 0, page, pageSize };
 }
 
 export async function fetchCustomerOrderById(id: string) {
@@ -250,7 +286,10 @@ export async function fetchCustomerOrderById(id: string) {
     .eq('order_id', id)
     .order('created_at');
 
-  return { ...order, items: items ?? [] };
+  const currentStatus = String((order as { status?: string | null }).status ?? '');
+  const status = currentStatus === 'cancelled' ? currentStatus : calcShippingStatus((items ?? []) as CustomerOrderFormValues['items']);
+
+  return { ...order, status, items: items ?? [] };
 }
 
 export async function updateCustomerOrderStatus(id: string, status: string) {
@@ -309,7 +348,7 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
 
   const { data: order, error: orderErr } = await supabase
     .from('customer_orders')
-    .select('id, order_code')
+    .select('id, order_code, status')
     .eq('id', item.order_id)
     .eq('user_id', ownerId)
     .maybeSingle();
@@ -347,6 +386,33 @@ export async function updateCustomerOrderItemShippedQty(itemId: string, shippedQ
     revalidatePath('/dashboard/pos/inventory');
   }
 
+  const currentOrderStatus = String((order as { status?: string | null }).status ?? '');
+  if (currentOrderStatus !== 'cancelled') {
+    const { data: allItems, error: allItemsErr } = await supabase
+      .from('customer_order_items')
+      .select('qty, shipped_qty')
+      .eq('order_id', item.order_id);
+    if (allItemsErr) return { error: '更新出貨狀態失敗' };
+
+    const nextStatus = calcShippingStatus(
+      (allItems ?? []).map((row) => ({
+        qty: Number((row as { qty?: number }).qty ?? 0),
+        shipped_qty: Number((row as { shipped_qty?: number | null }).shipped_qty ?? 0),
+        product_name: '',
+        unit_price: 0,
+        discount_pct: 100,
+        cancelled: false,
+      }))
+    );
+
+    const { error: statusErr } = await supabase
+      .from('customer_orders')
+      .update({ status: nextStatus })
+      .eq('id', item.order_id)
+      .eq('user_id', ownerId);
+    if (statusErr) return { error: '更新出貨狀態失敗' };
+  }
+
   revalidatePath(`/dashboard/orders/${order.id}`);
   return { success: true, shipped_qty: next };
 }
@@ -377,6 +443,26 @@ function calcTotals(values: CustomerOrderFormValues) {
   return { subtotal, tax_amount, total };
 }
 
+function calcShippingStatus(items: ShippingStatusItem[]) {
+  const totals = (items ?? [])
+    .filter((item) => !item.cancelled)
+    .reduce<{ qty: number; shippedQty: number }>(
+      (sum, item) => {
+        const qty = Math.max(0, Number(item.qty) || 0);
+        const shippedQty = Math.max(0, Math.min(Number(item.shipped_qty ?? 0) || 0, qty));
+        return {
+          qty: sum.qty + qty,
+          shippedQty: sum.shippedQty + shippedQty,
+        };
+      },
+      { qty: 0, shippedQty: 0 }
+    );
+
+  if (totals.shippedQty <= 0) return 'pending';
+  if (totals.shippedQty >= totals.qty) return 'shipped';
+  return 'partial';
+}
+
 export async function createCustomerOrder(values: CustomerOrderFormValues) {
   const supabase = createServerClient();
   const { ownerId } = await getAuthAndWorkspace(supabase);
@@ -390,6 +476,7 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
   const orderCode = typeof codeData === 'string' ? codeData : String(codeData);
 
   const { subtotal, tax_amount, total } = calcTotals(values);
+  const status = values.status === 'cancelled' ? 'cancelled' : calcShippingStatus(values.items);
 
   const { data: order, error: orderError } = await supabase
     .from('customer_orders')
@@ -407,7 +494,7 @@ export async function createCustomerOrder(values: CustomerOrderFormValues) {
       total,
       sales_channel: values.sales_channel,
       note: values.note?.trim() || null,
-      status: values.status ?? 'pending',
+      status,
     })
     .select('id')
     .single();
@@ -458,6 +545,7 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
   if (!ownerId) return { error: '請先登入' };
 
   const { subtotal, tax_amount, total } = calcTotals(values);
+  const status = values.status === 'cancelled' ? 'cancelled' : calcShippingStatus(values.items);
   const itemsToInsert = values.items.map((item) => ({
     product_id: item.product_id || null,
     product_code: item.product_code || null,
@@ -484,7 +572,7 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
     p_total: total,
     p_sales_channel: values.sales_channel,
     p_note: values.note?.trim() || null,
-    p_status: values.status ?? 'pending',
+    p_status: status,
     p_items: itemsToInsert,
   });
   if (rpcErr) return { error: rpcErr.message || '更新訂單失敗' };

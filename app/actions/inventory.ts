@@ -1,15 +1,22 @@
 /**
- * 庫存 Server Actions
- * 依賴 migration 018 stock_adjustments、050 adjust_inventory RPC
+ * Inventory Server Actions
  */
 
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { getAuthAndWorkspace } from '@/lib/workspace';
 
 const LOW_STOCK_THRESHOLD = 5;
 const DEFAULT_PAGE_SIZE = 20;
+
+export type DepotStock = {
+  depot_id: string;
+  depot_name: string;
+  depot_code: string | null;
+  qty: number;
+};
 
 export type InventoryItem = {
   id: string;
@@ -17,6 +24,7 @@ export type InventoryItem = {
   category_name: string | null;
   barcode: string | null;
   stock: number;
+  depot_stocks: DepotStock[];
   is_low_stock: boolean;
 };
 
@@ -24,11 +32,11 @@ const INVENTORY_SORT_COLUMNS = ['stock', 'name', 'barcode'] as const;
 
 export type FetchInventoryParams = {
   categoryId?: string;
+  depotId?: string;
   lowStockOnly?: boolean;
   search?: string;
   page?: number;
   pageSize?: number;
-  /** S-004：未指定時預設依庫存由低到高 */
   sortBy?: string;
   sortDir?: string;
 };
@@ -47,7 +55,7 @@ export async function fetchInventory(
   const { ownerId } = await getAuthAndWorkspace(supabase);
   if (!ownerId) return { items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE };
 
-  const { categoryId, lowStockOnly, search, page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
+  const { categoryId, depotId, lowStockOnly, search, page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -74,6 +82,25 @@ export async function fetchInventory(
     query = query.or(`name.ilike.${term},barcode.ilike.${term}`);
   }
 
+  if (depotId && depotId !== 'all') {
+    const { data: depotStockMatches, error: depotStockError } = await supabase
+      .from('product_depot_stocks')
+      .select('product_id')
+      .eq('user_id', ownerId)
+      .eq('depot_id', depotId);
+
+    if (depotStockError) {
+      console.error('fetchInventory depot filter:', depotStockError.message);
+      return { items: [], total: 0, page, pageSize };
+    }
+
+    const productIdsInDepot = [...new Set((depotStockMatches ?? []).map((row) => row.product_id as string))];
+    if (productIdsInDepot.length === 0) {
+      return { items: [], total: 0, page, pageSize };
+    }
+    query = query.in('id', productIdsInDepot);
+  }
+
   const { data, count, error } = await query.range(from, to);
 
   if (error) {
@@ -91,9 +118,50 @@ export async function fetchInventory(
     categories: { name: string } | { name: string }[] | null;
   }[];
 
+  const productIds = rows.map((r) => r.id);
+  let depotStockRows: unknown[] = [];
+  if (productIds.length) {
+    let depotStockQuery = supabase
+      .from('product_depot_stocks')
+      .select('product_id, depot_id, qty, depots(depot_code, depot_name)')
+      .eq('user_id', ownerId)
+      .in('product_id', productIds);
+
+    if (depotId && depotId !== 'all') {
+      depotStockQuery = depotStockQuery.eq('depot_id', depotId);
+    }
+
+    const { data: stockRows, error: stockRowsError } = await depotStockQuery;
+    if (stockRowsError) {
+      console.error('fetchInventory depot stocks:', stockRowsError.message);
+    }
+    depotStockRows = stockRows ?? [];
+  }
+
+  const depotStocksByProduct = new Map<string, DepotStock[]>();
+  for (const row of depotStockRows as {
+    product_id: string;
+    depot_id: string;
+    qty: number;
+    depots: { depot_code: string | null; depot_name: string } | { depot_code: string | null; depot_name: string }[] | null;
+  }[]) {
+    const depot = Array.isArray(row.depots) ? row.depots[0] : row.depots;
+    const list = depotStocksByProduct.get(row.product_id) ?? [];
+    list.push({
+      depot_id: row.depot_id,
+      depot_code: depot?.depot_code ?? null,
+      depot_name: depot?.depot_name ?? '未命名倉庫',
+      qty: Number(row.qty ?? 0),
+    });
+    depotStocksByProduct.set(row.product_id, list);
+  }
+
   const items: InventoryItem[] = rows.map((r) => {
     const threshold = r.low_stock_threshold ?? LOW_STOCK_THRESHOLD;
-    const stock = Number(r.stock ?? 0);
+    const depotStocks = depotStocksByProduct.get(r.id) ?? [];
+    const stock = depotStocks.length
+      ? depotStocks.reduce((sum, depot) => sum + depot.qty, 0)
+      : Number(r.stock ?? 0);
     const cat = r.categories;
     const categoryName = Array.isArray(cat) ? cat[0]?.name : cat?.name;
     return {
@@ -102,6 +170,7 @@ export async function fetchInventory(
       category_name: categoryName ?? null,
       barcode: r.barcode ?? null,
       stock,
+      depot_stocks: depotStocks,
       is_low_stock: stock <= threshold,
     };
   });
@@ -116,24 +185,25 @@ export async function fetchInventory(
 
 export type AdjustStockParams = {
   productId: string;
+  depotId?: string;
   type: 'restock' | 'loss' | 'manual';
   qty: number;
   note?: string;
 };
 
-/** 回傳調整後庫存，或 error */
 export async function adjustStock(
   data: AdjustStockParams
 ): Promise<{ qtyAfter: number } | { error: string }> {
   const supabase = createServerClient();
   const { ownerId } = await getAuthAndWorkspace(supabase);
-  if (!ownerId) return { error: '未登入' };
+  if (!ownerId) return { error: '請先登入' };
 
-  const { productId, type, qty, note } = data;
-  if (!productId || !type) return { error: '缺少商品或類型' };
+  const { productId, depotId, type, qty, note } = data;
+  if (!productId || !type) return { error: '缺少商品或調整類型' };
+  if (!depotId) return { error: '請選擇倉庫' };
   if (type !== 'restock' && type !== 'loss' && type !== 'manual') return { error: '無效的調整類型' };
   const qtyNum = Math.floor(Number(qty));
-  if (qtyNum < 0 && type !== 'manual') return { error: '數量需為正整數' };
+  if (qtyNum < 0 && type !== 'manual') return { error: '數量不可為負數' };
   if (type === 'manual' && qtyNum < 0) return { error: '手動設定庫存不可為負' };
 
   const { data: result, error } = await supabase.rpc('adjust_inventory', {
@@ -142,10 +212,14 @@ export async function adjustStock(
     p_type: type,
     p_qty: qtyNum,
     p_note: note || null,
+    p_depot_id: depotId,
   });
 
   if (error) return { error: error.message };
   const physical = Number((result as { physical_stock?: number } | null)?.physical_stock ?? 0);
+  revalidatePath('/dashboard/inventory');
+  revalidatePath('/dashboard/pos/inventory');
+  revalidatePath('/dashboard/products');
   return { qtyAfter: physical };
 }
 
@@ -153,6 +227,7 @@ export type StockHistoryRecord = {
   id: string;
   created_at: string;
   product_name: string;
+  depot_name: string | null;
   type: string;
   qty_change: number;
   qty_after: number;
@@ -185,7 +260,7 @@ export async function fetchStockHistory(
 
   let query = supabase
     .from('stock_adjustments')
-    .select('id, product_id, type, qty_change, qty_after, note, created_at', { count: 'exact' })
+    .select('id, product_id, depot_id, type, qty_change, qty_after, note, created_at', { count: 'exact' })
     .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
     .range(from, to);
@@ -203,16 +278,23 @@ export async function fetchStockHistory(
 
   const list = (rows ?? []) as (Record<string, unknown> & { product_id: string })[];
   const productIds = [...new Set(list.map((r) => r.product_id))];
-  const { data: products } = await supabase
-    .from('products')
-    .select('id, name')
-    .in('id', productIds);
+  const depotIds = [...new Set(list.map((r) => String(r.depot_id ?? '')).filter(Boolean))];
+
+  const { data: products } = productIds.length
+    ? await supabase.from('products').select('id, name').in('id', productIds)
+    : { data: [] };
   const nameMap = new Map((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]));
+
+  const { data: depots } = depotIds.length
+    ? await supabase.from('depots').select('id, depot_name').in('id', depotIds)
+    : { data: [] };
+  const depotNameMap = new Map((depots ?? []).map((d: { id: string; depot_name: string }) => [d.id, d.depot_name]));
 
   const records: StockHistoryRecord[] = list.map((r) => ({
     id: String(r.id),
     created_at: String(r.created_at),
-    product_name: nameMap.get(r.product_id) ?? '—',
+    product_name: nameMap.get(r.product_id) ?? '未知商品',
+    depot_name: depotNameMap.get(String(r.depot_id ?? '')) ?? null,
     type: String(r.type),
     qty_change: Number(r.qty_change),
     qty_after: Number(r.qty_after),

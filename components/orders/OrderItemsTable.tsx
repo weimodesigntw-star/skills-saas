@@ -30,6 +30,20 @@ export function OrderItemsTable({ onOpenProductPicker, showShippedQty = false }:
   const form = useFormContext<FormValues>();
   const { control } = form;
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const watchedItems = form.watch('items') ?? [];
+  const activeItems = watchedItems.filter((item) => !item?.cancelled);
+  const totals = activeItems.reduce(
+    (sum, item) => {
+      const qty = Number(item?.qty) || 0;
+      const shippedQty = Number(item?.shipped_qty) || 0;
+      return {
+        qty: sum.qty + qty,
+        shippedQty: sum.shippedQty + shippedQty,
+        amount: +(sum.amount + itemSubtotal(item as OrderItemFormValues)).toFixed(2),
+      };
+    },
+    { qty: 0, shippedQty: 0, amount: 0 }
+  );
 
   const defaultRow: OrderItemFormValues = {
     product_name: '',
@@ -84,6 +98,20 @@ export function OrderItemsTable({ onOpenProductPicker, showShippedQty = false }:
               />
             ))}
           </tbody>
+          <tfoot className="border-t bg-muted/30 font-semibold">
+            <tr>
+              <td className="py-2 px-2 text-right" colSpan={3}>
+                合計
+              </td>
+              <td className="py-2 px-2 text-right tabular-nums">{totals.qty}</td>
+              {showShippedQty && (
+                <td className="py-2 px-2 text-right tabular-nums">{totals.shippedQty}</td>
+              )}
+              <td className="py-2 px-2" colSpan={2}></td>
+              <td className="py-2 px-2 text-right tabular-nums">{formatNTD(totals.amount)}</td>
+              <td className="py-2 px-2"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

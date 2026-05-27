@@ -36,11 +36,8 @@ export function OrderShippingManager(props: {
     partial: { label: '部分出貨', color: 'bg-blue-100 text-blue-800' },
     shipped: { label: '已出貨', color: 'bg-green-100 text-green-800' },
     cancelled: { label: '已取消', color: 'bg-muted text-muted-foreground' },
-    paid: { label: '已出貨', color: 'bg-green-100 text-green-800' },
-    unpaid: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
   };
-  const normalizedStatus =
-    props.initialStatus === 'paid' ? 'shipped' : props.initialStatus === 'unpaid' ? 'pending' : props.initialStatus;
+  const normalizedStatus = props.initialStatus;
   const s = statusLabel[props.initialStatus] ?? statusLabel[normalizedStatus] ?? { label: props.initialStatus, color: 'bg-muted text-muted-foreground' };
 
   const renderRows = (rows: Array<Item & { remaining?: number }>, mode: 'all' | 'shipped' | 'unshipped') => {
@@ -114,4 +111,3 @@ export function OrderShippingManager(props: {
     </div>
   );
 }
-

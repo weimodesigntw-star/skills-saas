@@ -154,7 +154,20 @@ export async function createShipmentManual(values: ShipmentFormValues) {
   const { error: itemsError } = await supabase.from('shipment_items').insert(itemsToInsert);
   if (itemsError) return { error: '建立出貨明細失敗' };
 
+  for (const item of values.items) {
+    if (!item.product_id) continue;
+    await supabase.rpc('adjust_inventory', {
+      p_product_id: item.product_id,
+      p_user_id: ownerId,
+      p_type: 'ship',
+      p_qty: Math.max(0, Math.floor(Number(item.qty) || 0)),
+      p_note: `手動出貨扣庫（${shipCode}）`,
+      p_depot_id: values.depot_id || null,
+    });
+  }
+
   revalidatePath('/dashboard/shipments');
+  revalidatePath('/dashboard/inventory');
   return { success: true, shipmentId: shipment.id, shipCode };
 }
 
@@ -203,7 +216,7 @@ export async function voidShipment(shipmentId: string) {
 
   const { data: shipment, error: fetchError } = await supabase
     .from('shipments')
-    .select('id, status, source_order_id')
+    .select('id, status, source_order_id, depot_id')
     .eq('id', shipmentId)
     .eq('user_id', ownerId)
     .single();
@@ -217,10 +230,15 @@ export async function voidShipment(shipmentId: string) {
     .eq('shipment_id', shipmentId);
 
   for (const item of items ?? []) {
-    const { data: prod } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
-    if (prod) {
-      const newStock = (Number(prod.stock) ?? 0) + Number(item.qty);
-      await supabase.from('products').update({ stock: newStock }).eq('id', item.product_id);
+    if (item.product_id) {
+      await supabase.rpc('adjust_inventory', {
+        p_product_id: item.product_id,
+        p_user_id: ownerId,
+        p_type: 'restock',
+        p_qty: Math.max(0, Math.floor(Number(item.qty) || 0)),
+        p_note: '出貨單作廢回補',
+        p_depot_id: (shipment as { depot_id?: string | null }).depot_id ?? null,
+      });
     }
     if (item.order_item_id) {
       const { data: oi } = await supabase.from('customer_order_items').select('shipped_qty').eq('id', item.order_item_id).single();
@@ -246,5 +264,6 @@ export async function voidShipment(shipmentId: string) {
   revalidatePath('/dashboard/shipments');
   revalidatePath(`/dashboard/shipments/${shipmentId}`);
   revalidatePath('/dashboard/orders');
+  revalidatePath('/dashboard/inventory');
   return { success: true };
 }

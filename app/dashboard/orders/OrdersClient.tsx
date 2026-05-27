@@ -75,7 +75,7 @@ type OrderSortKey = 'created_at' | 'advance_date' | 'total' | 'order_code';
 
 /** V-001：預交日已過且尚未完成出貨 */
 export function isCustomerOrderOverdue(row: OrderRow): boolean {
-  if (row.status === 'shipped' || row.status === 'cancelled' || row.status === 'paid') return false;
+  if (row.status === 'shipped' || row.status === 'cancelled') return false;
   if (!row.advance_date) return false;
   const d = row.advance_date.slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
@@ -314,8 +314,6 @@ export function OrdersClient({
       partial: { label: '部分出貨', color: 'bg-blue-100 text-blue-800' },
       shipped: { label: '已出貨', color: 'bg-green-100 text-green-800' },
       cancelled: { label: '已取消', color: 'bg-muted text-muted-foreground' },
-      paid: { label: '已出貨', color: 'bg-green-100 text-green-800' },
-      unpaid: { label: '待出貨', color: 'bg-amber-100 text-amber-800' },
     };
     const s = map[status] ?? { label: status, color: 'bg-muted text-muted-foreground' };
     return (

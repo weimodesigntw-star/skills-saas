@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { customerOrderSchema, type CustomerOrderFormValues } from '@/lib/schemas/customer-order';
 import {
@@ -52,6 +52,26 @@ function calcTotals(values: CustomerOrderFormValues) {
   return { subtotal, tax_amount, total };
 }
 
+function calcShippingStatus(items: CustomerOrderFormValues['items']) {
+  const totals = (items ?? [])
+    .filter((item) => !item?.cancelled)
+    .reduce(
+      (sum, item) => {
+        const qty = Math.max(0, Number(item?.qty) || 0);
+        const shippedQty = Math.max(0, Math.min(Number(item?.shipped_qty) || 0, qty));
+        return {
+          qty: sum.qty + qty,
+          shippedQty: sum.shippedQty + shippedQty,
+        };
+      },
+      { qty: 0, shippedQty: 0 }
+    );
+
+  if (totals.shippedQty <= 0) return 'pending';
+  if (totals.shippedQty >= totals.qty) return 'shipped';
+  return 'partial';
+}
+
 interface OrderFormProps {
   mode: 'new' | 'edit';
   orderId?: string;
@@ -88,7 +108,7 @@ export function OrderForm({
     },
   });
 
-  const items = form.watch('items');
+  const items = useWatch({ control: form.control, name: 'items' });
   const salesChannel = form.watch('sales_channel');
   const taxType = form.watch('tax_type');
   const taxrate = form.watch('taxrate');
@@ -109,17 +129,11 @@ export function OrderForm({
 
     if (validRows.length === 0) return;
 
-    let totalQty = 0;
-    let totalShipped = 0;
-
     // 防呆：如果任一 shipped_qty 超過 qty，clamp 回 qty
     for (const { r, idx } of validRows) {
       const q = Number(r?.qty) || 0;
       const s = Number((r as any)?.shipped_qty) || 0;
       const clamped = Math.max(0, Math.min(s, q));
-
-      totalQty += q;
-      totalShipped += clamped;
 
       if (s !== clamped) {
         form.setValue(`items.${idx}.shipped_qty`, clamped, { shouldDirty: true, shouldTouch: true });
@@ -129,8 +143,7 @@ export function OrderForm({
     const currentStatus = form.getValues('status');
     if (currentStatus === 'cancelled') return;
 
-    const next =
-      totalShipped === 0 ? 'pending' : totalShipped >= totalQty ? 'shipped' : 'partial';
+    const next = calcShippingStatus(rows);
 
     if (currentStatus !== next) {
       form.setValue('status', next, { shouldDirty: true, shouldTouch: true });
@@ -345,6 +358,15 @@ export function OrderForm({
                     >
                       <option value="零售">零售</option>
                       <option value="批發">批發</option>
+                      <option value="PINKOI">PINKOI</option>
+                      <option value="官網">官網</option>
+                      <option value="市集">市集</option>
+                      <option value="店售">店售</option>
+                      <option value="私訊">私訊</option>
+                      <option value="同修">同修</option>
+                      <option value="公關品">公關品</option>
+                      <option value="員購/自留">員購/自留</option>
+                      <option value="寄售">寄售</option>
                     </select>
                   </FormControl>
                   <FormMessage />

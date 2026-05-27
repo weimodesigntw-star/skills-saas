@@ -172,7 +172,7 @@ export async function voidPurchaseOrder(id: string) {
 
   const { data: purchase, error: fetchError } = await supabase
     .from('purchase_orders')
-    .select('id, status')
+    .select('id, status, depot_id')
     .eq('id', id)
     .eq('user_id', ownerId)
     .single();
@@ -187,11 +187,14 @@ export async function voidPurchaseOrder(id: string) {
 
   for (const item of items ?? []) {
     if (item.product_id) {
-      const { data: prod } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
-      if (prod) {
-        const newStock = Math.max(0, (Number(prod.stock) ?? 0) - Number(item.qty));
-        await supabase.from('products').update({ stock: newStock }).eq('id', item.product_id);
-      }
+      await supabase.rpc('adjust_inventory', {
+        p_product_id: item.product_id,
+        p_user_id: ownerId,
+        p_type: 'loss',
+        p_qty: Math.max(0, Math.floor(Number(item.qty) || 0)),
+        p_note: '採購單作廢回沖',
+        p_depot_id: (purchase as { depot_id?: string | null }).depot_id ?? null,
+      });
     }
   }
 
@@ -218,10 +221,8 @@ export type PurchasePrefillLine = {
 
 export async function getPurchasePrefillFromProductIds(productIds: string[]): Promise<PurchasePrefillLine[]> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || productIds.length === 0) return [];
+  const { ownerId } = await getAuthAndWorkspace(supabase);
+  if (!ownerId || productIds.length === 0) return [];
 
   const unique = [...new Set(productIds.map((s) => s.trim()).filter(Boolean))].slice(0, 80);
   const { data } = await supabase
@@ -254,9 +255,7 @@ export async function getPurchasePrefillFromProductIds(productIds: string[]): Pr
 
 export async function getPurchasePrefillLowStock(maxLines = 60): Promise<PurchasePrefillLine[]> {
   const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { ownerId } = await getAuthAndWorkspace(supabase);
   if (!ownerId) return [];
 
   const { data } = await supabase

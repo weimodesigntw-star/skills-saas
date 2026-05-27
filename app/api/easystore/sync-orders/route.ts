@@ -6,6 +6,28 @@ export const runtime = 'nodejs';
 
 type EasyStoreOrder = Record<string, any>;
 
+function mapShippingStatus(fulfillmentStatus: unknown) {
+  const status = String(fulfillmentStatus ?? '').toLowerCase();
+  if (status.includes('partial')) return 'partial';
+  if (status.includes('ship') || status.includes('fulfill') || status === 'fulfilled') return 'shipped';
+  return 'pending';
+}
+
+function getLineItemShippedQty(order: EasyStoreOrder, lineItem: Record<string, any>, qty: number) {
+  const directValue =
+    lineItem.shipped_quantity ??
+    lineItem.shipped_qty ??
+    lineItem.fulfilled_quantity ??
+    lineItem.fulfilled_qty ??
+    lineItem.quantity_fulfilled;
+  const directQty = Number(directValue);
+  if (Number.isFinite(directQty) && directQty > 0) {
+    return Math.max(0, Math.min(qty, directQty));
+  }
+
+  return mapShippingStatus(order.fulfillment_status) === 'shipped' ? qty : 0;
+}
+
 /** ES-003：依 SKU（product_code）對應本地 products.id */
 async function buildSkuToProductIdMap(
   admin: ReturnType<typeof createAdminClient>,
@@ -214,7 +236,7 @@ export async function POST(req: NextRequest) {
       const orderTotal = Number(o.total_amount ?? o.total_price ?? 0);
       const subtotal = Number(o.subtotal_price ?? orderTotal);
 
-      const financialStatus = o.financial_status ?? o.payment_status ?? 'pending';
+      const shippingStatus = mapShippingStatus(o.fulfillment_status);
 
       let memberId: string | null = null;
       const customerId = o.customer?.id;
@@ -243,7 +265,7 @@ export async function POST(req: NextRequest) {
         total: orderTotal,
         sales_channel: o.sales_channel ?? 'EasyStore',
         note: o.note ?? null,
-        status: financialStatus,
+        status: shippingStatus,
       });
 
       const lineItems: any[] = o.line_items ?? [];
@@ -262,6 +284,7 @@ export async function POST(req: NextRequest) {
           product_name: li.name ?? '(未命名商品)',
           unit_name: li.unit ?? null,
           qty,
+          shipped_qty: getLineItemShippedQty(o, li, qty),
           unit_price: unitPrice,
           discount_pct: 100,
           subtotal: subtotalItem,
@@ -363,4 +386,3 @@ export async function POST(req: NextRequest) {
     errors,
   });
 }
-

@@ -212,10 +212,24 @@ export async function POST(req: NextRequest) {
     if (ff.includes('partial')) return 'partial';
     if (ff.includes('ship') || ff.includes('fulfill') || ff === 'fulfilled') return 'shipped';
 
-    if (f === 'paid') return 'shipped';
     if (f === 'unpaid' || f === 'pending' || f === 'authorized') return 'pending';
 
     return 'pending';
+  }
+
+  function getLineItemShippedQty(lineItem: any, qty: number, fulfillmentStatus: string | null | undefined) {
+    const directValue =
+      lineItem.shipped_quantity ??
+      lineItem.shipped_qty ??
+      lineItem.fulfilled_quantity ??
+      lineItem.fulfilled_qty ??
+      lineItem.quantity_fulfilled;
+    const directQty = Number(directValue);
+    if (Number.isFinite(directQty) && directQty > 0) {
+      return Math.max(0, Math.min(qty, directQty));
+    }
+
+    return mapOrderStatus(null, fulfillmentStatus) === 'shipped' ? qty : 0;
   }
 
   if (topic === 'orders/create' || topic === 'orders/update') {
@@ -315,7 +329,7 @@ export async function POST(req: NextRequest) {
           product_name: li.name ?? '(未命名商品)',
           unit_name: li.unit ?? null,
           qty,
-          shipped_qty: 0,
+          shipped_qty: getLineItemShippedQty(li, qty, data.fulfillment_status),
           unit_price: unitPrice,
           discount_pct: 100,
           subtotal: qty * unitPrice,
