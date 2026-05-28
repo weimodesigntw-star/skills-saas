@@ -33,6 +33,7 @@ export type ProductRow = {
   id: string;
   name: string;
   description?: string | null;
+  product_code?: string | null;
   barcode?: string | null;
   price: number;
   stock: number;
@@ -269,7 +270,7 @@ export function ProductsListClient({
           <Input
             type="text"
             name="q"
-            placeholder="搜尋商品名稱、條碼或 SKU..."
+            placeholder="搜尋商品名稱、商品編碼、條碼或 SKU..."
             defaultValue={search}
             className="flex-1"
           />
@@ -450,6 +451,7 @@ export function ProductsListClient({
                       sortDirection={sortDirection}
                       href={productSortHref('name')}
                     />
+                    <th className="text-left p-4 font-semibold text-sm">商品編碼</th>
                     <th className="text-left p-4 font-semibold text-sm">條碼</th>
                     <ProductSortHeaderLink
                       column="price"
@@ -460,7 +462,7 @@ export function ProductsListClient({
                     />
                     <ProductSortHeaderLink
                       column="stock"
-                      label="庫存 (實/可/留/通)"
+                      label="庫存 (實際/可售/保留/通路)"
                       sortCol={sortCol}
                       sortDirection={sortDirection}
                       href={productSortHref('stock')}
@@ -519,13 +521,14 @@ export function ProductsListClient({
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{product.description}</p>
                         )}
                       </td>
+                      <td className="p-4 text-sm font-mono">{product.product_code || '-'}</td>
                       <td className="p-4 text-sm font-mono">{product.barcode || '-'}</td>
                       <td className="p-4 text-sm font-medium">{formatNTD(product.price)}</td>
                       <td className="p-4 text-sm">
                         <div className="flex flex-col gap-1.5">
                           <span className="inline-flex items-center gap-2 flex-wrap">
                             <span className={cn(product.stock <= 5 ? 'text-red-600 font-bold' : 'font-medium', 'text-base', 'flex items-center gap-1')}>
-                              <Package className="h-3.5 w-3.5" /> 實 {product.stock}
+                              <Package className="h-3.5 w-3.5" /> 實際 {product.stock}
                             </span>
                             {product.stock === 0 ? (
                               <Badge variant="outline" className="border-red-600 text-red-600 px-1 py-0 h-4 text-[10px]">缺貨</Badge>
@@ -533,9 +536,9 @@ export function ProductsListClient({
                           </span>
                           {(product.available_stock !== undefined) && (
                             <div className="text-[11px] text-muted-foreground grid grid-cols-3 gap-1 min-w-[110px]">
-                              <span title="可用庫存">可: <span className="text-green-600 font-medium">{product.available_stock}</span></span>
-                              <span title="保留庫存">留: <span className="text-orange-500 font-medium">{product.reserved_stock}</span></span>
-                              <span title="通路庫存">通: <span className="text-blue-600 font-medium">{product.channel_stock_easystore}</span></span>
+                              <span title="可售庫存">可售: <span className="text-green-600 font-medium">{product.available_stock}</span></span>
+                              <span title="保留庫存">保留: <span className="text-orange-500 font-medium">{product.reserved_stock}</span></span>
+                              <span title="通路庫存">通路: <span className="text-blue-600 font-medium">{product.channel_stock_easystore}</span></span>
                             </div>
                           )}
                         </div>

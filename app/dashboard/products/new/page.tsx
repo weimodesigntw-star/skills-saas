@@ -411,9 +411,9 @@ export default function NewProductPage() {
                     name="product_code"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>商品代碼</FormLabel>
+                        <FormLabel>商品編碼</FormLabel>
                         <FormControl>
-                          <Input placeholder="選填" disabled={isLoading} {...field} />
+                          <Input placeholder="輸入商品編碼" disabled={isLoading} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

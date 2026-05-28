@@ -13,6 +13,7 @@ const ProductSchema = z.object({
   name: z.string().min(1, 'Product name is required').max(255),
   description: z.string().max(2000).optional(),
   barcode: z.string().max(255).optional(),
+  product_code: z.string().max(100).optional(),
   sku: z.string().max(100).optional(),
   unit_name: z.string().max(50).optional(),
   price: z.number().positive('Price must be greater than 0'),
@@ -58,6 +59,7 @@ export interface Product {
   name: string;
   description: string | null;
   barcode: string | null;
+  product_code: string | null;
   sku: string | null;
   unit_name?: string | null;
   price: number;
@@ -154,7 +156,7 @@ export async function getProducts(options?: ProductQueryOptions) {
   // Apply search filter
   if (options?.search) {
     const searchTerm = `%${options.search}%`;
-    query = query.or(`name.ilike.${searchTerm},barcode.ilike.${searchTerm},sku.ilike.${searchTerm}`);
+    query = query.or(`name.ilike.${searchTerm},product_code.ilike.${searchTerm},barcode.ilike.${searchTerm},sku.ilike.${searchTerm}`);
   }
 
   // Apply pagination
@@ -265,6 +267,7 @@ export async function createProduct(formData: FormData) {
     name,
     description: description || undefined,
     barcode: barcode || undefined,
+    product_code: product_code || undefined,
     sku: sku || undefined,
     price,
     cost,
@@ -407,6 +410,7 @@ export async function updateProduct(id: string, formData: FormData) {
     name,
     description: description || undefined,
     barcode: barcode || undefined,
+    product_code: product_code || undefined,
     sku: sku || undefined,
     price,
     cost,

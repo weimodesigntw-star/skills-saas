@@ -27,6 +27,8 @@ import { useRouter } from 'next/navigation';
 import { fetchMembers } from '@/app/actions/customer-members';
 import { MemberCombobox } from '@/components/ui/member-combobox';
 
+type MemberOption = { id: string; name: string; client_code: string | null; phone?: string | null };
+
 function calcItemSubtotal(item: {
   qty: number;
   unit_price: number;
@@ -88,7 +90,8 @@ export function OrderForm({
   const router = useRouter();
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
-  const [members, setMembers] = useState<{ id: string; name: string; client_code: string | null }[]>([]);
+  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
 
   const form = useForm<CustomerOrderFormValues>({
     resolver: zodResolver(customerOrderSchema),
@@ -115,10 +118,25 @@ export function OrderForm({
   const status = form.watch('status');
 
   useEffect(() => {
-    fetchMembers({ pageSize: 500 }).then((r) => {
-      setMembers((r.members ?? []) as { id: string; name: string; client_code: string | null }[]);
-    });
-  }, []);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const search = memberSearch.trim();
+      fetchMembers({ search: search || undefined, pageSize: search ? 50 : 500 }).then((r) => {
+        if (cancelled) return;
+        const nextMembers = (r.members ?? []) as MemberOption[];
+        setMembers(nextMembers);
+
+        if (search && nextMembers.length === 1) {
+          form.setValue('member_id', nextMembers[0].id, { shouldDirty: true, shouldTouch: true });
+        }
+      });
+    }, memberSearch.trim() ? 250 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [memberSearch, form]);
 
   // 即時連動：items 的 shipped_qty 變化 → 自動更新 status
   useEffect(() => {
@@ -235,7 +253,8 @@ export function OrderForm({
                       members={members}
                       value={field.value ?? ''}
                       onChange={field.onChange}
-                      placeholder="搜尋客戶"
+                      onSearchChange={setMemberSearch}
+                      placeholder="搜尋電話號碼"
                       allLabel="無會員"
                     />
                   </FormControl>

@@ -60,8 +60,24 @@ export async function fetchMembers(params: {
     .range(from, from + pageSize - 1);
 
   if (search?.trim()) {
-    const term = `%${search.trim()}%`;
-    query = query.or(`name.ilike.${term},phone.ilike.${term},email.ilike.${term}`);
+    const raw = search.trim();
+    const digits = raw.replace(/\D/g, '');
+
+    const filters: string[] = [];
+    if (digits) {
+      const phonePrefixes = new Set([digits]);
+      if (digits.startsWith('0')) phonePrefixes.add(`886${digits.slice(1)}`);
+      if (digits.startsWith('886')) phonePrefixes.add(`0${digits.slice(3)}`);
+
+      for (const prefix of phonePrefixes) {
+        filters.push(`phone.ilike.${prefix}%`);
+      }
+    } else {
+      const like = `%${raw}%`;
+      filters.push(`name.ilike.${like}`, `email.ilike.${like}`, `client_code.ilike.${like}`);
+    }
+
+    query = query.or(filters.join(','));
   }
 
   const { data, count, error } = await query;

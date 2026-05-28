@@ -119,6 +119,48 @@ async function applyReleaseForItems(
   return { ok: true as const };
 }
 
+function reserveQtyByProduct(items: ReserveItem[]) {
+  const map = new Map<string, number>();
+  for (const item of items) {
+    if (!item.product_id) continue;
+    const qty = Math.max(0, Math.floor(Number(item.qty) - Math.max(0, Number(item.shipped_qty ?? 0))));
+    if (qty <= 0) continue;
+    map.set(item.product_id, (map.get(item.product_id) ?? 0) + qty);
+  }
+  return map;
+}
+
+async function applyReserveDelta(
+  supabase: SupabaseClient,
+  userId: string,
+  prevItems: ReserveItem[],
+  nextItems: ReserveItem[],
+  note: string
+) {
+  const prevMap = reserveQtyByProduct(prevItems);
+  const nextMap = reserveQtyByProduct(nextItems);
+  const productIds = new Set([...prevMap.keys(), ...nextMap.keys()]);
+
+  for (const productId of productIds) {
+    const prev = prevMap.get(productId) ?? 0;
+    const next = nextMap.get(productId) ?? 0;
+    const delta = next - prev;
+    if (delta === 0) continue;
+
+    const res = await runAdjustInventory(
+      supabase,
+      userId,
+      productId,
+      delta > 0 ? 'reserve' : 'release',
+      Math.abs(delta),
+      note
+    );
+    if (!res.ok) return res;
+  }
+
+  return { ok: true as const };
+}
+
 export async function getOrderCodePreview(): Promise<string | null> {
   const supabase = createServerClient();
   const { ownerId } = await getAuthAndWorkspace(supabase);
@@ -263,7 +305,9 @@ export async function fetchCustomerOrders(params?: {
     return { ...order, status: calcShippingStatus(orderItems) };
   });
 
-  return { orders: normalizedOrders, total: count ?? 0, page, pageSize };
+  const filteredOrders = status ? normalizedOrders.filter((order) => String(order.status ?? '') === status) : normalizedOrders;
+
+  return { orders: filteredOrders, total: count ?? 0, page, pageSize };
 }
 
 export async function fetchCustomerOrderById(id: string) {
@@ -544,9 +588,24 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
   const { ownerId } = await getAuthAndWorkspace(supabase);
   if (!ownerId) return { error: '請先登入' };
 
+  const { data: existingOrder, error: existingOrderErr } = await supabase
+    .from('customer_orders')
+    .select('member_id, order_code, status')
+    .eq('id', id)
+    .eq('user_id', ownerId)
+    .maybeSingle();
+  if (existingOrderErr || !existingOrder) return { error: '找不到訂單' };
+
+  const { data: existingItems, error: existingItemsErr } = await supabase
+    .from('customer_order_items')
+    .select('product_id, qty, shipped_qty')
+    .eq('order_id', id);
+  if (existingItemsErr) return { error: '讀取原訂單明細失敗' };
+
   const { subtotal, tax_amount, total } = calcTotals(values);
   const status = values.status === 'cancelled' ? 'cancelled' : calcShippingStatus(values.items);
   const itemsToInsert = values.items.map((item) => ({
+    order_id: id,
     product_id: item.product_id || null,
     product_code: item.product_code || null,
     product_name: item.product_name,
@@ -557,28 +616,53 @@ export async function updateCustomerOrder(id: string, values: CustomerOrderFormV
     discount_pct: item.discount_pct,
     subtotal: calcItemSubtotal(item),
     note: item.note?.trim() || null,
+    cancelled: item.cancelled ?? false,
   }));
-  const { data: rpcRes, error: rpcErr } = await supabase.rpc('update_customer_order_atomic', {
-    p_user_id: ownerId,
-    p_order_id: id,
-    p_advance_date: values.advance_date || null,
-    p_undertaker: values.undertaker?.trim() || null,
-    p_member_id: values.member_id || null,
-    p_currency: values.currency,
-    p_tax_type: values.tax_type,
-    p_taxrate: values.taxrate,
-    p_subtotal: subtotal,
-    p_tax_amount: tax_amount,
-    p_total: total,
-    p_sales_channel: values.sales_channel,
-    p_note: values.note?.trim() || null,
-    p_status: status,
-    p_items: itemsToInsert,
-  });
-  if (rpcErr) return { error: rpcErr.message || '更新訂單失敗' };
+  const { error: orderError } = await supabase
+    .from('customer_orders')
+    .update({
+      advance_date: values.advance_date || null,
+      undertaker: values.undertaker?.trim() || null,
+      member_id: values.member_id || null,
+      currency: values.currency,
+      tax_type: values.tax_type,
+      taxrate: values.taxrate,
+      subtotal,
+      tax_amount,
+      total,
+      sales_channel: values.sales_channel,
+      note: values.note?.trim() || null,
+      status,
+    })
+    .eq('id', id)
+    .eq('user_id', ownerId);
+  if (orderError) return { error: orderError.message || '更新訂單失敗' };
 
-  const prevMemberId = ((rpcRes as { prev_member_id?: string | null } | null)?.prev_member_id ?? null) as string | null;
-  const nextMemberId = ((rpcRes as { member_id?: string | null } | null)?.member_id ?? values.member_id ?? null) as string | null;
+  const { error: deleteItemsError } = await supabase
+    .from('customer_order_items')
+    .delete()
+    .eq('order_id', id);
+  if (deleteItemsError) return { error: deleteItemsError.message || '更新訂單明細失敗' };
+
+  const { error: insertItemsError } = await supabase
+    .from('customer_order_items')
+    .insert(itemsToInsert);
+  if (insertItemsError) return { error: insertItemsError.message || '更新訂單明細失敗' };
+  const previousStatus = String((existingOrder as { status?: string | null }).status ?? '').toLowerCase();
+  const previousReserveItems =
+    previousStatus === 'cancelled' ? [] : ((existingItems ?? []) as ReserveItem[]);
+  const nextReserveItems = status === 'cancelled' ? [] : (itemsToInsert as ReserveItem[]);
+  const reserveRes = await applyReserveDelta(
+    supabase,
+    ownerId,
+    previousReserveItems,
+    nextReserveItems,
+    `訂單改單保留調整（${(existingOrder as { order_code?: string | null }).order_code ?? id}）`
+  );
+  if (!reserveRes.ok) return { error: reserveRes.error || '調整保留庫存失敗' };
+
+  const prevMemberId = ((existingOrder as { member_id?: string | null } | null)?.member_id ?? null) as string | null;
+  const nextMemberId = (values.member_id ?? null) as string | null;
   await refreshMemberStats(prevMemberId, supabase);
   await refreshMemberStats(nextMemberId, supabase);
 

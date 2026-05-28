@@ -55,6 +55,104 @@ function fulfillmentOrderId(data: any): string | null {
   return id != null ? String(id) : null;
 }
 
+function getLineItemProductName(lineItem: any) {
+  const productName = String(lineItem.product_name ?? lineItem.name ?? lineItem.title ?? '').trim();
+  const variantName = String(lineItem.variant_name ?? '').trim();
+  if (productName && variantName) return `${productName} - ${variantName}`;
+  return productName || variantName || '(未命名商品)';
+}
+
+function toFiniteNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getLineItemNetTotal(lineItem: any, qty: number) {
+  const unitPrice = toFiniteNumber(lineItem.price ?? lineItem.unit_price, 0);
+  const grossTotal = toFiniteNumber(lineItem.subtotal, qty * unitPrice);
+  const totalAmount = toFiniteNumber(lineItem.total_amount, NaN);
+
+  if (Number.isFinite(totalAmount)) {
+    return Math.max(0, totalAmount);
+  }
+
+  const itemDiscount = toFiniteNumber(lineItem.total_discount, 0);
+  const orderDiscount = toFiniteNumber(lineItem.allocated_order_level_discount, 0);
+  return Math.max(0, grossTotal - itemDiscount - orderDiscount);
+}
+
+function getLineItemUnitPrice(lineItem: any, qty: number) {
+  const unitPrice = toFiniteNumber(lineItem.price ?? lineItem.unit_price, 0);
+  if (qty <= 0) return unitPrice;
+  return Math.round(getLineItemNetTotal(lineItem, qty) / qty);
+}
+
+function buildMemberRowFromEasyStoreCustomer(customer: any, userId: string) {
+  const fallbackName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+  const row: Record<string, any> = {
+    user_id: userId,
+    easystore_customer_id: String(customer.id),
+    name: (customer.name ?? customer.full_name ?? fallbackName) || '(未命名客戶)',
+    email: customer.email ?? null,
+    phone: customer.phone ?? customer.mobile ?? null,
+  };
+
+  if (customer.birthday ?? customer.birthdate) row.birthday = customer.birthday ?? customer.birthdate;
+  if (customer.state !== undefined) row.is_active = customer.state === 'enabled';
+  const clientCat = tagsToClientCat(customer);
+  if (clientCat) row.client_cat = clientCat;
+
+  return row;
+}
+
+async function upsertMemberFromEasyStoreCustomer(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  customer: any
+) {
+  if (!customer?.id) return null;
+
+  const { data, error } = await supabase
+    .from('members')
+    .upsert(buildMemberRowFromEasyStoreCustomer(customer, userId), { onConflict: 'easystore_customer_id,user_id' })
+    .select('id')
+    .maybeSingle();
+
+  if (!error && data?.id) return data.id as string;
+
+  const { data: member } = await supabase
+    .from('members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('easystore_customer_id', String(customer.id))
+    .maybeSingle();
+
+  return (member?.id as string | undefined) ?? null;
+}
+
+async function buildEasyStoreProductIdMapWebhook(
+  supabase: ReturnType<typeof createAdminClient>,
+  uid: string,
+  easystoreProductIds: string[]
+): Promise<Record<string, string>> {
+  const unique = [...new Set(easystoreProductIds.map((s) => String(s).trim()).filter(Boolean))];
+  const map: Record<string, string> = {};
+  const CHUNK = 150;
+  for (let j = 0; j < unique.length; j += CHUNK) {
+    const chunk = unique.slice(j, j + CHUNK);
+    const { data } = await supabase
+      .from('products')
+      .select('id, easystore_product_id')
+      .eq('user_id', uid)
+      .in('easystore_product_id', chunk);
+    for (const row of data ?? []) {
+      const id = row.easystore_product_id as string | null;
+      if (id && row.id && map[id] == null) map[id] = row.id as string;
+    }
+  }
+  return map;
+}
+
 async function buildSkuToProductIdMapWebhook(
   supabase: ReturnType<typeof createAdminClient>,
   uid: string,
@@ -217,6 +315,11 @@ export async function POST(req: NextRequest) {
     return 'pending';
   }
 
+  function isPaidEasyStoreOrder(order: any) {
+    const status = String(order.financial_status ?? '').toLowerCase();
+    return status === 'paid' || status === 'partially_refunded';
+  }
+
   function getLineItemShippedQty(lineItem: any, qty: number, fulfillmentStatus: string | null | undefined) {
     const directValue =
       lineItem.shipped_quantity ??
@@ -233,19 +336,17 @@ export async function POST(req: NextRequest) {
   }
 
   if (topic === 'orders/create' || topic === 'orders/update') {
+    if (!isPaidEasyStoreOrder(data)) {
+      return NextResponse.json({ ok: true, skipped: 'unpaid_order' });
+    }
+
     const orderTotal = Number(data.total_price ?? data.total_amount ?? 0) || 0;
     const subtotal = Number(data.subtotal_price ?? orderTotal) || orderTotal;
     const easystoreOrderId = String(data.id);
 
     let memberId: string | null = null;
     if (data.customer?.id) {
-      const { data: member } = await supabase
-        .from('members')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('easystore_customer_id', String(data.customer.id))
-        .maybeSingle();
-      memberId = member?.id ?? null;
+      memberId = await upsertMemberFromEasyStoreCustomer(supabase, userId, data.customer);
     }
 
     const { data: prevOrder } = await supabase
@@ -312,27 +413,36 @@ export async function POST(req: NextRequest) {
     const lineItems: any[] = data.line_items ?? [];
     if (orderUuid) {
       const skus = lineItems.map((li: any) => li.sku).filter(Boolean).map((s: any) => String(s).trim());
+      const easystoreProductIds = lineItems
+        .map((li: any) => li.product_id)
+        .filter(Boolean)
+        .map((id: any) => String(id).trim());
+      const easystoreProductIdMap = await buildEasyStoreProductIdMapWebhook(supabase, userId, easystoreProductIds);
       const skuMap = await buildSkuToProductIdMapWebhook(supabase, userId, skus);
 
       await supabase.from('customer_order_items').delete().eq('order_id', orderUuid);
 
       const rows = lineItems.map((li: any) => {
         const qty = Number(li.quantity ?? li.qty ?? 0);
-        const unitPrice = Number(li.price ?? li.unit_price ?? 0);
+        const unitPrice = getLineItemUnitPrice(li, qty);
         const sku = li.sku != null ? String(li.sku).trim() : '';
-        const productId = sku && skuMap[sku] ? skuMap[sku] : null;
+        const easystoreProductId = li.product_id != null ? String(li.product_id).trim() : '';
+        const productId =
+          (easystoreProductId && easystoreProductIdMap[easystoreProductId]) ||
+          (sku && skuMap[sku]) ||
+          null;
         return {
           order_id: orderUuid,
           easystore_line_item_id: li.id != null ? String(li.id) : null,
           product_id: productId,
           product_code: li.sku ?? null,
-          product_name: li.name ?? '(未命名商品)',
+          product_name: getLineItemProductName(li),
           unit_name: li.unit ?? null,
           qty,
           shipped_qty: getLineItemShippedQty(li, qty, data.fulfillment_status),
           unit_price: unitPrice,
           discount_pct: 100,
-          subtotal: qty * unitPrice,
+          subtotal: Math.round(getLineItemNetTotal(li, qty)),
           note: li.note ?? null,
         };
       });

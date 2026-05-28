@@ -13,6 +13,11 @@ function mapShippingStatus(fulfillmentStatus: unknown) {
   return 'pending';
 }
 
+function isPaidEasyStoreOrder(order: EasyStoreOrder) {
+  const status = String(order.financial_status ?? '').toLowerCase();
+  return status === 'paid' || status === 'partially_refunded';
+}
+
 function getLineItemShippedQty(order: EasyStoreOrder, lineItem: Record<string, any>, qty: number) {
   const directValue =
     lineItem.shipped_quantity ??
@@ -28,7 +33,108 @@ function getLineItemShippedQty(order: EasyStoreOrder, lineItem: Record<string, a
   return mapShippingStatus(order.fulfillment_status) === 'shipped' ? qty : 0;
 }
 
-/** ES-003：依 SKU（product_code）對應本地 products.id */
+function getLineItemProductName(lineItem: Record<string, any>) {
+  const productName = String(lineItem.product_name ?? lineItem.name ?? lineItem.title ?? '').trim();
+  const variantName = String(lineItem.variant_name ?? '').trim();
+  if (productName && variantName) return `${productName} - ${variantName}`;
+  return productName || variantName || '(未命名商品)';
+}
+
+function toFiniteNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getLineItemNetTotal(lineItem: Record<string, any>, qty: number) {
+  const unitPrice = toFiniteNumber(lineItem.price ?? lineItem.unit_price, 0);
+  const grossTotal = toFiniteNumber(lineItem.subtotal, qty * unitPrice);
+  const totalAmount = toFiniteNumber(lineItem.total_amount, NaN);
+
+  if (Number.isFinite(totalAmount)) {
+    return Math.max(0, totalAmount);
+  }
+
+  const itemDiscount = toFiniteNumber(lineItem.total_discount, 0);
+  const orderDiscount = toFiniteNumber(lineItem.allocated_order_level_discount, 0);
+  return Math.max(0, grossTotal - itemDiscount - orderDiscount);
+}
+
+function getLineItemUnitPrice(lineItem: Record<string, any>, qty: number) {
+  const unitPrice = toFiniteNumber(lineItem.price ?? lineItem.unit_price, 0);
+  if (qty <= 0) return unitPrice;
+  return Math.round(getLineItemNetTotal(lineItem, qty) / qty);
+}
+
+function buildMemberRowFromEasyStoreCustomer(customer: Record<string, any>, userId: string) {
+  const fallbackName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+  const row: Record<string, any> = {
+    user_id: userId,
+    easystore_customer_id: String(customer.id),
+    name: (customer.name ?? customer.full_name ?? fallbackName) || '(未命名客戶)',
+    email: customer.email ?? null,
+    phone: customer.phone ?? customer.mobile ?? null,
+  };
+
+  if (customer.birthday ?? customer.birthdate) row.birthday = customer.birthday ?? customer.birthdate;
+  if (customer.state !== undefined) row.is_active = customer.state === 'enabled';
+  if (customer.tags ?? customer.customer_tags) {
+    const tags = customer.tags ?? customer.customer_tags;
+    row.client_cat = Array.isArray(tags) ? tags.map(String).join(', ') : String(tags);
+  }
+
+  return row;
+}
+
+async function upsertMemberFromEasyStoreCustomer(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  customer: Record<string, any> | null | undefined
+) {
+  if (!customer?.id) return null;
+
+  const row = buildMemberRowFromEasyStoreCustomer(customer, userId);
+  const { data, error } = await admin
+    .from('members')
+    .upsert(row, { onConflict: 'easystore_customer_id,user_id' })
+    .select('id')
+    .maybeSingle();
+
+  if (!error && data?.id) return data.id as string;
+
+  const { data: member } = await admin
+    .from('members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('easystore_customer_id', String(customer.id))
+    .maybeSingle();
+
+  return (member?.id as string | undefined) ?? null;
+}
+
+async function buildEasyStoreProductIdMap(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  easystoreProductIds: string[]
+): Promise<Record<string, string>> {
+  const unique = [...new Set(easystoreProductIds.map((s) => String(s).trim()).filter(Boolean))];
+  const map: Record<string, string> = {};
+  const CHUNK = 150;
+  for (let j = 0; j < unique.length; j += CHUNK) {
+    const chunk = unique.slice(j, j + CHUNK);
+    const { data } = await admin
+      .from('products')
+      .select('id, easystore_product_id')
+      .eq('user_id', userId)
+      .in('easystore_product_id', chunk);
+    for (const row of data ?? []) {
+      const id = row.easystore_product_id as string | null;
+      if (id && row.id && map[id] == null) map[id] = row.id as string;
+    }
+  }
+  return map;
+}
+
+/** ES-003：依 EasyStore product_id / SKU 對應本地 products.id */
 async function buildSkuToProductIdMap(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
@@ -213,18 +319,24 @@ export async function POST(req: NextRequest) {
   let failed = 0;
   const errors: string[] = [];
 
+  const paidOrders = allOrders.filter(isPaidEasyStoreOrder);
+  const skippedUnpaid = allOrders.length - paidOrders.length;
+
   const BATCH = 50;
   const touchedMemberIds = new Set<string>();
 
-  for (let i = 0; i < allOrders.length; i += BATCH) {
-    const batch = allOrders.slice(i, i + BATCH);
+  for (let i = 0; i < paidOrders.length; i += BATCH) {
+    const batch = paidOrders.slice(i, i + BATCH);
 
     const skusInBatch: string[] = [];
+    const easystoreProductIdsInBatch: string[] = [];
     for (const o of batch) {
       for (const li of o.line_items ?? []) {
         if (li.sku != null && String(li.sku).trim()) skusInBatch.push(String(li.sku).trim());
+        if (li.product_id != null && String(li.product_id).trim()) easystoreProductIdsInBatch.push(String(li.product_id).trim());
       }
     }
+    const easystoreProductIdMap = await buildEasyStoreProductIdMap(admin, ownerId, easystoreProductIdsInBatch);
     const skuToProductId = await buildSkuToProductIdMap(admin, ownerId, skusInBatch);
 
     // 先準備要 upsert 的 customer_orders 以及 items
@@ -241,13 +353,7 @@ export async function POST(req: NextRequest) {
       let memberId: string | null = null;
       const customerId = o.customer?.id;
       if (customerId) {
-        const { data: member } = await admin
-          .from('members')
-          .select('id')
-          .eq('user_id', ownerId)
-          .eq('easystore_customer_id', String(customerId))
-          .maybeSingle();
-        memberId = member?.id ?? null;
+        memberId = await upsertMemberFromEasyStoreCustomer(admin, ownerId, o.customer);
         if (memberId) touchedMemberIds.add(memberId);
       }
 
@@ -271,17 +377,21 @@ export async function POST(req: NextRequest) {
       const lineItems: any[] = o.line_items ?? [];
       for (const li of lineItems) {
         const qty = Number(li.quantity ?? li.qty ?? 0);
-        const unitPrice = Number(li.price ?? li.unit_price ?? 0);
-        const subtotalItem = qty * unitPrice;
+        const unitPrice = getLineItemUnitPrice(li, qty);
+        const subtotalItem = Math.round(getLineItemNetTotal(li, qty));
         const sku = li.sku != null ? String(li.sku).trim() : '';
-        const productId = sku && skuToProductId[sku] ? skuToProductId[sku] : null;
+        const easystoreProductId = li.product_id != null ? String(li.product_id).trim() : '';
+        const productId =
+          (easystoreProductId && easystoreProductIdMap[easystoreProductId]) ||
+          (sku && skuToProductId[sku]) ||
+          null;
 
         itemRows.push({
           _easystore_order_id: easystoreOrderId,
           easystore_line_item_id: String(li.id ?? ''),
           product_id: productId,
           product_code: li.sku ?? null,
-          product_name: li.name ?? '(未命名商品)',
+          product_name: getLineItemProductName(li),
           unit_name: li.unit ?? null,
           qty,
           shipped_qty: getLineItemShippedQty(o, li, qty),
@@ -381,6 +491,7 @@ export async function POST(req: NextRequest) {
     mode,
     since: sinceDate,
     total: allOrders.length,
+    skippedUnpaid,
     synced,
     failed,
     errors,
